@@ -1,0 +1,24 @@
+---
+import Layout from '../layouts/Layout.astro';
+import ISSTracker from '../components/ISSTracker';
+---
+
+<Layout title="ISS Live Tracker" description="Track the International Space Station in real-time on an interactive 3D globe — Biswajit Jana @2026">
+  <section style="padding:7rem 1.5rem 2rem;text-align:center;background:radial-gradient(ellipse at 50% 0%,rgba(255,238,68,0.08) 0%,transparent 60%);border-bottom:1px solid rgba(255,255,255,0.06);">
+    <div style="display:inline-flex;align-items:center;gap:0.5rem;background:rgba(255,238,68,0.10);border:1px solid rgba(255,238,68,0.3);border-radius:50px;padding:0.35rem 1rem;font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#fde68a;margin-bottom:1.2rem;">
+      <span style="width:6px;height:6px;border-radius:50%;background:#fde68a;display:inline-block;animation:pulse-glow 1.5s ease-in-out infinite;"></span>
+      Live · Refreshes every 3 seconds
+    </div>
+    <h1 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(2rem,5vw,3.2rem);font-weight:900;margin-bottom:0.75rem;background:linear-gradient(135deg,#fde68a,#fbbf24,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+      ISS Real-Time Tracker
+    </h1>
+    <p style="color:rgba(255,255,255,0.45);font-size:0.95rem;max-width:500px;margin:0 auto;">
+      The International Space Station orbits at 400 km altitude completing a lap every 92 minutes.
+      Track its exact position on a live 3D globe.
+    </p>
+  </section>
+
+  <div style="padding-top:0;">
+    <ISSTracker client:load />
+  </div>
+</Layout>

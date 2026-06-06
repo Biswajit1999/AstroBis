@@ -1,0 +1,116 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="About" description="Built by Biswajit Jana — the science and technology behind this platform">
+
+  <section style="padding:7rem 1.5rem 4rem;max-width:780px;margin:0 auto;">
+
+    <!-- Eyebrow -->
+    <div style="
+      display:inline-flex;align-items:center;gap:0.5rem;
+      background:rgba(96,165,250,0.10);border:1px solid rgba(96,165,250,0.25);
+      border-radius:50px;padding:0.35rem 1rem;
+      font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+      color:#93c5fd;margin-bottom:1.5rem;
+    ">🔭 About this Platform</div>
+
+    <h1 style="
+      font-family:'Space Grotesk',sans-serif;
+      font-size:clamp(2.2rem,5vw,3.5rem);
+      font-weight:900;margin-bottom:2rem;
+      background:linear-gradient(135deg,#93c5fd,#a78bfa,#f0abfc);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    ">Where Astrophysics Meets the Web</h1>
+
+    <div style="display:flex;flex-direction:column;gap:2rem;color:rgba(255,255,255,0.72);font-size:0.97rem;line-height:1.75;">
+
+      <div class="card">
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.25rem;color:#fff;margin-bottom:0.75rem;">
+          🎓 The Science Behind It
+        </h2>
+        <p>
+          This platform is built by an astrophysics researcher — studying
+          stellar evolution, exoplanet detection via transit photometry and radial velocity, and
+          computational simulations of gravitational dynamics. Every number, every unit, and every
+          habitability metric is grounded in peer-reviewed methods.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.25rem;color:#fff;margin-bottom:0.75rem;">
+          🛠 Technology Stack
+        </h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.85rem;">
+          {[
+            ['Astro 4.x', 'Static site generation + islands'],
+            ['React 18', 'Interactive UI components'],
+            ['Three.js / R3F', '3D WebGL solar system'],
+            ['@react-three/drei', 'OrbitControls, Stars, Html'],
+            ['Tailwind CSS', 'Utility-first styling'],
+            ['NASA Exoplanet API', 'Live planetary data'],
+            ['NASA APOD API', 'Daily astronomy images'],
+            ['Vercel', 'Global CDN deployment'],
+          ].map(([tech, desc]) => (
+            <div style={{
+              background:'rgba(255,255,255,0.04)',
+              border:'1px solid rgba(255,255,255,0.07)',
+              borderRadius:10,padding:'0.6rem 0.85rem',
+            }}>
+              <div style={{fontWeight:700,color:'#a78bfa',fontSize:'0.82rem',marginBottom:'0.15rem'}}>{tech}</div>
+              <div style={{color:'rgba(255,255,255,0.45)',fontSize:'0.75rem'}}>{desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.25rem;color:#fff;margin-bottom:0.75rem;">
+          📡 Data Sources
+        </h2>
+        <ul style="display:flex;flex-direction:column;gap:0.5rem;padding-left:0;list-style:none;">
+          {[
+            ['NASA Exoplanet Archive', 'https://exoplanetarchive.ipac.caltech.edu', '5,700+ confirmed exoplanets'],
+            ['NASA APOD API', 'https://api.nasa.gov', 'Daily astronomy image'],
+            ['IAU Minor Planet Center', 'https://www.minorplanetcenter.net', 'Asteroid data'],
+            ['Open Exoplanet Catalogue', 'https://github.com/openexoplanetcatalogue', 'Supplemental data'],
+          ].map(([name, url, note]) => (
+            <li style={{
+              display:'flex',alignItems:'center',gap:'0.75rem',
+              padding:'0.6rem 0',
+              borderBottom:'1px solid rgba(255,255,255,0.06)',
+            }}>
+              <span style={{width:8,height:8,borderRadius:'50%',background:'#a78bfa',flexShrink:0}} />
+              <div>
+                <a href={url} target="_blank" rel="noopener" style={{
+                  color:'#93c5fd',fontWeight:600,fontSize:'0.88rem',textDecoration:'none',
+                }}>{name}</a>
+                <div style={{color:'rgba(255,255,255,0.4)',fontSize:'0.76rem'}}>{note}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.25rem;color:#fff;margin-bottom:0.75rem;">
+          ⚙️ Habitability Index
+        </h2>
+        <p style="margin-bottom:0.75rem;">
+          The habitability score shown on each exoplanet card is a simplified proxy for the
+          <strong style="color:#c4b5fd;">Earth Similarity Index (ESI)</strong>. It weighs:
+        </p>
+        <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:0.4rem;font-size:0.88rem;">
+          <li>🔵 <strong>Radius (60%)</strong> — planets near Earth's size (0.7–1.5 R⊕) score highest</li>
+          <li>🟡 <strong>Orbital period (40%)</strong> — periods 200–600 days suggest habitable-zone positioning</li>
+        </ul>
+        <p style="margin-top:0.75rem;font-size:0.82rem;color:rgba(255,255,255,0.45);">
+          Note: True habitability requires stellar luminosity, eccentricity, atmospheric data, and more.
+          This is a first-order approximation from available catalog data.
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+</Layout>

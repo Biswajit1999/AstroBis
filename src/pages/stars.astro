@@ -1,0 +1,23 @@
+---
+import Layout from '../layouts/Layout.astro';
+import StarCatalogue from '../components/StarCatalogue';
+---
+
+<Layout title="3D Star Catalogue" description="Interactive 3D map of the brightest stars — spectral classification, distances, and astrophysics data — Biswajit Jana @2026">
+  <section style="padding:7rem 1.5rem 2.5rem;text-align:center;background:radial-gradient(ellipse at 50% 0%,rgba(167,139,250,0.08) 0%,transparent 60%);border-bottom:1px solid rgba(255,255,255,0.06);">
+    <div style="display:inline-flex;align-items:center;gap:0.5rem;background:rgba(167,139,250,0.10);border:1px solid rgba(167,139,250,0.3);border-radius:50px;padding:0.35rem 1rem;font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#c4b5fd;margin-bottom:1.2rem;">
+      ⭐ Yale Bright Star Catalogue
+    </div>
+    <h1 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(2rem,5vw,3.2rem);font-weight:900;margin-bottom:0.75rem;background:linear-gradient(135deg,#c4b5fd,#a78bfa,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+      3D Star Catalogue
+    </h1>
+    <p style="color:rgba(255,255,255,0.45);font-size:0.95rem;max-width:560px;margin:0 auto;">
+      60+ of the brightest and most famous stars rendered in 3D using real equatorial coordinates.
+      Colour-coded by spectral class — from hot blue O-types to cool red M-giants.
+    </p>
+  </section>
+
+  <div style="padding-top:0;">
+    <StarCatalogue client:load />
+  </div>
+</Layout>
