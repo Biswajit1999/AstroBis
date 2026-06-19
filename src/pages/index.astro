@@ -3,6 +3,10 @@ import Layout from '../layouts/Layout.astro';
 import StarfieldCanvas from '../components/StarfieldCanvas';
 import StatsCounter from '../components/StatsCounter';
 import APODCard from '../components/APODCard';
+
+const baseUrl = import.meta.env.BASE_URL;
+const basePath = baseUrl.replace(/\/$/, '');
+const withBase = (path: string) => path === '/' ? baseUrl : `${basePath}${path}`;
 ---
 
 <Layout title="Home" description="An interactive astrophysics platform — explore the cosmos with real data and 3D simulations">
@@ -65,10 +69,10 @@ import APODCard from '../components/APODCard';
 
       <!-- CTAs -->
       <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-bottom:3rem;">
-        <a href="/viewer" class="btn btn-primary" style="font-size:1rem;">
+        <a href={withBase('/viewer')} class="btn btn-primary" style="font-size:1rem;">
           🚀 Launch 3D Simulator
         </a>
-        <a href="/exoplanets" class="btn btn-secondary" style="font-size:1rem;">
+        <a href={withBase('/exoplanets')} class="btn btn-secondary" style="font-size:1rem;">
           🌍 Exoplanet Explorer
         </a>
       </div>
@@ -143,7 +147,7 @@ import APODCard from '../components/APODCard';
           desc:'All 8 planets orbiting in real-time with Saturn\'s rings, Earth\'s moon, the asteroid belt, and a glowing corona sun. Click any planet for data.',
           tag:'Three.js + WebGL',
           tagCol:'#a78bfa',
-          href:'/viewer',
+          href:withBase('/viewer'),
           cta:'Open Simulator',
         },
         {
@@ -152,7 +156,7 @@ import APODCard from '../components/APODCard';
           desc:'Browse 5,700+ confirmed exoplanets from the NASA Exoplanet Archive. Filter, sort, and inspect orbital mechanics and habitability data.',
           tag:'NASA API',
           tagCol:'#f97316',
-          href:'/exoplanets',
+          href:withBase('/exoplanets'),
           cta:'Browse Planets',
         },
         {
@@ -170,7 +174,7 @@ import APODCard from '../components/APODCard';
           desc:'Built on real astrophysics research. Accurate science, not simplified analogies — including stellar evolution, spectral types, and habitability indices.',
           tag:'Peer-reviewed',
           tagCol:'#60a5fa',
-          href:'/about',
+          href:withBase('/about'),
           cta:'About the Platform',
         },
       ].map(f => (
@@ -232,7 +236,7 @@ import APODCard from '../components/APODCard';
         Zoom into Saturn's rings, click on Neptune, or browse 5,700 worlds beyond our solar system.
         No login. No download. Just science.
       </p>
-      <a href="/viewer" class="btn btn-primary" style="font-size:1.1rem;padding:1rem 2.5rem;animation:pulse-glow 3s ease-in-out infinite;">
+      <a href={withBase('/viewer')} class="btn btn-primary" style="font-size:1.1rem;padding:1rem 2.5rem;animation:pulse-glow 3s ease-in-out infinite;">
         🚀 Launch the 3D Simulator
       </a>
     </div>
