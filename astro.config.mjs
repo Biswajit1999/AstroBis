@@ -3,6 +3,8 @@ import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
 
 export default defineConfig({
+  site: 'https://biswajit1999.github.io',
+  base: '/AstroBis',
   integrations: [react(), tailwind()],
   output: 'static',
   vite: {
