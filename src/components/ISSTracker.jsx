@@ -3,11 +3,33 @@ import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { Html, Line, OrbitControls, Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
+import * as satellite from 'satellite.js';
 
 const EARTH_RADIUS_KM = 6371;
-const ISS_ID = 25544;
-const EARTH_DAY = 'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg';
-const EARTH_CLOUDS = 'https://threejs.org/examples/textures/planets/earth_clouds_1024.png';
+const ISS_CATNR = 25544;
+const BASE_PATH = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+const LOCAL_TLE_URL = `${BASE_PATH}data/iss-tle.json`;
+const CELESTRAK_TLE_URL = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${ISS_CATNR}&FORMAT=TLE`;
+
+const EARTH_TEXTURES = {
+  day: 'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg',
+  normal: 'https://threejs.org/examples/textures/planets/earth_normal_2048.jpg',
+  specular: 'https://threejs.org/examples/textures/planets/earth_specular_2048.jpg',
+  lights: 'https://threejs.org/examples/textures/planets/earth_lights_2048.png',
+  clouds: 'https://threejs.org/examples/textures/planets/earth_clouds_1024.png',
+};
+
+const FALLBACK_TLE = {
+  name: 'ISS (ZARYA)',
+  line1: '1 25544U 98067A   26171.00000000  .00016717  00000+0  10270-3 0  9993',
+  line2: '2 25544  51.6400 000.0000 0006703 000.0000 000.0000 15.50000000    10',
+  source: 'offline fallback TLE',
+  generatedAt: new Date().toISOString(),
+};
+
+function normalizeLon(lon) {
+  return ((lon + 540) % 360) - 180;
+}
 
 function latLonVector(lat, lon, radius = 1) {
   const phi = (90 - lat) * Math.PI / 180;
@@ -19,28 +41,88 @@ function latLonVector(lat, lon, radius = 1) {
   );
 }
 
-function normalizeLon(lon) {
-  return ((lon + 540) % 360) - 180;
+function parseTleText(text) {
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (lines.length < 3 || !lines[1].startsWith('1 ') || !lines[2].startsWith('2 ')) {
+    throw new Error('Invalid TLE payload');
+  }
+  return {
+    name: lines[0],
+    line1: lines[1],
+    line2: lines[2],
+    source: 'CelesTrak live GP/TLE',
+    generatedAt: new Date().toISOString(),
+  };
 }
 
-function buildProjectedOrbit(current) {
-  const inclination = 51.64 * Math.PI / 180;
-  const baseLon = current?.longitude ?? 0;
-  const basePhase = Math.asin(Math.max(-0.98, Math.min(0.98, Math.sin((current?.latitude ?? 0) * Math.PI / 180) / Math.sin(inclination))));
+function tleEpochDate(satrec) {
+  if (!satrec?.epochyr || !Number.isFinite(satrec.epochdays)) return null;
+  const year = satrec.epochyr < 57 ? 2000 + satrec.epochyr : 1900 + satrec.epochyr;
+  const start = Date.UTC(year, 0, 1, 0, 0, 0, 0);
+  return new Date(start + (satrec.epochdays - 1) * 86400000);
+}
+
+function computeState(satrec, date = new Date()) {
+  if (!satrec) return null;
+  const pv = satellite.propagate(satrec, date);
+  if (!pv?.position || !pv?.velocity) return null;
+
+  const gmst = satellite.gstime(date);
+  const geo = satellite.eciToGeodetic(pv.position, gmst);
+  const latitude = satellite.degreesLat(geo.latitude);
+  const longitude = normalizeLon(satellite.degreesLong(geo.longitude));
+  const altitude = geo.height;
+  const velocity = Math.sqrt((pv.velocity.x ** 2) + (pv.velocity.y ** 2) + (pv.velocity.z ** 2));
+  const orbitalRadius = EARTH_RADIUS_KM + altitude;
+  const visibility = isDaylight(latitude, longitude, date) ? 'daylight' : 'eclipsed';
+
+  return {
+    latitude,
+    longitude,
+    altitude,
+    velocity,
+    orbitalRadius,
+    visibility,
+    timestamp: date.getTime(),
+    date,
+  };
+}
+
+function isDaylight(lat, lon, date) {
+  const dayOfYear = Math.floor((Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) - Date.UTC(date.getUTCFullYear(), 0, 0)) / 86400000);
+  const declination = 23.44 * Math.sin(((360 / 365) * (dayOfYear - 81)) * Math.PI / 180);
+  const utcHours = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
+  const solarTime = utcHours + lon / 15;
+  const hourAngle = (solarTime - 12) * 15;
+  const elevation = Math.asin(
+    Math.sin(lat * Math.PI / 180) * Math.sin(declination * Math.PI / 180)
+    + Math.cos(lat * Math.PI / 180) * Math.cos(declination * Math.PI / 180) * Math.cos(hourAngle * Math.PI / 180),
+  ) * 180 / Math.PI;
+  return elevation > -6;
+}
+
+function buildOrbitPoints(satrec, minutesBefore = 46, minutesAfter = 92, stepMinutes = 2) {
+  if (!satrec) return [];
+  const now = Date.now();
   const points = [];
-  for (let i = -120; i <= 180; i += 1) {
-    const phase = basePhase + (i / 180) * Math.PI;
-    const lat = Math.asin(Math.sin(inclination) * Math.sin(phase)) * 180 / Math.PI;
-    const lon = normalizeLon(baseLon + i * 2.05);
-    points.push(latLonVector(lat, lon, 1.071));
+  for (let minutes = -minutesBefore; minutes <= minutesAfter; minutes += stepMinutes) {
+    const state = computeState(satrec, new Date(now + minutes * 60000));
+    if (state) {
+      points.push(latLonVector(state.latitude, state.longitude, 1 + Math.max(0, state.altitude) / EARTH_RADIUS_KM));
+    }
   }
   return points;
 }
 
-function kmps(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return 'n/a';
-  return (number / 3600).toFixed(2);
+function buildGroundTrack(satrec, minutesBefore = 46, minutesAfter = 92, stepMinutes = 2) {
+  if (!satrec) return [];
+  const now = Date.now();
+  const points = [];
+  for (let minutes = -minutesBefore; minutes <= minutesAfter; minutes += stepMinutes) {
+    const state = computeState(satrec, new Date(now + minutes * 60000));
+    if (state) points.push(state);
+  }
+  return points;
 }
 
 function clockTime(date) {
@@ -48,63 +130,95 @@ function clockTime(date) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
-function EarthGlobe({ issData, track, followMode }) {
-  const earthTexture = useLoader(THREE.TextureLoader, EARTH_DAY);
-  const cloudTexture = useLoader(THREE.TextureLoader, EARTH_CLOUDS);
+function ageText(date) {
+  if (!date) return 'n/a';
+  const hours = Math.max(0, (Date.now() - date.getTime()) / 3600000);
+  if (hours < 1) return `${Math.round(hours * 60)} min`;
+  if (hours < 48) return `${hours.toFixed(1)} hr`;
+  return `${(hours / 24).toFixed(1)} days`;
+}
+
+function EarthGlobe({ satrec, issData, trail, followMode }) {
+  const [earthDay, earthNormal, earthSpecular, earthLights, earthClouds] = useLoader(THREE.TextureLoader, [
+    EARTH_TEXTURES.day,
+    EARTH_TEXTURES.normal,
+    EARTH_TEXTURES.specular,
+    EARTH_TEXTURES.lights,
+    EARTH_TEXTURES.clouds,
+  ]);
   const clouds = useRef();
   const issGlow = useRef();
   const controls = useRef();
-  const issPoint = issData ? latLonVector(issData.latitude, issData.longitude, 1.078) : null;
-  const orbitPoints = useMemo(() => buildProjectedOrbit(issData), [issData]);
-  const trailPoints = useMemo(() => track.map((point) => latLonVector(point.latitude, point.longitude, 1.082)), [track]);
+  const issPoint = issData ? latLonVector(issData.latitude, issData.longitude, 1 + Math.max(0, issData.altitude) / EARTH_RADIUS_KM) : null;
+  const orbitPoints = useMemo(() => buildOrbitPoints(satrec), [satrec, issData?.timestamp]);
+  const trailPoints = useMemo(() => trail.map((point) => latLonVector(point.latitude, point.longitude, 1 + Math.max(0, point.altitude) / EARTH_RADIUS_KM)), [trail]);
+
+  useMemo(() => {
+    [earthDay, earthLights, earthClouds].forEach((texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = 8;
+    });
+    earthNormal.anisotropy = 8;
+    earthSpecular.anisotropy = 8;
+  }, [earthDay, earthNormal, earthSpecular, earthLights, earthClouds]);
 
   useFrame(({ clock, camera }) => {
     const t = clock.getElapsedTime();
-    if (clouds.current) clouds.current.rotation.y = t * 0.012;
-    if (issGlow.current) issGlow.current.scale.setScalar(1 + Math.sin(t * 5) * 0.18);
+    if (clouds.current) clouds.current.rotation.y = t * 0.008;
+    if (issGlow.current) issGlow.current.scale.setScalar(1 + Math.sin(t * 5.4) * 0.18);
     if (followMode && issPoint && controls.current) {
-      const target = issPoint.clone().multiplyScalar(0.35);
-      controls.current.target.lerp(target, 0.04);
+      const target = issPoint.clone().multiplyScalar(0.42);
+      controls.current.target.lerp(target, 0.045);
       camera.lookAt(controls.current.target);
     }
   });
 
-  earthTexture.colorSpace = THREE.SRGBColorSpace;
-  cloudTexture.colorSpace = THREE.SRGBColorSpace;
-
   return (
     <>
       <color attach="background" args={['#01030b']} />
-      <Stars radius={160} depth={70} count={8500} factor={3.4} saturation={0.15} fade speed={0.1} />
+      <Stars radius={190} depth={80} count={9800} factor={3.4} saturation={0.12} fade speed={0.08} />
 
-      <group rotation={[0, -0.4, 0]}>
+      <group>
         <mesh>
-          <sphereGeometry args={[1, 96, 96]} />
-          <meshStandardMaterial map={earthTexture} roughness={0.72} metalness={0.02} />
+          <sphereGeometry args={[1, 128, 128]} />
+          <meshPhongMaterial
+            map={earthDay}
+            normalMap={earthNormal}
+            normalScale={new THREE.Vector2(0.38, 0.38)}
+            specularMap={earthSpecular}
+            specular={new THREE.Color('#335f8d')}
+            shininess={22}
+          />
+        </mesh>
+        <mesh>
+          <sphereGeometry args={[1.004, 128, 128]} />
+          <meshBasicMaterial map={earthLights} transparent opacity={0.58} blending={THREE.AdditiveBlending} depthWrite={false} />
         </mesh>
         <mesh ref={clouds}>
-          <sphereGeometry args={[1.012, 96, 96]} />
-          <meshLambertMaterial map={cloudTexture} transparent opacity={0.34} depthWrite={false} />
+          <sphereGeometry args={[1.013, 128, 128]} />
+          <meshLambertMaterial map={earthClouds} transparent opacity={0.33} depthWrite={false} />
         </mesh>
         <mesh>
-          <sphereGeometry args={[1.04, 64, 64]} />
-          <meshBasicMaterial color="#60a5fa" transparent opacity={0.12} side={THREE.BackSide} />
+          <sphereGeometry args={[1.045, 96, 96]} />
+          <meshBasicMaterial color="#60a5fa" transparent opacity={0.13} side={THREE.BackSide} />
         </mesh>
 
-        <Line points={orbitPoints} color="#e5e7eb" transparent opacity={0.28} lineWidth={0.8} />
-        {trailPoints.length > 1 && (
-          <Line points={trailPoints} color="#22c55e" transparent opacity={0.86} lineWidth={2.2} />
-        )}
+        {orbitPoints.length > 1 && <Line points={orbitPoints} color="#e5e7eb" transparent opacity={0.28} lineWidth={0.9} />}
+        {trailPoints.length > 1 && <Line points={trailPoints} color="#22c55e" transparent opacity={0.92} lineWidth={2.4} />}
 
         {issPoint && (
           <group position={issPoint}>
             <mesh>
-              <sphereGeometry args={[0.018, 16, 16]} />
+              <boxGeometry args={[0.038, 0.012, 0.012]} />
               <meshBasicMaterial color="#ffffff" />
             </mesh>
+            <mesh rotation={[0, 0, Math.PI / 2]}>
+              <boxGeometry args={[0.01, 0.095, 0.003]} />
+              <meshBasicMaterial color="#60a5fa" />
+            </mesh>
             <mesh ref={issGlow}>
-              <sphereGeometry args={[0.052, 24, 24]} />
-              <meshBasicMaterial color="#22c55e" transparent opacity={0.3} />
+              <sphereGeometry args={[0.056, 24, 24]} />
+              <meshBasicMaterial color="#22c55e" transparent opacity={0.28} />
             </mesh>
             <Html center distanceFactor={2.7}>
               <div style={{
@@ -120,7 +234,7 @@ function EarthGlobe({ issData, track, followMode }) {
                 boxShadow: '0 0 22px rgba(34,197,94,0.28)',
                 pointerEvents: 'none',
               }}>
-                ISS live
+                ISS SGP4
               </div>
             </Html>
           </group>
@@ -131,13 +245,13 @@ function EarthGlobe({ issData, track, followMode }) {
         <sphereGeometry args={[0.18, 32, 32]} />
         <meshBasicMaterial color="#fbbf24" />
       </mesh>
-      <ambientLight intensity={0.22} color="#7dd3fc" />
-      <directionalLight position={[-4, 2.4, 5]} color="#fff7ed" intensity={3.2} />
+      <ambientLight intensity={0.12} color="#7dd3fc" />
+      <directionalLight position={[-4.6, 2.4, 5]} color="#fff7ed" intensity={3.8} />
       <pointLight position={[-5, 2.7, -4]} color="#facc15" intensity={3.5} distance={12} />
       <EffectComposer>
-        <Bloom luminanceThreshold={0.25} luminanceSmoothing={0.8} intensity={1.45} radius={0.75} />
+        <Bloom luminanceThreshold={0.25} luminanceSmoothing={0.82} intensity={1.42} radius={0.75} />
       </EffectComposer>
-      <OrbitControls ref={controls} enableDamping dampingFactor={0.06} minDistance={1.35} maxDistance={5.6} />
+      <OrbitControls ref={controls} enableDamping dampingFactor={0.06} minDistance={1.32} maxDistance={5.8} />
     </>
   );
 }
@@ -151,7 +265,7 @@ function StatRow({ label, value, unit, color = '#a7f3d0' }) {
   );
 }
 
-function GroundMap({ issData, track }) {
+function GroundMap({ issData, groundTrack }) {
   const current = issData ? {
     x: ((issData.longitude + 180) / 360) * 100,
     y: ((90 - issData.latitude) / 180) * 100,
@@ -162,21 +276,22 @@ function GroundMap({ issData, track }) {
       position: 'absolute',
       left: 20,
       bottom: 22,
-      width: 'min(430px, calc(100vw - 40px))',
-      height: 210,
+      width: 'min(460px, calc(100vw - 40px))',
+      height: 226,
       zIndex: 24,
       border: '1px solid rgba(255,255,255,0.13)',
       borderRadius: 18,
       overflow: 'hidden',
-      backgroundImage: `linear-gradient(rgba(2,6,23,0.22), rgba(2,6,23,0.22)), url(${EARTH_DAY})`,
+      backgroundImage: `linear-gradient(rgba(2,6,23,0.10), rgba(2,6,23,0.36)), url(${EARTH_TEXTURES.day})`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       boxShadow: '0 20px 70px rgba(0,0,0,0.32)',
     }}>
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(2,6,23,0.18), rgba(2,6,23,0.58))' }} />
-      {track.slice(-90).map((point, index, arr) => {
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(2,6,23,0.08), rgba(2,6,23,0.60))' }} />
+      {groundTrack.map((point, index) => {
         const x = ((point.longitude + 180) / 360) * 100;
         const y = ((90 - point.latitude) / 180) * 100;
+        const isPast = point.timestamp <= Date.now();
         return (
           <span
             key={`${point.timestamp}-${index}`}
@@ -184,13 +299,13 @@ function GroundMap({ issData, track }) {
               position: 'absolute',
               left: `${x}%`,
               top: `${y}%`,
-              width: 3,
-              height: 3,
+              width: isPast ? 3 : 2,
+              height: isPast ? 3 : 2,
               borderRadius: 99,
-              background: '#22c55e',
-              opacity: 0.18 + (index / Math.max(arr.length, 1)) * 0.75,
+              background: isPast ? '#22c55e' : '#93c5fd',
+              opacity: isPast ? 0.82 : 0.5,
               transform: 'translate(-50%, -50%)',
-              boxShadow: '0 0 7px rgba(34,197,94,0.65)',
+              boxShadow: isPast ? '0 0 8px rgba(34,197,94,0.7)' : '0 0 7px rgba(147,197,253,0.6)',
             }}
           />
         );
@@ -199,8 +314,8 @@ function GroundMap({ issData, track }) {
         <div style={{ position: 'absolute', left: `${current.x}%`, top: `${current.y}%`, transform: 'translate(-50%, -50%)' }}>
           <span style={{
             display: 'block',
-            width: 14,
-            height: 14,
+            width: 15,
+            height: 15,
             borderRadius: 99,
             border: '3px solid #fff',
             background: '#22c55e',
@@ -209,28 +324,24 @@ function GroundMap({ issData, track }) {
         </div>
       )}
       <div style={{ position: 'absolute', left: 14, top: 12, color: '#fff' }}>
-        <div style={{ fontFamily: 'Space Grotesk, Inter, sans-serif', fontWeight: 950, fontSize: 14 }}>Ground track</div>
-        <div style={{ color: 'rgba(255,255,255,0.62)', fontSize: 11 }}>Recent ISS subpoint over Earth</div>
+        <div style={{ fontFamily: 'Space Grotesk, Inter, sans-serif', fontWeight: 950, fontSize: 14 }}>SGP4 ground track</div>
+        <div style={{ color: 'rgba(255,255,255,0.62)', fontSize: 11 }}>Green past / blue projected orbit</div>
       </div>
-      <div style={{ position: 'absolute', right: 12, bottom: 10, color: 'rgba(255,255,255,0.7)', fontSize: 11, textAlign: 'right' }}>
-        {issData ? `${issData.latitude.toFixed(2)} lat / ${issData.longitude.toFixed(2)} lon` : 'waiting for telemetry'}
+      <div style={{ position: 'absolute', right: 12, bottom: 10, color: 'rgba(255,255,255,0.74)', fontSize: 11, textAlign: 'right' }}>
+        {issData ? `${issData.latitude.toFixed(2)} lat / ${issData.longitude.toFixed(2)} lon` : 'waiting for TLE propagation'}
       </div>
     </div>
   );
 }
 
-function TelemetryPanel({ issData, lastUpdated, error, source }) {
-  const altitude = Number(issData?.altitude);
-  const orbitRadius = Number.isFinite(altitude) ? EARTH_RADIUS_KM + altitude : null;
-  const velocity = kmps(issData?.velocity);
-  const visibility = issData?.visibility === 'daylight' ? 'Daylight' : issData?.visibility === 'eclipsed' ? 'Eclipsed' : 'Night side';
-
+function TelemetryPanel({ issData, lastUpdated, tle, tleEpoch, error, source }) {
+  const visibility = issData?.visibility === 'daylight' ? 'Daylight' : 'Eclipsed / night side';
   return (
     <aside className="iss-telemetry-panel" style={{
       position: 'absolute',
       top: 88,
       right: 20,
-      width: 'min(340px, calc(100vw - 40px))',
+      width: 'min(360px, calc(100vw - 40px))',
       zIndex: 28,
       color: '#fff',
       background: 'rgba(2,6,23,0.84)',
@@ -242,14 +353,14 @@ function TelemetryPanel({ issData, lastUpdated, error, source }) {
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
-          <div style={{ color: '#86efac', fontSize: 11, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Live orbital telemetry</div>
-          <h2 style={{ fontFamily: 'Space Grotesk, Inter, sans-serif', fontSize: '1.45rem', lineHeight: 1.05, marginTop: 4 }}>International Space Station</h2>
-          <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 11, marginTop: 4 }}>Updated {clockTime(lastUpdated)}</div>
+          <div style={{ color: '#86efac', fontSize: 11, fontWeight: 900, letterSpacing: '0.14em', textTransform: 'uppercase' }}>CelesTrak TLE + SGP4</div>
+          <h2 style={{ fontFamily: 'Space Grotesk, Inter, sans-serif', fontSize: '1.45rem', lineHeight: 1.05, marginTop: 4 }}>{tle?.name || 'International Space Station'}</h2>
+          <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 11, marginTop: 4 }}>Propagated {clockTime(lastUpdated)}</div>
         </div>
         <span style={{
-          border: '1px solid rgba(34,197,94,0.4)',
-          color: '#bbf7d0',
-          background: 'rgba(34,197,94,0.1)',
+          border: `1px solid ${error ? 'rgba(251,191,36,0.4)' : 'rgba(34,197,94,0.4)'}`,
+          color: error ? '#fde68a' : '#bbf7d0',
+          background: error ? 'rgba(251,191,36,0.1)' : 'rgba(34,197,94,0.1)',
           borderRadius: 999,
           padding: '4px 9px',
           fontSize: 11,
@@ -259,44 +370,53 @@ function TelemetryPanel({ issData, lastUpdated, error, source }) {
 
       {error ? (
         <div style={{ color: '#fbbf24', fontSize: 13, lineHeight: 1.55, padding: '0.75rem', borderRadius: 12, background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)' }}>
-          Live API is unreachable. Showing the last known or simulated position until the next refresh succeeds.
+          Live CelesTrak refresh is unavailable. Using the latest same-origin TLE snapshot.
         </div>
       ) : null}
 
       <StatRow label="Latitude" value={issData?.latitude?.toFixed(4) ?? 'n/a'} unit="deg" color="#fde68a" />
       <StatRow label="Longitude" value={issData?.longitude?.toFixed(4) ?? 'n/a'} unit="deg" color="#fde68a" />
       <StatRow label="Altitude" value={issData?.altitude?.toFixed(1) ?? 'n/a'} unit="km" color="#86efac" />
-      <StatRow label="Velocity" value={velocity} unit="km/s" color="#93c5fd" />
-      <StatRow label="Orbit radius" value={orbitRadius ? orbitRadius.toFixed(0) : 'n/a'} unit="km" color="#c4b5fd" />
+      <StatRow label="Velocity" value={issData?.velocity?.toFixed(3) ?? 'n/a'} unit="km/s" color="#93c5fd" />
+      <StatRow label="Orbit radius" value={issData?.orbitalRadius?.toFixed(0) ?? 'n/a'} unit="km" color="#c4b5fd" />
       <StatRow label="Inclination" value="51.64" unit="deg" color="#c4b5fd" />
       <StatRow label="Period" value="92.9" unit="min" color="#c4b5fd" />
       <StatRow label="Visibility" value={visibility} unit="" color="#fef08a" />
+      <StatRow label="TLE epoch age" value={ageText(tleEpoch)} unit="" color={tleEpoch && Date.now() - tleEpoch.getTime() < 172800000 ? '#86efac' : '#fbbf24'} />
 
       <div style={{ marginTop: 12, color: 'rgba(255,255,255,0.42)', fontSize: 11, lineHeight: 1.55, border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '0.65rem', background: 'rgba(255,255,255,0.035)' }}>
-        Green trail is recent live ground track. Pale orbital arc is a one-orbit projection at the ISS inclination.
+        Position is propagated locally from the latest CelesTrak GP/TLE set using SGP4. Accuracy depends on TLE freshness.
       </div>
     </aside>
   );
 }
 
-function fallbackPosition() {
-  const now = Date.now() / 1000;
-  const period = 92.9 * 60;
-  const phase = (now % period) / period * Math.PI * 2;
-  const inclination = 51.64 * Math.PI / 180;
-  return {
-    latitude: Math.asin(Math.sin(inclination) * Math.sin(phase)) * 180 / Math.PI,
-    longitude: normalizeLon((phase * 180 / Math.PI * 1.95) - 160),
-    altitude: 420,
-    velocity: 27600,
-    visibility: Math.sin(phase) > 0 ? 'daylight' : 'eclipsed',
-    timestamp: Math.round(now),
-  };
+async function loadTleSnapshot() {
+  const local = await fetch(LOCAL_TLE_URL, { cache: 'no-store' });
+  if (!local.ok) throw new Error('Local ISS TLE snapshot unavailable');
+  return local.json();
+}
+
+async function loadLiveTle() {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 4200);
+  try {
+    const response = await fetch(CELESTRAK_TLE_URL, { signal: controller.signal });
+    if (!response.ok) throw new Error('CelesTrak unavailable');
+    const text = await response.text();
+    return parseTleText(text);
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 export default function ISSTracker() {
+  const [tle, setTle] = useState(null);
+  const [satrec, setSatrec] = useState(null);
+  const [tleEpoch, setTleEpoch] = useState(null);
   const [issData, setIssData] = useState(null);
-  const [track, setTrack] = useState([]);
+  const [trail, setTrail] = useState([]);
+  const [groundTrack, setGroundTrack] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -304,56 +424,83 @@ export default function ISSTracker() {
 
   useEffect(() => {
     let active = true;
-    async function fetchPosition() {
-      if (paused) return;
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 2600);
+    async function hydrateTle() {
       try {
-        const response = await fetch(`https://api.wheretheiss.at/v1/satellites/${ISS_ID}`, { signal: controller.signal });
-        if (!response.ok) throw new Error('ISS API unavailable');
-        const data = await response.json();
+        const snapshot = await loadTleSnapshot();
         if (!active) return;
-        setIssData(data);
-        setTrack((previous) => [...previous.slice(-150), data]);
-        setLastUpdated(new Date());
+        setTle(snapshot);
+        setError(snapshot.source === 'offline fallback');
+      } catch {
+        if (!active) return;
+        setTle(FALLBACK_TLE);
+        setError(true);
+      }
+
+      try {
+        const live = await loadLiveTle();
+        if (!active) return;
+        setTle(live);
         setError(false);
       } catch {
-        const data = fallbackPosition();
-        if (!active) return;
-        setIssData(data);
-        setTrack((previous) => [...previous.slice(-150), data]);
-        setLastUpdated(new Date());
-        setError(true);
-      } finally {
-        window.clearTimeout(timeout);
+        if (active) setError(true);
       }
     }
-
-    fetchPosition();
-    const id = window.setInterval(fetchPosition, 3000);
+    hydrateTle();
+    const id = window.setInterval(hydrateTle, 30 * 60 * 1000);
     return () => {
       active = false;
       window.clearInterval(id);
     };
-  }, [paused]);
+  }, []);
+
+  useEffect(() => {
+    if (!tle?.line1 || !tle?.line2) return;
+    try {
+      const record = satellite.twoline2satrec(tle.line1, tle.line2);
+      setSatrec(record);
+      setTleEpoch(tleEpochDate(record));
+    } catch {
+      setSatrec(null);
+      setTleEpoch(null);
+      setError(true);
+    }
+  }, [tle]);
+
+  useEffect(() => {
+    if (!satrec) return;
+    function tick() {
+      if (paused) return;
+      const state = computeState(satrec, new Date());
+      if (!state) return;
+      setIssData(state);
+      setLastUpdated(new Date());
+      setTrail((previous) => [...previous.slice(-95), state]);
+      setGroundTrack(buildGroundTrack(satrec));
+    }
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [satrec, paused]);
+
+  const sourceLabel = error ? 'snapshot' : tle?.source?.includes('live') ? 'live TLE' : 'snapshot';
 
   return (
     <div style={{ width: '100%', height: '100vh', minHeight: 720, position: 'relative', background: '#01030b', overflow: 'hidden' }}>
-      <Canvas camera={{ position: [0.25, 0.18, 2.65], fov: 45 }} dpr={[1, 1.7]}>
+      <Canvas camera={{ position: [0.24, 0.22, 2.7], fov: 45 }} dpr={[1, 1.85]}>
         <Suspense fallback={null}>
-          <EarthGlobe issData={issData} track={track} followMode={followMode} />
+          <EarthGlobe satrec={satrec} issData={issData} trail={trail} followMode={followMode} />
         </Suspense>
       </Canvas>
 
-      <TelemetryPanel issData={issData} lastUpdated={lastUpdated} error={error} source={error ? 'fallback' : 'live'} />
-      <GroundMap issData={issData} track={track} />
+      <TelemetryPanel issData={issData} lastUpdated={lastUpdated} tle={tle} tleEpoch={tleEpoch} error={error} source={sourceLabel} />
+      <GroundMap issData={issData} groundTrack={groundTrack} />
 
       <div className="iss-command-panel" style={{
         position: 'absolute',
         top: 88,
         left: 20,
         zIndex: 26,
-        width: 'min(310px, calc(100vw - 40px))',
+        width: 'min(330px, calc(100vw - 40px))',
         color: '#fff',
         background: 'rgba(2,6,23,0.72)',
         border: '1px solid rgba(255,255,255,0.11)',
@@ -363,20 +510,20 @@ export default function ISSTracker() {
       }}>
         <div style={{ color: '#86efac', fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 900 }}>AstroBis mission view</div>
         <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12, lineHeight: 1.55, marginTop: 8 }}>
-          Textured Earth, live ISS telemetry, recent ground track, and orbit geometry in one navigable 3D scene.
+          Real-time ISS position from CelesTrak TLE propagation, rendered over a textured Earth with normal, specular, clouds, and city-light layers.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
           <button type="button" onClick={() => setFollowMode((value) => !value)} style={buttonStyle(followMode)}>
             Follow ISS
           </button>
           <button type="button" onClick={() => setPaused((value) => !value)} style={buttonStyle(paused)}>
-            {paused ? 'Resume feed' : 'Pause feed'}
+            {paused ? 'Resume propagation' : 'Pause propagation'}
           </button>
         </div>
       </div>
 
       <div style={{ position: 'absolute', right: 24, bottom: 18, zIndex: 22, color: 'rgba(255,255,255,0.28)', fontSize: 11 }}>
-        Data: wheretheiss.at - Earth texture: Three.js examples
+        Data: CelesTrak GP/TLE + SGP4 - Earth maps: Three.js examples
       </div>
     </div>
   );

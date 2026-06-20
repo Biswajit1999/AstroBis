@@ -88,6 +88,29 @@ function portraitGradient(planet) {
   return ['#111827', '#64748b', '#e2e8f0'];
 }
 
+function dataCompleteness(planet) {
+  const fields = ['pl_rade', 'pl_bmasse', 'pl_orbper', 'pl_eqt', 'pl_orbsmax', 'sy_dist', 'st_teff', 'st_rad', 'st_mass', 'st_spectype'];
+  const filled = fields.filter((field) => finiteNumber(planet[field]) !== null || (field === 'st_spectype' && planet[field])).length;
+  return Math.round((filled / fields.length) * 100);
+}
+
+function spectralColor(planet) {
+  const type = String(planet.st_spectype || '').trim().charAt(0).toUpperCase();
+  if (type === 'O' || type === 'B') return '#93c5fd';
+  if (type === 'A') return '#dbeafe';
+  if (type === 'F') return '#f8fafc';
+  if (type === 'G') return '#fde68a';
+  if (type === 'K') return '#fb923c';
+  if (type === 'M') return '#fb7185';
+  const temp = finiteNumber(planet.st_teff);
+  if (temp === null) return '#cbd5e1';
+  if (temp > 7300) return '#93c5fd';
+  if (temp > 6000) return '#f8fafc';
+  if (temp > 5200) return '#fde68a';
+  if (temp > 3700) return '#fb923c';
+  return '#fb7185';
+}
+
 function MiniOrbit({ planet }) {
   const radius = Math.max(24, Math.min(72, Math.log10((finiteNumber(planet.pl_orbper) || 12) + 2) * 28));
   const type = planetType(planet.pl_rade);
@@ -135,30 +158,68 @@ function MiniOrbit({ planet }) {
 function PlanetPortrait({ planet }) {
   const [a, b, c] = portraitGradient(planet);
   const type = planetType(planet.pl_rade);
+  const temp = finiteNumber(planet.pl_eqt);
+  const bandOpacity = type.family === 'gas-giant' || type.family.includes('neptune') ? 0.86 : 0.34;
+  const hasRing = type.family === 'gas-giant' && finiteNumber(planet.pl_rade) > 11;
   return (
-    <div style={{
-      position: 'relative',
-      width: 88,
-      height: 88,
-      borderRadius: 999,
-      background: `radial-gradient(circle at 34% 28%, ${c} 0 9%, transparent 11%), radial-gradient(circle at 34% 34%, ${b} 0, ${b} 26%, ${a} 68%, #020617 100%)`,
-      boxShadow: `0 0 32px ${type.color}30, inset -18px -14px 28px rgba(0,0,0,0.45)`,
-      border: `1px solid ${type.color}66`,
-      overflow: 'hidden',
-      flex: '0 0 88px',
-    }}>
+    <div style={{ position: 'relative', width: 112, height: 112, flex: '0 0 112px', display: 'grid', placeItems: 'center' }}>
+      {hasRing && (
+        <div style={{
+          position: 'absolute',
+          width: 138,
+          height: 34,
+          borderRadius: '50%',
+          border: `5px solid ${c}66`,
+          transform: 'rotate(-18deg)',
+          filter: 'blur(0.2px)',
+          opacity: 0.72,
+        }} />
+      )}
       <div style={{
         position: 'absolute',
-        inset: '18% -24%',
-        transform: 'rotate(-16deg)',
-        background: `linear-gradient(90deg, transparent, ${c}36, transparent)`,
-        opacity: type.family === 'gas-giant' ? 1 : 0.34,
-      }} />
-      <div style={{
+        width: 96,
+        height: 96,
+        borderRadius: 999,
+        background: `radial-gradient(circle at 33% 27%, rgba(255,255,255,0.72) 0 7%, transparent 9%), radial-gradient(circle at 36% 34%, ${c} 0, ${b} 25%, ${a} 66%, #020617 100%)`,
+        boxShadow: `0 0 42px ${type.color}34, inset -24px -18px 34px rgba(0,0,0,0.58), inset 12px 8px 24px rgba(255,255,255,0.08)`,
+        border: `1px solid ${type.color}77`,
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          position: 'absolute',
+          inset: '12% -30%',
+          transform: 'rotate(-16deg)',
+          background: `repeating-linear-gradient(90deg, transparent 0 14px, ${c}36 15px 24px, ${a}30 25px 38px)`,
+          opacity: bandOpacity,
+          filter: 'blur(0.6px)',
+        }} />
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'radial-gradient(circle at 28% 24%, rgba(255,255,255,0.24), transparent 23%), linear-gradient(112deg, transparent 0 43%, rgba(0,0,0,0.34) 47% 100%)',
+        }} />
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          opacity: type.family === 'rocky' || type.family === 'super-earth' ? 0.24 : 0.08,
+          background: 'radial-gradient(circle at 62% 58%, rgba(0,0,0,0.55) 0 7%, transparent 8%), radial-gradient(circle at 34% 66%, rgba(255,255,255,0.32) 0 3%, transparent 4%)',
+        }} />
+      </div>
+      <span style={{
         position: 'absolute',
-        inset: 0,
-        background: 'radial-gradient(circle at 26% 22%, rgba(255,255,255,0.28), transparent 22%), linear-gradient(110deg, transparent 0 45%, rgba(0,0,0,0.22) 46% 100%)',
-      }} />
+        left: 4,
+        bottom: 2,
+        border: '1px solid rgba(255,255,255,0.14)',
+        background: 'rgba(2,6,23,0.74)',
+        borderRadius: 999,
+        color: 'rgba(255,255,255,0.68)',
+        fontSize: 9,
+        fontWeight: 900,
+        padding: '2px 6px',
+        letterSpacing: '0.06em',
+      }}>
+        {temp ? `${Math.round(temp)}K` : 'model'}
+      </span>
     </div>
   );
 }
@@ -167,7 +228,6 @@ function PlanetCard({ planet }) {
   const type = planetType(planet.pl_rade);
   const score = habitabilityScore(planet);
   const overview = `${ARCHIVE_OVERVIEW}${encodeURIComponent(planet.pl_name || '')}`;
-  const updated = planet.rowupdate ? new Date(planet.rowupdate).getFullYear() : null;
   const scoreColor = score >= 70 ? '#4ade80' : score >= 45 ? '#fbbf24' : '#fb7185';
 
   return (
@@ -212,6 +272,8 @@ function PlanetCard({ planet }) {
             ['Orbit', `${formatNumber(planet.pl_orbsmax, 3)} AU`],
             ['Temp.', `${formatNumber(planet.pl_eqt, 0)} K`],
             ['Distance', `${formatNumber(planet.sy_dist, 1)} pc`],
+            ['Star', `${formatNumber(planet.st_teff, 0)} K`],
+            ['Spectral', planet.st_spectype || 'n/a'],
           ].map(([label, value]) => (
             <div key={label} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 5 }}>
               <div style={{ color: 'rgba(255,255,255,0.36)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</div>
@@ -231,8 +293,24 @@ function PlanetCard({ planet }) {
         </div>
       </div>
 
+      <div style={{
+        marginTop: 10,
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 8,
+        color: 'rgba(255,255,255,0.42)',
+        fontSize: 11,
+      }}>
+        <span style={{ border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '0.45rem', background: 'rgba(255,255,255,0.025)' }}>
+          Stellar class <strong style={{ color: spectralColor(planet) }}>{planet.st_spectype || 'unknown'}</strong>
+        </span>
+        <span style={{ border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '0.45rem', background: 'rgba(255,255,255,0.025)' }}>
+          Data filled <strong style={{ color: '#a7f3d0' }}>{dataCompleteness(planet)}%</strong>
+        </span>
+      </div>
+
       <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', fontSize: 11, color: 'rgba(255,255,255,0.36)' }}>
-        <span>{planet.disc_year ? `Discovered ${planet.disc_year}` : 'Discovery year n/a'}{updated ? ` - Updated ${updated}` : ''}</span>
+        <span>{planet.disc_year ? `Discovered ${planet.disc_year}` : 'Discovery year n/a'}</span>
         <a href={overview} target="_blank" rel="noreferrer" style={{ color: type.color, fontWeight: 800, textDecoration: 'none', whiteSpace: 'nowrap' }}>
           NASA ref
         </a>
@@ -278,8 +356,8 @@ export default function ExoplanetExplorer() {
       } catch {
         try {
         const query = [
-          'select top 700',
-          'pl_name,hostname,discoverymethod,disc_year,pl_orbper,pl_rade,pl_bmasse,pl_eqt,pl_insol,pl_orbsmax,sy_dist,st_teff',
+          'select top 2000',
+          'pl_name,hostname,discoverymethod,disc_year,pl_orbper,pl_rade,pl_bmasse,pl_eqt,pl_insol,pl_orbsmax,pl_orbeccen,pl_orbincl,sy_dist,st_teff,st_rad,st_mass,st_spectype',
           'from pscomppars',
           'where pl_name is not null and hostname is not null',
           'order by sy_dist asc',
@@ -422,7 +500,7 @@ export default function ExoplanetExplorer() {
       )}
       {source === 'snapshot' && generatedAt && !loading && (
         <div style={{ color: '#a7f3d0', border: '1px solid rgba(34,197,94,0.22)', background: 'rgba(34,197,94,0.07)', borderRadius: 14, padding: '0.75rem 1rem', marginBottom: 18, fontSize: 13 }}>
-          Using a same-origin NASA Exoplanet Archive snapshot generated during the site build on {new Date(generatedAt).toLocaleDateString()}.
+          Using a same-origin NASA Exoplanet Archive snapshot generated during the site build on {new Date(generatedAt).toLocaleDateString()}. Visuals are data-driven artist renders, not direct photographs.
         </div>
       )}
 
@@ -457,7 +535,7 @@ export default function ExoplanetExplorer() {
       )}
 
       <p style={{ maxWidth: 820, margin: '2rem auto 0', textAlign: 'center', color: 'rgba(255,255,255,0.36)', fontSize: 12, lineHeight: 1.7 }}>
-        Planet portraits are procedural visualizations based on measured radius and equilibrium temperature. Measurements and reference links come from the NASA Exoplanet Archive composite parameters table.
+        Most exoplanets do not have resolved visible-light photographs. Planet portraits here are data-driven artist renders based on radius, temperature, and planet class; measurements and reference links come from the NASA Exoplanet Archive composite parameters table.
       </p>
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { Suspense, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { Html, Line, OrbitControls, Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
@@ -8,6 +8,16 @@ const AU_KM = 149597870.7;
 const EARTH_RADIUS_KM = 6371;
 
 const TEXTURE_URLS = {
+  sun: 'https://commons.wikimedia.org/wiki/Special:FilePath/Solarsystemscope_texture_2k_sun.jpg',
+  mercury: 'https://commons.wikimedia.org/wiki/Special:FilePath/Solarsystemscope_texture_2k_mercury.jpg',
+  venus: 'https://commons.wikimedia.org/wiki/Special:FilePath/Solarsystemscope_texture_2k_venus_surface.jpg',
+  mars: 'https://commons.wikimedia.org/wiki/Special:FilePath/Solarsystemscope_texture_2k_mars.jpg',
+  jupiter: 'https://commons.wikimedia.org/wiki/Special:FilePath/Solarsystemscope_texture_2k_jupiter.jpg',
+  saturn: 'https://commons.wikimedia.org/wiki/Special:FilePath/Solarsystemscope_texture_2k_saturn.jpg',
+  saturnRing: 'https://commons.wikimedia.org/wiki/Special:FilePath/Solarsystemscope_texture_2k_saturn_ring_alpha.png',
+  uranus: 'https://commons.wikimedia.org/wiki/Special:FilePath/Solarsystemscope_texture_2k_uranus.jpg',
+  neptune: 'https://commons.wikimedia.org/wiki/Special:FilePath/Solarsystemscope_texture_2k_neptune.jpg',
+  pluto: 'https://commons.wikimedia.org/wiki/Special:FilePath/Solarsystemscope_texture_2k_pluto.jpg',
   earth: 'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg',
   moon: 'https://threejs.org/examples/textures/planets/moon_1024.jpg',
 };
@@ -36,6 +46,7 @@ const SYSTEM_OBJECTS = [
     dayLength: '58.6 Earth days',
     color: '#b6ada1',
     accent: '#d1c6b8',
+    texture: 'mercury',
     size: 0.58,
     speed: 4.15,
     fact: 'Airless, cratered, and locked in a 3:2 spin-orbit resonance.',
@@ -51,6 +62,7 @@ const SYSTEM_OBJECTS = [
     dayLength: '243 Earth days',
     color: '#d9b46f',
     accent: '#f6d28b',
+    texture: 'venus',
     atmosphere: true,
     size: 0.96,
     speed: 1.62,
@@ -84,6 +96,7 @@ const SYSTEM_OBJECTS = [
     dayLength: '24h 37m',
     color: '#c65f36',
     accent: '#fb923c',
+    texture: 'mars',
     size: 0.72,
     speed: 0.53,
     fact: 'Cold desert world with Olympus Mons, Valles Marineris, Phobos, and Deimos.',
@@ -114,6 +127,7 @@ const SYSTEM_OBJECTS = [
     dayLength: '9h 56m',
     color: '#d49a55',
     accent: '#f8c471',
+    texture: 'jupiter',
     size: 3.2,
     speed: 0.084,
     rings: false,
@@ -130,6 +144,7 @@ const SYSTEM_OBJECTS = [
     dayLength: '10h 33m',
     color: '#e8cf91',
     accent: '#fde68a',
+    texture: 'saturn',
     size: 2.75,
     speed: 0.034,
     rings: true,
@@ -146,6 +161,7 @@ const SYSTEM_OBJECTS = [
     dayLength: '17h 14m',
     color: '#8ce9e7',
     accent: '#67e8f9',
+    texture: 'uranus',
     size: 2.05,
     speed: 0.012,
     rings: true,
@@ -162,6 +178,7 @@ const SYSTEM_OBJECTS = [
     dayLength: '16h 6m',
     color: '#4169e1',
     accent: '#93c5fd',
+    texture: 'neptune',
     size: 1.95,
     speed: 0.006,
     fact: 'Distant ice giant with supersonic winds and the captured moon Triton.',
@@ -177,6 +194,7 @@ const SYSTEM_OBJECTS = [
     dayLength: '6.4 Earth days',
     color: '#d8c0a7',
     accent: '#f8d3ad',
+    texture: 'pluto',
     size: 0.52,
     speed: 0.0035,
     fact: 'Complex Kuiper-belt world with nitrogen ice plains and the large moon Charon.',
@@ -247,6 +265,44 @@ function numberFmt(value) {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: value < 10 ? 2 : 0 }).format(value);
 }
 
+function useOptionalTexture(url, options = {}) {
+  const [texture, setTexture] = useState(null);
+
+  useEffect(() => {
+    if (!url || typeof window === 'undefined') {
+      setTexture(null);
+      return undefined;
+    }
+
+    let active = true;
+    const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin('anonymous');
+    loader.load(
+      url,
+      (loaded) => {
+        if (!active) return;
+        loaded.colorSpace = options.linear ? THREE.NoColorSpace : THREE.SRGBColorSpace;
+        loaded.anisotropy = 8;
+        if (options.wrap) {
+          loaded.wrapS = THREE.RepeatWrapping;
+          loaded.wrapT = THREE.RepeatWrapping;
+        }
+        setTexture(loaded);
+      },
+      undefined,
+      () => {
+        if (active) setTexture(null);
+      },
+    );
+
+    return () => {
+      active = false;
+    };
+  }, [url, options.linear, options.wrap]);
+
+  return texture;
+}
+
 function makeTexture(name, colorA, colorB, colorC) {
   if (typeof document === 'undefined') return null;
   const canvas = document.createElement('canvas');
@@ -294,12 +350,9 @@ function makeTexture(name, colorA, colorB, colorC) {
 }
 
 function usePlanetTexture(body) {
-  const earth = body.texture === 'earth' ? useLoader(THREE.TextureLoader, TEXTURE_URLS.earth) : null;
+  const remoteTexture = useOptionalTexture(TEXTURE_URLS[body.texture]);
   return useMemo(() => {
-    if (earth) {
-      earth.colorSpace = THREE.SRGBColorSpace;
-      return earth;
-    }
+    if (remoteTexture) return remoteTexture;
     const colors = {
       Mercury: ['#8b8580', '#c7c0b8', 'rgba(255,255,255,0.7)'],
       Venus: ['#8b5e2c', '#e7c27c', 'rgba(255,236,189,0.9)'],
@@ -310,7 +363,7 @@ function usePlanetTexture(body) {
       Neptune: ['#0b1d6d', '#4169e1', 'rgba(120,170,255,0.8)'],
     }[body.name] || [body.color, body.accent, 'rgba(255,255,255,0.4)'];
     return makeTexture(body.name, colors[0], colors[1], colors[2]);
-  }, [body.name, body.color, body.accent, earth]);
+  }, [body.name, body.color, body.accent, remoteTexture]);
 }
 
 function OrbitRing({ au, color = 'rgba(255,255,255,0.18)', scaleMode, label, showLabel }) {
@@ -344,6 +397,7 @@ function OrbitRing({ au, color = 'rgba(255,255,255,0.18)', scaleMode, label, sho
 
 function Sun() {
   const ref = useRef();
+  const texture = useOptionalTexture(TEXTURE_URLS.sun);
   useFrame(({ clock }) => {
     if (ref.current) ref.current.rotation.y = clock.getElapsedTime() * 0.05;
   });
@@ -352,7 +406,7 @@ function Sun() {
       <pointLight intensity={4.8} distance={300} color="#fff1b8" />
       <mesh ref={ref}>
         <sphereGeometry args={[4.4, 64, 64]} />
-        <meshBasicMaterial color="#ffd166" />
+        <meshBasicMaterial map={texture || null} color="#ffd166" />
       </mesh>
       <mesh>
         <sphereGeometry args={[6.6, 48, 48]} />
@@ -367,11 +421,12 @@ function Sun() {
 }
 
 function SaturnRings({ size, color }) {
+  const ringTexture = useOptionalTexture(TEXTURE_URLS.saturnRing, { linear: true, wrap: true });
   return (
     <group rotation={[0.44, 0, 0.08]}>
       <mesh>
         <ringGeometry args={[size * 1.28, size * 2.35, 128]} />
-        <meshBasicMaterial color={color} transparent opacity={0.48} side={THREE.DoubleSide} />
+        <meshBasicMaterial map={ringTexture || null} alphaMap={ringTexture || null} color={color} transparent opacity={0.58} side={THREE.DoubleSide} />
       </mesh>
       <mesh>
         <ringGeometry args={[size * 1.72, size * 1.84, 128]} />
@@ -743,7 +798,7 @@ export default function SolarSystem() {
         letterSpacing: '0.08em',
         textTransform: 'uppercase',
       }}>
-        NASA/JPL fact-sheet style data - AstroBis
+        NASA/JPL data - texture maps: Solar System Scope / Wikimedia Commons where available
       </div>
     </div>
   );

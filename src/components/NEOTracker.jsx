@@ -199,6 +199,7 @@ function Timeline({ objects, endYear }) {
 
 function ObjectCard({ object }) {
   const color = object.riskProxy ? '#fb7185' : object.largeProxy ? '#fbbf24' : '#22c55e';
+  const jplUrl = `https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/?sstr=${encodeURIComponent(object.designation)}`;
   return (
     <article style={{
       border: `1px solid ${object.riskProxy ? 'rgba(248,113,113,0.35)' : 'rgba(255,255,255,0.09)'}`,
@@ -232,6 +233,11 @@ function ObjectCard({ object }) {
         <Metric label="Diameter" value={object.diameterKm ? `${object.diameterKm.toFixed(object.diameterKm < 1 ? 3 : 2)} km${object.measuredDiameter ? '' : ' est.'}` : 'n/a'} color="#86efac" />
         <Metric label="Absolute mag. H" value={object.h?.toFixed(1) ?? 'n/a'} color="#fda4af" />
         <Metric label="Distance in AU" value={object.distAu.toFixed(5)} color="#67e8f9" />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+        <a href={jplUrl} target="_blank" rel="noreferrer" style={{ color, fontSize: 11, fontWeight: 900, textDecoration: 'none' }}>
+          JPL orbit ref -&gt;
+        </a>
       </div>
     </article>
   );
