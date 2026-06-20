@@ -7,251 +7,213 @@ import APODCard from '../components/APODCard';
 const baseUrl = import.meta.env.BASE_URL;
 const basePath = baseUrl.replace(/\/$/, '');
 const withBase = (path: string) => path === '/' ? baseUrl : `${basePath}${path}`;
+
+const missionTiles = [
+  {
+    index: '01',
+    label: 'Solar System',
+    value: 'Oort-scale',
+    detail: 'Planets, dwarf planets, belts, heliopause, and Oort Cloud regions.',
+    href: withBase('/viewer'),
+  },
+  {
+    index: '02',
+    label: 'Exoplanets',
+    value: '900 worlds',
+    detail: 'NASA Archive snapshot with source links and procedural portraits.',
+    href: withBase('/exoplanets'),
+  },
+  {
+    index: '03',
+    label: 'NEO Watch',
+    value: 'Through 2050',
+    detail: 'JPL close-approach data with distance, velocity, and size filters.',
+    href: withBase('/neo'),
+  },
+  {
+    index: '04',
+    label: 'ISS Orbit',
+    value: 'Live Earth',
+    detail: 'Textured 3D Earth, orbit projection, telemetry, and ground track.',
+    href: withBase('/iss'),
+  },
+];
+
+const featureModules = [
+  {
+    code: 'AU',
+    title: 'Solar System Atlas',
+    desc: 'A compressed real-distance Solar System with planets, dwarf planets, moon counts, asteroid belt, Kuiper belt, heliopause, and Oort Cloud regions.',
+    tag: 'Three.js + WebGL',
+    tagCol: '#a78bfa',
+    href: withBase('/viewer'),
+    cta: 'Open Atlas',
+  },
+  {
+    code: 'EXO',
+    title: 'Exoplanet Explorer',
+    desc: 'NASA Exoplanet Archive data with measured radius, mass, orbit, temperature, discovery method, procedural portraits, and source references.',
+    tag: 'NASA Archive',
+    tagCol: '#f97316',
+    href: withBase('/exoplanets'),
+    cta: 'Browse Planets',
+  },
+  {
+    code: 'ISS',
+    title: 'ISS Mission Control',
+    desc: 'Track the station over a textured 3D Earth with live telemetry, orbit projection, cloud layer, and ground-track map.',
+    tag: 'Live Orbit',
+    tagCol: '#22c55e',
+    href: withBase('/iss'),
+    cta: 'Track ISS',
+  },
+  {
+    code: 'NEO',
+    title: 'NEO Watch',
+    desc: 'Look ahead through 2050 using JPL close-approach data with distance filters, speed, size estimates, and risk-proxy sorting.',
+    tag: 'JPL CAD',
+    tagCol: '#fb7185',
+    href: withBase('/neo'),
+    cta: 'Open Watch',
+  },
+  {
+    code: 'HR',
+    title: '3D Stellar Atlas',
+    desc: 'Navigate bright stars using real RA/Dec coordinates, spectral colors, constellation guides, distance shells, and an H-R diagram.',
+    tag: 'Star Data',
+    tagCol: '#60a5fa',
+    href: withBase('/stars'),
+    cta: 'Open Atlas',
+  },
+  {
+    code: 'APOD',
+    title: 'NASA APOD',
+    desc: 'Each day, NASA selects an astronomy image with scientific context. AstroBis keeps it alongside the live data tools.',
+    tag: 'Daily NASA',
+    tagCol: '#ec4899',
+    href: '#apod',
+    cta: 'See Today',
+  },
+];
 ---
 
 <Layout title="Home" description="AstroBis is an interactive astronomy platform for realistic 3D space data, solar-system exploration, exoplanets, ISS tracking, NEO watch, and star maps.">
-
-  <!-- ═══════════════════════════════ HERO ════════════════════════════════ -->
-  <section style="
-    position:relative; min-height:100vh;
-    display:flex; flex-direction:column;
-    align-items:center; justify-content:center;
-    overflow:hidden; padding:6rem 1.5rem 4rem;
-    text-align:center;
-  ">
-    <!-- Animated starfield canvas -->
+  <section class="home-hero hero-scan">
     <StarfieldCanvas client:load />
 
-    <!-- Hero content -->
-    <div style="position:relative;z-index:10;max-width:900px;">
-      <!-- Eyebrow with author -->
-      <div style="
-        display:inline-flex;align-items:center;gap:0.5rem;
-        background:rgba(139,92,246,0.12);
-        border:1px solid rgba(139,92,246,0.3);
-        border-radius:50px; padding:0.4rem 1.1rem;
-        font-size:0.78rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
-        color:#c4b5fd; margin-bottom:1.75rem;
-      ">
-        <span style="width:6px;height:6px;border-radius:50%;background:#a78bfa;animation:pulse-glow 2s ease-in-out infinite;display:inline-block;"></span>
-        Interactive Astronomy Platform &mdash; by Biswajit Jana @2026
-      </div>
+    <div class="home-orbit-stage" aria-hidden="true">
+      <span class="home-orbit-ring ring-a"></span>
+      <span class="home-orbit-ring ring-b"></span>
+      <span class="home-orbit-ring ring-c"></span>
+      <span class="home-axis-line axis-x"></span>
+      <span class="home-axis-line axis-y"></span>
+    </div>
 
-      <!-- Title -->
-      <h1 style="
-        font-family:'Space Grotesk',sans-serif;
-        font-size:clamp(3.2rem,9vw,7rem);
-        font-weight:900; line-height:1.02;
-        letter-spacing:0;
-        margin-bottom:1.5rem;
-        background:linear-gradient(135deg,#ffffff 0%,#e0c8ff 30%,#ec4899 70%,#f97316 100%);
-        -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-        background-clip:text;
-      ">
-        AstroBis
-      </h1>
-
-      <!-- Subtitle -->
-      <p style="
-        font-size:clamp(1rem,2.5vw,1.35rem);
-        color:rgba(255,255,255,0.62);
-        max-width:620px; margin:0 auto 2.5rem;
-        line-height:1.7;
-      ">
-        Built by Biswajit Jana - a browser-native space lab with a realistic Solar System atlas,
-        live ISS mission view, JPL NEO watch, exoplanet archive, and 3D stellar atlas.
+    <div class="home-hero-shell">
+      <p class="home-eyebrow">
+        <span></span>
+        Interactive astronomy platform - by Biswajit Jana @2026
       </p>
 
-      <!-- CTAs -->
-      <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-bottom:3rem;">
-        <a href={withBase('/viewer')} class="btn btn-primary" style="font-size:1rem;">
+      <h1 class="home-title">AstroBis</h1>
+
+      <p class="home-subtitle">
+        A browser-native space lab for realistic Solar System scale, live orbital tracking,
+        future asteroid approaches, exoplanet discovery data, and a dimensional stellar atlas.
+      </p>
+
+      <div class="home-cta-row">
+        <a href={withBase('/viewer')} class="btn btn-primary">
           Open Solar System Atlas
         </a>
-        <a href={withBase('/exoplanets')} class="btn btn-secondary" style="font-size:1rem;">
+        <a href={withBase('/exoplanets')} class="btn btn-secondary">
           Browse Exoplanets
         </a>
       </div>
 
-      <!-- Scroll indicator -->
-      <div style="
-        display:flex;flex-direction:column;align-items:center;
-        color:rgba(255,255,255,0.25);font-size:0.75rem;gap:0.4rem;
-        animation:float 2.5s ease-in-out infinite;
-      ">
-        <span>Scroll to explore</span>
-        <svg width="16" height="24" viewBox="0 0 16 24" fill="none">
-          <rect x="1" y="1" width="14" height="22" rx="7" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>
-          <circle cx="8" cy="7" r="2.5" fill="rgba(255,255,255,0.3)">
-            <animateTransform attributeName="transform" type="translate" values="0,0;0,10;0,0" dur="2.5s" repeatCount="indefinite"/>
-          </circle>
-        </svg>
+      <div class="mission-deck" aria-label="AstroBis mission modules">
+        {missionTiles.map(tile => (
+          <a class="mission-tile" href={tile.href}>
+            <span class="mission-index">{tile.index}</span>
+            <span class="mission-label">{tile.label}</span>
+            <strong>{tile.value}</strong>
+            <small>{tile.detail}</small>
+          </a>
+        ))}
       </div>
     </div>
-
-    <!-- Floating planet decorations -->
-    <div style="position:absolute;right:5%;top:20%;font-size:5rem;animation:float 4s ease-in-out infinite;opacity:0.18;pointer-events:none;filter:blur(1px);">🪐</div>
-    <div style="position:absolute;left:4%;bottom:25%;font-size:3rem;animation:float 5s ease-in-out infinite 1s;opacity:0.14;pointer-events:none;filter:blur(1px);">🌌</div>
-    <div style="position:absolute;right:12%;bottom:18%;font-size:2.5rem;animation:float 6s ease-in-out infinite 2s;opacity:0.12;pointer-events:none;">✨</div>
   </section>
 
-  <!-- Section divider -->
-  <div class="section-divider" />
+  <div class="section-divider"></div>
 
-  <!-- ═══════════════════════════════ STATS ═══════════════════════════════ -->
-  <section style="padding:5rem 1rem;">
-    <div style="text-align:center;margin-bottom:3rem;">
-      <h2 style="
-        font-family:'Space Grotesk',sans-serif;
-        font-size:clamp(1.8rem,4vw,2.8rem);
-        font-weight:900;margin-bottom:0.75rem;
-        background:linear-gradient(135deg,#60a5fa,#a78bfa,#f0abfc);
-        -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-      ">
-        The Universe by the Numbers
-      </h2>
-      <p style="color:rgba(255,255,255,0.45);font-size:0.95rem;max-width:480px;margin:0 auto;">
-        The cosmos is vast beyond imagination. Here's a glimpse.
+  <section class="home-section">
+    <div class="section-intro">
+      <p class="section-kicker">Reference scale</p>
+      <h2 class="section-heading gradient-text-cool">The Universe by the Numbers</h2>
+      <p class="section-copy">
+        AstroBis keeps the large-scale science readable while preserving the sense of distance.
       </p>
     </div>
     <StatsCounter client:visible />
   </section>
 
-  <div class="section-divider" />
+  <div class="section-divider"></div>
 
-  <!-- ═════════════════════════ FEATURES GRID ═════════════════════════════ -->
-  <section style="padding:6rem 1.5rem;max-width:1200px;margin:0 auto;">
-    <div style="text-align:center;margin-bottom:3.5rem;">
-      <h2 style="
-        font-family:'Space Grotesk',sans-serif;
-        font-size:clamp(1.8rem,4vw,2.8rem);
-        font-weight:900;margin-bottom:0.75rem;
-        color:#fff;
-      ">
-        What You Can <span style="background:linear-gradient(135deg,#a78bfa,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Explore</span>
+  <section class="home-section home-section-wide">
+    <div class="section-intro">
+      <p class="section-kicker">Mission modules</p>
+      <h2 class="section-heading">
+        What You Can <span class="gradient-text">Explore</span>
       </h2>
-      <p style="color:rgba(255,255,255,0.45);font-size:0.95rem;">
+      <p class="section-copy">
         From the Oort Cloud to live orbital traffic, AstroBis keeps the useful science close to the surface.
       </p>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:1.5rem;">
-      {[
-        {
-          icon:'🌌',
-          title:'Solar System Atlas',
-          desc:'A compressed real-distance Solar System with planets, dwarf planets, moon counts, asteroid belt, Kuiper belt, heliopause, and Oort Cloud regions.',
-          tag:'Three.js + WebGL',
-          tagCol:'#a78bfa',
-          href:withBase('/viewer'),
-          cta:'Open Atlas',
-        },
-        {
-          icon:'🔭',
-          title:'Exoplanet Explorer',
-          desc:'Query NASA Exoplanet Archive data with measured radius, mass, orbit, temperature, discovery method, procedural portraits, and source references.',
-          tag:'NASA Archive',
-          tagCol:'#f97316',
-          href:withBase('/exoplanets'),
-          cta:'Browse Planets',
-        },
-        {
-          icon:'🛰️',
-          title:'ISS Mission Control',
-          desc:'Track the station over a textured 3D Earth with live telemetry, orbit projection, cloud layer, and ground-track map.',
-          tag:'Live Orbit',
-          tagCol:'#22c55e',
-          href:withBase('/iss'),
-          cta:'Track ISS',
-        },
-        {
-          icon:'☄️',
-          title:'NEO Watch',
-          desc:'Look ahead through 2050 using JPL close-approach data with distance filters, speed, size estimates, and risk-proxy sorting.',
-          tag:'JPL CAD',
-          tagCol:'#fb7185',
-          href:withBase('/neo'),
-          cta:'Open Watch',
-        },
-        {
-          icon:'⭐',
-          title:'3D Stellar Atlas',
-          desc:'Navigate bright stars using real RA/Dec coordinates, spectral colors, constellation guides, distance shells, and an H-R diagram.',
-          tag:'Star Data',
-          tagCol:'#60a5fa',
-          href:withBase('/stars'),
-          cta:'Open Atlas',
-        },
-        {
-          icon:'📸',
-          title:'NASA APOD',
-          desc:'Each day, NASA selects an astronomy image with scientific context. AstroBis keeps it alongside the live data tools.',
-          tag:'Daily NASA',
-          tagCol:'#ec4899',
-          href:'#apod',
-          cta:'See Today\'s Image',
-        },
-      ].map(f => (
-        <div class="card" style="display:flex;flex-direction:column;">
-          <div style="font-size:2.5rem;margin-bottom:1rem;">{f.icon}</div>
-          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;">
-            <h3 style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.1rem;color:#fff;">{f.title}</h3>
-            <span style={`font-size:0.65rem;font-weight:700;background:${f.tagCol}22;color:${f.tagCol};border:1px solid ${f.tagCol}44;border-radius:20px;padding:2px 8px;`}>{f.tag}</span>
+    <div class="feature-grid">
+      {featureModules.map(f => (
+        <article class="feature-card">
+          <div class="feature-card-top">
+            <span class="feature-code">{f.code}</span>
+            <span class="feature-tag" style={`--tag-color:${f.tagCol};`}>{f.tag}</span>
           </div>
-          <p style="font-size:0.85rem;color:rgba(255,255,255,0.55);line-height:1.65;flex:1;margin-bottom:1.25rem;">{f.desc}</p>
-          <a href={f.href} style={`color:${f.tagCol};font-size:0.83rem;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;`}>
-            {f.cta} →
+          <h3>{f.title}</h3>
+          <p>{f.desc}</p>
+          <a href={f.href} style={`--link-color:${f.tagCol};`}>
+            {f.cta}
+            <span aria-hidden="true">-&gt;</span>
           </a>
-        </div>
+        </article>
       ))}
     </div>
   </section>
 
-  <div class="section-divider" />
+  <div class="section-divider"></div>
 
-  <!-- ═════════════════════════════ APOD ═══════════════════════════════════ -->
-  <section id="apod" style="padding:6rem 1.5rem;max-width:900px;margin:0 auto;">
-    <div style="text-align:center;margin-bottom:2.5rem;">
-      <h2 style="
-        font-family:'Space Grotesk',sans-serif;
-        font-size:clamp(1.8rem,4vw,2.6rem);
-        font-weight:900; margin-bottom:0.75rem;
-        background:linear-gradient(135deg,#fbbf24,#f97316,#ec4899);
-        -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-      ">
-        Today's View from NASA
-      </h2>
-      <p style="color:rgba(255,255,255,0.45);font-size:0.95rem;">
-        The Astronomy Picture of the Day — curated by NASA scientists.
+  <section id="apod" class="home-section home-section-narrow">
+    <div class="section-intro">
+      <p class="section-kicker">NASA APOD</p>
+      <h2 class="section-heading gradient-text">Today's View from NASA</h2>
+      <p class="section-copy">
+        The Astronomy Picture of the Day, curated by NASA scientists.
       </p>
     </div>
     <APODCard client:visible />
   </section>
 
-  <div class="section-divider" />
+  <div class="section-divider"></div>
 
-  <!-- ════════════════════════════ CTA BOTTOM ══════════════════════════════ -->
-  <section style="
-    padding:8rem 1.5rem;text-align:center;
-    position:relative;overflow:hidden;
-  ">
-    <div style="position:relative;z-index:1;max-width:700px;margin:0 auto;">
-      <h2 style="
-        font-family:'Space Grotesk',sans-serif;
-        font-size:clamp(2rem,5vw,3.5rem);
-        font-weight:900;margin-bottom:1rem;
-        background:linear-gradient(135deg,#fff 0%,#c4b5fd 50%,#ec4899 100%);
-        -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-      ">
-        Start with the Solar System
-      </h2>
-      <p style="color:rgba(255,255,255,0.5);font-size:1.05rem;margin-bottom:2.5rem;line-height:1.7;">
-        Open the new AstroBis atlas, travel from Mercury to the Oort Cloud, then jump into exoplanets,
+  <section class="home-final-cta">
+    <div>
+      <p class="section-kicker">Begin at 1 AU</p>
+      <h2>Start with the Solar System</h2>
+      <p>
+        Open the AstroBis atlas, travel from Mercury to the Oort Cloud, then jump into exoplanets,
         live ISS telemetry, future asteroid approaches, and the stellar map.
       </p>
-      <a href={withBase('/viewer')} class="btn btn-primary" style="font-size:1.1rem;padding:1rem 2.5rem;animation:pulse-glow 3s ease-in-out infinite;">
+      <a href={withBase('/viewer')} class="btn btn-primary">
         Open the Solar System Atlas
       </a>
     </div>
   </section>
-
 </Layout>
