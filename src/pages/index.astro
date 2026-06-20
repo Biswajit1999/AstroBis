@@ -9,7 +9,7 @@ const basePath = baseUrl.replace(/\/$/, '');
 const withBase = (path: string) => path === '/' ? baseUrl : `${basePath}${path}`;
 ---
 
-<Layout title="Home" description="An interactive astrophysics platform — explore the cosmos with real data and 3D simulations">
+<Layout title="Home" description="AstroBis is an interactive astronomy platform for realistic 3D space data, solar-system exploration, exoplanets, ISS tracking, NEO watch, and star maps.">
 
   <!-- ═══════════════════════════════ HERO ════════════════════════════════ -->
   <section style="
@@ -21,11 +21,6 @@ const withBase = (path: string) => path === '/' ? baseUrl : `${basePath}${path}`
   ">
     <!-- Animated starfield canvas -->
     <StarfieldCanvas client:load />
-
-    <!-- Nebula blobs -->
-    <div style="position:absolute;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,0.18) 0%,transparent 70%);top:-200px;left:-200px;pointer-events:none;animation:nebula-drift 14s ease-in-out infinite;" />
-    <div style="position:absolute;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(219,39,119,0.12) 0%,transparent 70%);bottom:-100px;right:-100px;pointer-events:none;animation:nebula-drift 18s ease-in-out infinite reverse;" />
-    <div style="position:absolute;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(59,130,246,0.10) 0%,transparent 70%);top:40%;left:60%;pointer-events:none;animation:nebula-drift 22s ease-in-out infinite;" />
 
     <!-- Hero content -->
     <div style="position:relative;z-index:10;max-width:900px;">
@@ -39,7 +34,7 @@ const withBase = (path: string) => path === '/' ? baseUrl : `${basePath}${path}`
         color:#c4b5fd; margin-bottom:1.75rem;
       ">
         <span style="width:6px;height:6px;border-radius:50%;background:#a78bfa;animation:pulse-glow 2s ease-in-out infinite;display:inline-block;"></span>
-        Interactive Astrophysics Platform &mdash; by Biswajit Jana @2026
+        Interactive Astronomy Platform &mdash; by Biswajit Jana @2026
       </div>
 
       <!-- Title -->
@@ -47,13 +42,13 @@ const withBase = (path: string) => path === '/' ? baseUrl : `${basePath}${path}`
         font-family:'Space Grotesk',sans-serif;
         font-size:clamp(3.2rem,9vw,7rem);
         font-weight:900; line-height:1.02;
-        letter-spacing:-0.03em;
+        letter-spacing:0;
         margin-bottom:1.5rem;
         background:linear-gradient(135deg,#ffffff 0%,#e0c8ff 30%,#ec4899 70%,#f97316 100%);
         -webkit-background-clip:text; -webkit-text-fill-color:transparent;
         background-clip:text;
       ">
-        Explore<br />the Cosmos
+        AstroBis
       </h1>
 
       <!-- Subtitle -->
@@ -63,17 +58,17 @@ const withBase = (path: string) => path === '/' ? baseUrl : `${basePath}${path}`
         max-width:620px; margin:0 auto 2.5rem;
         line-height:1.7;
       ">
-        Built by Biswajit Jana — real NASA data, full 3D solar-system simulation,
-        and interactive exoplanet explorer in your browser.
+        Built by Biswajit Jana - a browser-native space lab with a realistic Solar System atlas,
+        live ISS mission view, JPL NEO watch, exoplanet archive, and 3D stellar atlas.
       </p>
 
       <!-- CTAs -->
       <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-bottom:3rem;">
         <a href={withBase('/viewer')} class="btn btn-primary" style="font-size:1rem;">
-          🚀 Launch 3D Simulator
+          Open Solar System Atlas
         </a>
         <a href={withBase('/exoplanets')} class="btn btn-secondary" style="font-size:1rem;">
-          🌍 Exoplanet Explorer
+          Browse Exoplanets
         </a>
       </div>
 
@@ -135,47 +130,65 @@ const withBase = (path: string) => path === '/' ? baseUrl : `${basePath}${path}`
         What You Can <span style="background:linear-gradient(135deg,#a78bfa,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Explore</span>
       </h2>
       <p style="color:rgba(255,255,255,0.45);font-size:0.95rem;">
-        From real-time NASA data to interactive 3D physics simulations.
+        From the Oort Cloud to live orbital traffic, AstroBis keeps the useful science close to the surface.
       </p>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:1.5rem;">
       {[
         {
           icon:'🌌',
-          title:'3D Solar System',
-          desc:'All 8 planets orbiting in real-time with Saturn\'s rings, Earth\'s moon, the asteroid belt, and a glowing corona sun. Click any planet for data.',
+          title:'Solar System Atlas',
+          desc:'A compressed real-distance Solar System with planets, dwarf planets, moon counts, asteroid belt, Kuiper belt, heliopause, and Oort Cloud regions.',
           tag:'Three.js + WebGL',
           tagCol:'#a78bfa',
           href:withBase('/viewer'),
-          cta:'Open Simulator',
+          cta:'Open Atlas',
         },
         {
           icon:'🔭',
           title:'Exoplanet Explorer',
-          desc:'Browse 5,700+ confirmed exoplanets from the NASA Exoplanet Archive. Filter, sort, and inspect orbital mechanics and habitability data.',
-          tag:'NASA API',
+          desc:'Query NASA Exoplanet Archive data with measured radius, mass, orbit, temperature, discovery method, procedural portraits, and source references.',
+          tag:'NASA Archive',
           tagCol:'#f97316',
           href:withBase('/exoplanets'),
           cta:'Browse Planets',
         },
         {
-          icon:'📸',
-          title:'NASA APOD',
-          desc:'Each day, NASA selects a stunning astronomy image. We fetch it live and display it with full scientific context — the universe daily.',
-          tag:'Live Data',
-          tagCol:'#ec4899',
-          href:'#apod',
-          cta:'See Today\'s Image ↓',
+          icon:'🛰️',
+          title:'ISS Mission Control',
+          desc:'Track the station over a textured 3D Earth with live telemetry, orbit projection, cloud layer, and ground-track map.',
+          tag:'Live Orbit',
+          tagCol:'#22c55e',
+          href:withBase('/iss'),
+          cta:'Track ISS',
         },
         {
-          icon:'📐',
-          title:'Astrophysics Depth',
-          desc:'Built on real astrophysics research. Accurate science, not simplified analogies — including stellar evolution, spectral types, and habitability indices.',
-          tag:'Peer-reviewed',
+          icon:'☄️',
+          title:'NEO Watch',
+          desc:'Look ahead through 2050 using JPL close-approach data with distance filters, speed, size estimates, and risk-proxy sorting.',
+          tag:'JPL CAD',
+          tagCol:'#fb7185',
+          href:withBase('/neo'),
+          cta:'Open Watch',
+        },
+        {
+          icon:'⭐',
+          title:'3D Stellar Atlas',
+          desc:'Navigate bright stars using real RA/Dec coordinates, spectral colors, constellation guides, distance shells, and an H-R diagram.',
+          tag:'Star Data',
           tagCol:'#60a5fa',
-          href:withBase('/about'),
-          cta:'About the Platform',
+          href:withBase('/stars'),
+          cta:'Open Atlas',
+        },
+        {
+          icon:'📸',
+          title:'NASA APOD',
+          desc:'Each day, NASA selects an astronomy image with scientific context. AstroBis keeps it alongside the live data tools.',
+          tag:'Daily NASA',
+          tagCol:'#ec4899',
+          href:'#apod',
+          cta:'See Today\'s Image',
         },
       ].map(f => (
         <div class="card" style="display:flex;flex-direction:column;">
@@ -221,7 +234,6 @@ const withBase = (path: string) => path === '/' ? baseUrl : `${basePath}${path}`
     padding:8rem 1.5rem;text-align:center;
     position:relative;overflow:hidden;
   ">
-    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(124,58,237,0.12) 0%,transparent 70%);pointer-events:none;" />
     <div style="position:relative;z-index:1;max-width:700px;margin:0 auto;">
       <h2 style="
         font-family:'Space Grotesk',sans-serif;
@@ -230,14 +242,14 @@ const withBase = (path: string) => path === '/' ? baseUrl : `${basePath}${path}`
         background:linear-gradient(135deg,#fff 0%,#c4b5fd 50%,#ec4899 100%);
         -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
       ">
-        Ready to explore the universe?
+        Start with the Solar System
       </h2>
       <p style="color:rgba(255,255,255,0.5);font-size:1.05rem;margin-bottom:2.5rem;line-height:1.7;">
-        Zoom into Saturn's rings, click on Neptune, or browse 5,700 worlds beyond our solar system.
-        No login. No download. Just science.
+        Open the new AstroBis atlas, travel from Mercury to the Oort Cloud, then jump into exoplanets,
+        live ISS telemetry, future asteroid approaches, and the stellar map.
       </p>
       <a href={withBase('/viewer')} class="btn btn-primary" style="font-size:1.1rem;padding:1rem 2.5rem;animation:pulse-glow 3s ease-in-out infinite;">
-        🚀 Launch the 3D Simulator
+        Open the Solar System Atlas
       </a>
     </div>
   </section>

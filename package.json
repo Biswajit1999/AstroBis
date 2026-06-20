@@ -1,10 +1,12 @@
 {
   "name": "astrobis",
   "version": "1.0.0",
-  "description": "AstroBis - Interactive 3D astronomy platform: black holes, exoplanets, ISS tracker, NEO watch, star maps",
+  "description": "AstroBis - Interactive 3D astronomy platform with a solar-system atlas, exoplanets, ISS tracker, NEO watch, and star maps",
   "type": "module",
   "scripts": {
     "dev": "astro dev",
+    "fetch:data": "node scripts/fetch-space-data.mjs",
+    "prebuild": "npm run fetch:data",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro"

@@ -3,41 +3,17 @@ import Layout from '../layouts/Layout.astro';
 import ExoplanetExplorer from '../components/ExoplanetExplorer';
 ---
 
-<Layout title="Exoplanet Explorer" description="Browse 5700+ confirmed exoplanets with orbital data, habitability scores and type classification">
-
-  <!-- Header banner -->
-  <section style="
-    padding:7rem 1.5rem 3rem;
-    background:radial-gradient(ellipse at 60% 0%,rgba(124,58,237,0.15) 0%,transparent 60%),
-               radial-gradient(ellipse at 10% 80%,rgba(219,39,119,0.10) 0%,transparent 60%);
-    border-bottom:1px solid rgba(255,255,255,0.06);
-    text-align:center;
-  ">
-    <div style="
-      display:inline-flex;align-items:center;gap:0.5rem;
-      background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);
-      border-radius:50px;padding:0.35rem 1rem;
-      font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
-      color:#fb923c;margin-bottom:1.25rem;
-    ">🌍 NASA Exoplanet Archive</div>
-
-    <h1 style="
-      font-family:'Space Grotesk',sans-serif;
-      font-size:clamp(2.5rem,6vw,4rem);
-      font-weight:900;margin-bottom:1rem;
-      background:linear-gradient(135deg,#fb923c,#f97316,#ec4899);
-      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-    ">Exoplanet Explorer</h1>
-
-    <p style="color:rgba(255,255,255,0.5);font-size:1.05rem;max-width:560px;margin:0 auto;">
-      5,700+ confirmed worlds orbiting other stars — filter by type, sort by habitability,
-      and inspect each planet's orbital mechanics.
+<Layout title="AstroBis Exoplanet Archive" description="Browse hundreds of exoplanets from the NASA Exoplanet Archive with measured radius, mass, orbit, temperature, and references.">
+  <section class="page-hero page-hero-exo">
+    <div class="hero-chip">NASA Exoplanet Archive TAP</div>
+    <h1>Exoplanet Archive</h1>
+    <p>
+      Search and sort measured worlds from NASA's composite exoplanet table. Each card blends real orbital data,
+      star information, habitability proxies, and a reference link back to the archive.
     </p>
   </section>
 
-  <!-- Explorer grid -->
-  <section style="padding:2.5rem 0 0;">
+  <section style="padding:2.2rem 0 0;">
     <ExoplanetExplorer client:load />
   </section>
-
 </Layout>

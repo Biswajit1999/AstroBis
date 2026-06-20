@@ -5,7 +5,7 @@ interface Props {
   title: string;
   description?: string;
 }
-const { title, description = 'An interactive astrophysics platform — explore the cosmos with real data and 3D simulations' } = Astro.props;
+const { title, description = 'AstroBis is an interactive astronomy platform with live space data, 3D simulations, and research-grade references.' } = Astro.props;
 
 const baseUrl = import.meta.env.BASE_URL;
 const basePath = baseUrl.replace(/\/$/, '');
@@ -16,11 +16,11 @@ const currentPath = basePath && Astro.url.pathname.startsWith(basePath)
 
 const navLinks = [
   { path: '/', label: 'Home' },
-  { path: '/viewer', label: '⚫ Black Hole' },
-  { path: '/exoplanets', label: '🌍 Exoplanets' },
-  { path: '/iss', label: '🛰 ISS Tracker' },
-  { path: '/neo', label: '☄️ NEO Watch' },
-  { path: '/stars', label: '⭐ Star Map' },
+  { path: '/viewer', label: 'Solar System' },
+  { path: '/exoplanets', label: 'Exoplanets' },
+  { path: '/iss', label: 'ISS Tracker' },
+  { path: '/neo', label: 'NEO Watch' },
+  { path: '/stars', label: 'Star Atlas' },
   { path: '/about', label: 'About' },
 ];
 ---
@@ -50,7 +50,7 @@ const navLinks = [
     position: fixed; top: 0; left: 0; right: 0; z-index: 100;
     padding: 1rem 2rem;
     display: flex; align-items: center; justify-content: space-between;
-    background: rgba(3,2,13,0.7);
+    background: rgba(3,2,13,0.78);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(255,255,255,0.06);
     transition: all 0.3s ease;
@@ -71,12 +71,12 @@ const navLinks = [
           </linearGradient>
         </defs>
       </svg>
-      <span style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.1rem;background:linear-gradient(135deg,#a78bfa,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
-        ASTRO ASTROPHYSICS
+      <span class="brand-word" style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.1rem;background:linear-gradient(135deg,#a78bfa,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+        AstroBis
       </span>
     </a>
 
-    <nav style="display:flex;align-items:center;gap:0.15rem;flex-wrap:wrap;">
+    <nav class="site-nav" style="display:flex;align-items:center;gap:0.15rem;flex-wrap:wrap;">
       {navLinks.map(link => (
         <a href={withBase(link.path)} style={`
           padding: 0.45rem 1rem;
@@ -89,6 +89,7 @@ const navLinks = [
           background: ${currentPath === link.path ? 'rgba(139,92,246,0.12)' : 'transparent'};
           border: 1px solid ${currentPath === link.path ? 'rgba(139,92,246,0.3)' : 'transparent'};
           font-size: 0.82rem;
+          letter-spacing: 0.01em;
         `}>
           {link.label}
         </a>
@@ -110,7 +111,7 @@ const navLinks = [
   ">
     <div style="max-width:800px;margin:0 auto;">
       <div style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.4rem;margin-bottom:0.4rem;background:linear-gradient(135deg,#a78bfa,#ec4899,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
-        ASTRO ASTROPHYSICS
+        AstroBis
       </div>
       <div style="font-size:1rem;font-weight:700;color:rgba(255,255,255,0.55);margin-bottom:0.6rem;letter-spacing:0.04em;">
         by <span style="background:linear-gradient(135deg,#a78bfa,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Biswajit Jana</span>
@@ -118,9 +119,9 @@ const navLinks = [
         <span style="color:rgba(255,255,255,0.35)">@2026</span>
       </div>
       <p style="margin-bottom:0.4rem;font-size:0.85rem;">
-        Astrophysics research &bull; Astro · React · Three.js · NASA APIs
+        Solar-system dynamics &bull; Astro &middot; React &middot; Three.js &middot; NASA/JPL data
       </p>
-      <p style="font-size:0.8rem;">© 2026 Biswajit Jana — AstroBis. Exploring the universe, one photon at a time.</p>
+      <p style="font-size:0.8rem;">&copy; 2026 Biswajit Jana - AstroBis. Exploring the universe, one photon at a time.</p>
     </div>
   </footer>
 

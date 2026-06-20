@@ -1,88 +1,53 @@
-# AstroBis Educational Platform
+# AstroBis
 
-An interactive astronomy and astrophysics educational website built with Astro, React, Three.js, and astronomy APIs.
+AstroBis is an interactive astronomy platform built with Astro, React, Three.js, and live public space-data APIs. It focuses on realistic 3D exploration, current reference data, and browser-native visual tools.
 
 ## Features
 
-- 🌌 **3D Celestial Visualizations** - Interactive 3D renders of planets, galaxies, and cosmic phenomena using Three.js
-- 🚀 **React Components** - Dynamic, interactive UI elements for data exploration
-- 🔭 **Astronomical Data Integration** - Real-time data from NASA APIs and public astronomical databases
-- 📚 **Educational Content** - Comprehensive guides on astrophysics, planetary science, and cosmology
-- 📱 **Responsive Design** - Beautiful, mobile-friendly interface with Tailwind CSS
-- 🎨 **Modern Architecture** - Fast, optimized static site generation with Astro
+- **Solar System Atlas** - Explore the Sun, planets, dwarf planets, asteroid belt, Kuiper belt, heliopause, and Oort Cloud on a compressed real-distance scale.
+- **Exoplanet Archive** - Browse NASA Exoplanet Archive composite parameters with planet type, orbit, mass, radius, temperature, habitability proxy, and source links.
+- **ISS Mission Control** - Track the International Space Station over a textured 3D Earth with clouds, telemetry, orbit projection, and ground-track map.
+- **NEO Watch** - Query JPL close-approach data through 2050 with miss distance, velocity, size estimates, and risk-proxy filters.
+- **3D Stellar Atlas** - Navigate bright stars using real RA/Dec coordinates, spectral colors, constellation guides, distance shells, and an H-R style inset.
+- **NASA APOD** - Display the Astronomy Picture of the Day with scientific context.
 
 ## Tech Stack
 
-- **Framework**: Astro 4.5+
-- **UI Framework**: React 18
-- **3D Graphics**: Three.js & @react-three/fiber
-- **Styling**: Tailwind CSS
-- **API Client**: Axios
-- **Language**: JavaScript/TypeScript
+- Astro 4
+- React 18
+- Three.js and @react-three/fiber
+- @react-three/drei
+- Tailwind CSS
+- NASA Exoplanet Archive TAP
+- JPL SBDB Close-Approach Data API
+- wheretheiss.at public ISS telemetry
 
-## Project Structure
+## Local Development
 
-```
-astro-astrophysics/
-├── src/
-│   ├── pages/              # Route pages
-│   │   └── index.astro     # Home page
-│   ├── components/         # React & Astro components
-│   │   ├── CelestialViewer.jsx
-│   │   ├── ExoplanetExplorer.jsx
-│   │   └── ...
-│   ├── layouts/            # Page layouts
-│   │   └── Layout.astro
-│   ├── lib/                # Utilities and helpers
-│   │   └── astronomy-api.js
-│   └── styles/             # Global styles
-├── public/                 # Static assets
-├── astro.config.mjs        # Astro configuration
-└── package.json
+```bash
+npm install
+npm run dev
 ```
 
-## Getting Started
+Build for production:
 
-1. **Install dependencies**
-   ```bash
-   npm install
-   ```
+```bash
+npm run build
+```
 
-2. **Start development server**
-   ```bash
-   npm run dev
-   ```
-   Open [http://localhost:3000](http://localhost:3000) in your browser.
+Preview the static build:
 
-3. **Build for production**
-   ```bash
-   npm run build
-   ```
+```bash
+npm run preview
+```
 
-4. **Preview production build**
-   ```bash
-   npm run preview
-   ```
+## Deployment
 
-## Available Data Sources
-
-- **NASA APIs**: Astronomy Picture of the Day, Exoplanet data
-- **Astronomical Databases**: Exoplanet EU, Open Exoplanet Catalogue
-- **Custom Datasets**: Stellar data, galaxy information, cosmic simulations
-
-## Roadmap
-
-- [ ] Interactive exoplanet explorer with orbital mechanics
-- [ ] 3D solar system simulator
-- [ ] Spectroscopy visualization tools
-- [ ] Black hole visualization
-- [ ] Stellar evolution simulator
-- [ ] User-created observation logs
-- [ ] API for custom astronomical calculations
+The project is configured for GitHub Pages under `/AstroBis` using Astro's `site` and `base` settings.
 
 ## Author
 
-Created by Biswajit Jana — astrophysics researcher and full-stack developer.
+Created by Biswajit Jana.
 
 ## License
 
