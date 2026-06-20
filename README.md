@@ -1,3 +1,5 @@
+![AstroBis astronomy dashboard banner](assets/astrobis-banner.png)
+
 # AstroBis
 
 AstroBis is an interactive astronomy platform built with Astro, React, Three.js, and live public space-data APIs. It focuses on realistic 3D exploration, current reference data, and browser-native visual tools.
