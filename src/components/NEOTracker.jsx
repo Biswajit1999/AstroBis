@@ -1,265 +1,493 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const pad2 = n => String(n).padStart(2, '0');
-const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; };
-const weekLater = () => { const d = new Date(); d.setDate(d.getDate()+7); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; };
-const kmFmt = n => n >= 1e6 ? `${(n/1e6).toFixed(2)}M km` : `${(n/1000).toFixed(0)}K km`;
+const CAD_ENDPOINT = 'https://ssd-api.jpl.nasa.gov/cad.api';
+const AU_KM = 149597870.7;
+const LD_KM = 384400;
+const BASE_PATH = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+const LOCAL_NEO_URL = `${BASE_PATH}data/neo-approaches.json`;
 
-// ─── Orbit visualiser (SVG) ────────────────────────────────────────────────────
-const OrbitViz = ({ neos }) => {
-  const W = 340, H = 340, cx = W/2, cy = H/2;
-  const EARTH_R = 18;
-  const MAX_DIST_KM = 8e6; // show up to 8M km
+const FALLBACK_APPROACHES = [
+  { des: '2026 AB', fullname: '(2026 AB) demo close approach', cd: '2026-Jun-25 14:20', dist: '0.012', v_rel: '12.6', h: '23.1', diameter: '' },
+  { des: '99942', fullname: '99942 Apophis (2004 MN4)', cd: '2029-Apr-13 21:46', dist: '0.000254', v_rel: '7.43', h: '19.7', diameter: '0.34' },
+  { des: '2001 WN5', fullname: '(2001 WN5)', cd: '2028-Jun-26 02:38', dist: '0.00166', v_rel: '10.2', h: '18.2', diameter: '0.93' },
+  { des: '2015 RN35', fullname: '(2015 RN35)', cd: '2030-Dec-15 11:10', dist: '0.018', v_rel: '9.8', h: '21.7', diameter: '' },
+  { des: '2007 FT3', fullname: '(2007 FT3)', cd: '2048-Oct-03 06:40', dist: '0.053', v_rel: '15.8', h: '20.0', diameter: '' },
+  { des: '2020 AP3', fullname: '(2020 AP3)', cd: '2041-Jan-08 09:24', dist: '0.036', v_rel: '18.4', h: '24.1', diameter: '' },
+];
 
-  const items = neos.slice(0, 20).map(neo => {
-    const approach = neo.close_approach_data[0];
-    const distKm = parseFloat(approach.miss_distance.kilometers);
-    const scaledR = EARTH_R + (distKm / MAX_DIST_KM) * (Math.min(W,H)/2 - EARTH_R - 12);
-    const angle = Math.random() * 2 * Math.PI; // randomise angle
-    const x = cx + scaledR * Math.cos(angle);
-    const y = cy + scaledR * Math.sin(angle);
-    const hazardous = neo.is_potentially_hazardous_asteroid;
-    const sizeKm = neo.estimated_diameter.kilometers.estimated_diameter_max;
-    const dotR = Math.max(3, Math.min(10, sizeKm * 25));
-    return { x, y, dotR, hazardous, name: neo.name, distKm, angle, scaledR };
+function pad2(value) {
+  return String(value).padStart(2, '0');
+}
+
+function todayISO() {
+  const date = new Date();
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function toNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function dateValue(value) {
+  const raw = String(value || '');
+  const direct = Date.parse(raw);
+  if (Number.isFinite(direct)) return direct;
+  return Date.parse(raw.replace(/-/g, ' '));
+}
+
+function formatKm(km) {
+  const value = toNumber(km);
+  if (value === null) return 'n/a';
+  if (value >= 1e6) return `${(value / 1e6).toFixed(2)}M km`;
+  if (value >= 1000) return `${Math.round(value / 1000)}K km`;
+  return `${Math.round(value)} km`;
+}
+
+function estimateDiameterKm(h) {
+  const magnitude = toNumber(h);
+  if (magnitude === null) return null;
+  return (1329 / Math.sqrt(0.14)) * (10 ** (-magnitude / 5));
+}
+
+function normalizeObject(row) {
+  const distAu = toNumber(row.dist) ?? 0;
+  const h = toNumber(row.h);
+  const listedDiameter = toNumber(row.diameter);
+  const diameterKm = listedDiameter ?? estimateDiameterKm(h);
+  const distanceKm = distAu * AU_KM;
+  const velocity = toNumber(row.v_rel);
+  const riskProxy = distAu <= 0.05 && (h === null || h <= 22);
+  const largeProxy = (diameterKm ?? 0) >= 0.14 || (h !== null && h <= 22);
+
+  return {
+    id: row.des || row.fullname || row.cd,
+    name: row.fullname || row.des || 'Unnamed object',
+    designation: row.des || 'n/a',
+    date: row.cd || 'n/a',
+    dateMs: dateValue(row.cd),
+    distAu,
+    distanceKm,
+    lunarDistance: distanceKm / LD_KM,
+    velocity,
+    h,
+    diameterKm,
+    measuredDiameter: listedDiameter !== null,
+    riskProxy,
+    largeProxy,
+  };
+}
+
+function parseCadPayload(payload) {
+  const fields = payload.fields || [];
+  return (payload.data || []).map((row) => {
+    const mapped = {};
+    fields.forEach((field, index) => {
+      mapped[field] = row[index];
+    });
+    return normalizeObject(mapped);
+  });
+}
+
+function seededAngle(seed) {
+  let hash = 0;
+  const text = String(seed);
+  for (let i = 0; i < text.length; i += 1) hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+  return ((Math.abs(hash) % 6283) / 1000);
+}
+
+function ApproachMap({ objects, maxAu }) {
+  const size = 390;
+  const center = size / 2;
+  const earthRadius = 18;
+  const maxDistance = Math.max(maxAu * AU_KM, 0.02 * AU_KM);
+  const mapObjects = objects.slice(0, 90).map((object) => {
+    const angle = seededAngle(`${object.id}-${object.date}`);
+    const distanceRatio = Math.min(1, Math.sqrt(object.distanceKm / maxDistance));
+    const radius = earthRadius + distanceRatio * (center - earthRadius - 20);
+    const dot = Math.max(3, Math.min(12, Math.sqrt((object.diameterKm || 0.04) / 0.14) * 4));
+    return {
+      ...object,
+      x: center + Math.cos(angle) * radius,
+      y: center + Math.sin(angle) * radius,
+      dot,
+    };
   });
 
   return (
-    <svg width={W} height={H} style={{ display:'block', margin:'0 auto' }}>
-      {/* Distance rings */}
-      {[1, 2, 4, 8].map(m => {
-        const r = EARTH_R + (m*1e6 / MAX_DIST_KM) * (Math.min(W,H)/2 - EARTH_R - 12);
+    <svg viewBox={`0 0 ${size} ${size}`} style={{ width: '100%', display: 'block' }}>
+      <defs>
+        <radialGradient id="earthNeo" cx="38%" cy="30%">
+          <stop offset="0%" stopColor="#7dd3fc" />
+          <stop offset="45%" stopColor="#2563eb" />
+          <stop offset="100%" stopColor="#0f172a" />
+        </radialGradient>
+      </defs>
+      {[1, 5, 10, 25].map((ld) => {
+        const radius = earthRadius + Math.sqrt((ld * LD_KM) / maxDistance) * (center - earthRadius - 20);
+        if (radius > center - 12) return null;
         return (
-          <g key={m}>
-            <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={1} />
-            <text x={cx+r+2} y={cy-2} fill="rgba(255,255,255,0.2)" fontSize={9}>{m}M km</text>
+          <g key={ld}>
+            <circle cx={center} cy={center} r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+            <text x={center + radius + 4} y={center - 3} fill="rgba(255,255,255,0.35)" fontSize="10">{ld} LD</text>
           </g>
         );
       })}
-
-      {/* Earth */}
-      <circle cx={cx} cy={cy} r={EARTH_R} fill="#1565c0" />
-      <circle cx={cx} cy={cy} r={EARTH_R+3} fill="none" stroke="#4488ff" strokeWidth={1} opacity={0.4} />
-      <text x={cx} y={cy+4} textAnchor="middle" fill="white" fontSize={9} fontWeight="bold">🌍</text>
-
-      {/* Moon orbit (384,400 km) */}
-      {(() => {
-        const r = EARTH_R + (384400 / MAX_DIST_KM) * (Math.min(W,H)/2 - EARTH_R - 12);
-        return <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth={0.8} strokeDasharray="3 4" />;
-      })()}
-
-      {/* NEO dots */}
-      {items.map((it, i) => (
-        <g key={i}>
-          <line x1={cx} y1={cy} x2={it.x} y2={it.y} stroke={it.hazardous ? 'rgba(239,68,68,0.2)' : 'rgba(100,200,100,0.15)'} strokeWidth={0.8} />
-          <circle cx={it.x} cy={it.y} r={it.dotR}
-            fill={it.hazardous ? '#ef4444' : '#4ade80'}
-            opacity={0.85}
-          >
-            <animate attributeName="opacity" values="0.6;1;0.6" dur={`${1.5+Math.random()}s`} repeatCount="indefinite" />
-          </circle>
+      <circle cx={center} cy={center} r={earthRadius} fill="url(#earthNeo)" />
+      <circle cx={center} cy={center} r={earthRadius + 4} fill="none" stroke="#60a5fa" strokeWidth="1" opacity="0.55" />
+      <circle cx={center} cy={center} r={earthRadius + Math.sqrt(LD_KM / maxDistance) * (center - earthRadius - 20)} fill="none" stroke="rgba(255,255,255,0.2)" strokeDasharray="3 5" />
+      {mapObjects.map((object) => (
+        <g key={`${object.id}-${object.date}`}>
+          <line x1={center} y1={center} x2={object.x} y2={object.y} stroke={object.riskProxy ? 'rgba(248,113,113,0.28)' : 'rgba(34,197,94,0.16)'} strokeWidth="1" />
+          <circle
+            cx={object.x}
+            cy={object.y}
+            r={object.dot}
+            fill={object.riskProxy ? '#fb7185' : object.largeProxy ? '#fbbf24' : '#22c55e'}
+            opacity="0.9"
+          />
         </g>
       ))}
+      <text x={center} y={center + 4} textAnchor="middle" fill="white" fontSize="9" fontWeight="800">Earth</text>
     </svg>
   );
-};
+}
 
-// ─── NEO card ─────────────────────────────────────────────────────────────────
-const NEOCard = ({ neo }) => {
-  const a = neo.close_approach_data[0];
-  const distKm = parseFloat(a.miss_distance.kilometers);
-  const distLD  = parseFloat(a.miss_distance.lunar);
-  const speedKh = parseFloat(a.relative_velocity.kilometers_per_hour);
-  const speedKs = (speedKh / 3600).toFixed(2);
-  const dMin = neo.estimated_diameter.kilometers.estimated_diameter_min;
-  const dMax = neo.estimated_diameter.kilometers.estimated_diameter_max;
-  const hazard = neo.is_potentially_hazardous_asteroid;
-
+function Timeline({ objects, endYear }) {
+  const firstYear = new Date().getFullYear();
+  const span = Math.max(1, endYear - firstYear);
+  const sample = objects.slice(0, 180);
   return (
     <div style={{
-      background: hazard ? 'rgba(239,68,68,0.07)' : 'rgba(255,255,255,0.03)',
-      border: `1px solid ${hazard ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.07)'}`,
-      borderRadius:12, padding:'0.9rem 1rem', transition:'all 0.2s',
-    }}
-      onMouseEnter={e=>e.currentTarget.style.transform='translateY(-2px)'}
-      onMouseLeave={e=>e.currentTarget.style.transform='none'}
-    >
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'0.55rem'}}>
-        <div style={{fontFamily:'Space Grotesk,sans-serif',fontWeight:700,fontSize:'0.88rem',color:'#fff',flex:1,marginRight:8}}>
-          {neo.name.replace(/[()]/g,'')}
+      height: 96,
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: 14,
+      background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {[0, 0.25, 0.5, 0.75, 1].map((tick) => (
+        <div key={tick} style={{ position: 'absolute', left: `${tick * 100}%`, top: 0, bottom: 0, borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
+          <span style={{ position: 'absolute', top: 7, left: 5, color: 'rgba(255,255,255,0.34)', fontSize: 10 }}>{Math.round(firstYear + span * tick)}</span>
         </div>
-        <span style={{
-          fontSize:'0.65rem', fontWeight:800, borderRadius:20,
-          padding:'2px 8px', flexShrink:0,
-          background: hazard ? 'rgba(239,68,68,0.2)' : 'rgba(74,222,128,0.12)',
-          color:        hazard ? '#f87171' : '#4ade80',
-          border:       `1px solid ${hazard ? '#f87171' : '#4ade80'}44`,
-        }}>
-          {hazard ? '⚠ HAZARDOUS' : '✓ SAFE'}
-        </span>
-      </div>
-
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.3rem 0.5rem',fontSize:'0.76rem'}}>
-        {[
-          ['Date',      a.close_approach_date,           '#fde68a'],
-          ['Distance',  `${kmFmt(distKm)} / ${distLD.toFixed(1)} LD`, '#93c5fd'],
-          ['Speed',     `${speedKs} km/s`,               '#c4b5fd'],
-          ['Diameter',  `${dMin.toFixed(3)}–${dMax.toFixed(3)} km`, '#86efac'],
-        ].map(([l,v,c])=>(
-          <div key={l}>
-            <div style={{color:'rgba(255,255,255,0.35)',fontSize:'0.67rem'}}>{l}</div>
-            <div style={{color:c,fontWeight:600}}>{v}</div>
-          </div>
-        ))}
-      </div>
+      ))}
+      {sample.map((object, index) => {
+        const year = new Date(object.dateMs).getFullYear();
+        const left = Math.max(0, Math.min(100, ((year - firstYear) / span) * 100));
+        const top = 26 + ((index * 17) % 56);
+        return (
+          <span
+            key={`${object.id}-${object.date}-${index}`}
+            title={`${object.name} - ${object.date}`}
+            style={{
+              position: 'absolute',
+              left: `${left}%`,
+              top,
+              width: object.riskProxy ? 8 : 5,
+              height: object.riskProxy ? 8 : 5,
+              borderRadius: 99,
+              transform: 'translate(-50%, -50%)',
+              background: object.riskProxy ? '#fb7185' : object.largeProxy ? '#fbbf24' : '#22c55e',
+              boxShadow: object.riskProxy ? '0 0 14px rgba(248,113,113,0.6)' : '0 0 10px rgba(34,197,94,0.4)',
+            }}
+          />
+        );
+      })}
     </div>
   );
-};
+}
 
-// ─── Main component ───────────────────────────────────────────────────────────
-const NEOTracker = () => {
-  const [neos,    setNeos]    = useState([]);
+function ObjectCard({ object }) {
+  const color = object.riskProxy ? '#fb7185' : object.largeProxy ? '#fbbf24' : '#22c55e';
+  return (
+    <article style={{
+      border: `1px solid ${object.riskProxy ? 'rgba(248,113,113,0.35)' : 'rgba(255,255,255,0.09)'}`,
+      background: object.riskProxy ? 'rgba(127,29,29,0.16)' : 'rgba(255,255,255,0.035)',
+      borderRadius: 14,
+      padding: '0.95rem 1rem',
+      color: '#fff',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 11 }}>
+        <div style={{ minWidth: 0 }}>
+          <h3 style={{ fontFamily: 'Space Grotesk, Inter, sans-serif', fontSize: '0.98rem', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {object.name.replace(/[()]/g, '')}
+          </h3>
+          <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>Designation {object.designation}</div>
+        </div>
+        <span style={{
+          border: `1px solid ${color}55`,
+          background: `${color}18`,
+          color,
+          borderRadius: 999,
+          padding: '3px 8px',
+          fontSize: 10,
+          fontWeight: 950,
+          whiteSpace: 'nowrap',
+        }}>{object.riskProxy ? 'Risk proxy' : object.largeProxy ? 'Large' : 'Routine'}</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px 14px', fontSize: 12 }}>
+        <Metric label="Closest approach" value={object.date} color="#fde68a" />
+        <Metric label="Miss distance" value={`${formatKm(object.distanceKm)} / ${object.lunarDistance.toFixed(1)} LD`} color="#93c5fd" />
+        <Metric label="Relative speed" value={`${object.velocity?.toFixed(2) ?? 'n/a'} km/s`} color="#c4b5fd" />
+        <Metric label="Diameter" value={object.diameterKm ? `${object.diameterKm.toFixed(object.diameterKm < 1 ? 3 : 2)} km${object.measuredDiameter ? '' : ' est.'}` : 'n/a'} color="#86efac" />
+        <Metric label="Absolute mag. H" value={object.h?.toFixed(1) ?? 'n/a'} color="#fda4af" />
+        <Metric label="Distance in AU" value={object.distAu.toFixed(5)} color="#67e8f9" />
+      </div>
+    </article>
+  );
+}
+
+function Metric({ label, value, color }) {
+  return (
+    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: 6 }}>
+      <div style={{ color: 'rgba(255,255,255,0.36)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</div>
+      <strong style={{ color, fontSize: 12 }}>{value}</strong>
+    </div>
+  );
+}
+
+function Stat({ label, value, color }) {
+  return (
+    <div style={{ flex: '1 1 150px' }}>
+      <div style={{ color, fontSize: '1.65rem', fontWeight: 950, lineHeight: 1, fontFamily: 'Space Grotesk, Inter, sans-serif' }}>{value}</div>
+      <div style={{ color: 'rgba(255,255,255,0.43)', fontSize: 11, marginTop: 5 }}>{label}</div>
+    </div>
+  );
+}
+
+export default function NEOTracker() {
+  const [objects, setObjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(false);
-  const [showHaz, setShowHaz] = useState(false);
-  const [sort,    setSort]    = useState('date');
+  const [source, setSource] = useState('snapshot');
+  const [generatedAt, setGeneratedAt] = useState(null);
+  const [refreshIndex, setRefreshIndex] = useState(0);
+  const [endYear, setEndYear] = useState(2050);
+  const [distMaxAu, setDistMaxAu] = useState(0.1);
+  const [sortBy, setSortBy] = useState('date');
+  const [riskOnly, setRiskOnly] = useState(false);
+  const [largeOnly, setLargeOnly] = useState(false);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
-    const load = async () => {
+    let active = true;
+    async function load() {
+      setLoading(true);
       try {
-        const url = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today()}&end_date=${weekLater()}&api_key=DEMO_KEY`;
-        const r = await fetch(url);
-        if (!r.ok) throw new Error();
-        const d = await r.json();
-        const all = Object.values(d.near_earth_objects).flat();
-        setNeos(all);
+        const local = await fetch(LOCAL_NEO_URL, { cache: 'no-store' });
+        if (!local.ok) throw new Error('Local NEO snapshot unavailable');
+        const snapshot = await local.json();
+        const parsed = parseCadPayload(snapshot);
+        if (!parsed.length) throw new Error('Local NEO snapshot empty');
+        if (active) {
+          setObjects(parsed.filter((object) => object.distAu <= distMaxAu && new Date(object.dateMs).getFullYear() <= endYear));
+          setSource('snapshot');
+          setGeneratedAt(snapshot.generatedAt || null);
+        }
       } catch {
-        setError(true);
-        // Fallback demo data
-        setNeos(DEMO_NEOS);
-      } finally { setLoading(false); }
-    };
+        try {
+        const params = new URLSearchParams({
+          'date-min': todayISO(),
+          'date-max': `${endYear}-12-31`,
+          'dist-max': String(distMaxAu),
+          body: 'Earth',
+          sort: 'date',
+          limit: '1000',
+          fullname: 'true',
+          diameter: 'true',
+        });
+        const response = await fetch(`${CAD_ENDPOINT}?${params.toString()}`);
+        if (!response.ok) throw new Error('JPL CAD unavailable');
+        const data = await response.json();
+        const parsed = parseCadPayload(data);
+        if (!parsed.length) throw new Error('No approaches found');
+        if (active) {
+          setObjects(parsed);
+          setSource('live');
+          setGeneratedAt(null);
+        }
+        } catch {
+        if (active) {
+          setObjects(FALLBACK_APPROACHES.map(normalizeObject));
+          setSource('demo');
+          setGeneratedAt(null);
+        }
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
     load();
-  }, []);
+    return () => {
+      active = false;
+    };
+  }, [distMaxAu, endYear, refreshIndex]);
 
-  const filtered = useMemo(() => neos
-    .filter(n => !showHaz || n.is_potentially_hazardous_asteroid)
-    .sort((a, b) => {
-      if (sort === 'date')     return a.close_approach_data[0].close_approach_date.localeCompare(b.close_approach_data[0].close_approach_date);
-      if (sort === 'distance') return parseFloat(a.close_approach_data[0].miss_distance.kilometers) - parseFloat(b.close_approach_data[0].miss_distance.kilometers);
-      if (sort === 'size')     return b.estimated_diameter.kilometers.estimated_diameter_max - a.estimated_diameter.kilometers.estimated_diameter_max;
-      if (sort === 'speed')    return parseFloat(b.close_approach_data[0].relative_velocity.kilometers_per_hour) - parseFloat(a.close_approach_data[0].relative_velocity.kilometers_per_hour);
-      return 0;
-    }), [neos, showHaz, sort]);
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return objects
+      .filter((object) => {
+        if (riskOnly && !object.riskProxy) return false;
+        if (largeOnly && !object.largeProxy) return false;
+        if (query && !`${object.name} ${object.designation}`.toLowerCase().includes(query)) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'distance') return a.distanceKm - b.distanceKm;
+        if (sortBy === 'speed') return (b.velocity ?? 0) - (a.velocity ?? 0);
+        if (sortBy === 'size') return (b.diameterKm ?? 0) - (a.diameterKm ?? 0);
+        if (sortBy === 'risk') return Number(b.riskProxy) - Number(a.riskProxy) || a.distanceKm - b.distanceKm;
+        return a.dateMs - b.dateMs;
+      });
+  }, [largeOnly, objects, riskOnly, search, sortBy]);
 
-  const hazCount = neos.filter(n=>n.is_potentially_hazardous_asteroid).length;
+  const riskCount = objects.filter((object) => object.riskProxy).length;
+  const largeCount = objects.filter((object) => object.largeProxy).length;
+  const closest = objects.reduce((best, object) => (!best || object.distanceKm < best.distanceKm ? object : best), null);
+  const largest = objects.reduce((best, object) => (!best || (object.diameterKm ?? 0) > (best.diameterKm ?? 0) ? object : best), null);
 
   return (
-    <div style={{ padding:'0 1.5rem 4rem', maxWidth:1200, margin:'0 auto' }}>
+    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 1.25rem 4.5rem' }}>
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 18,
+        padding: '1.05rem 1.2rem',
+        marginBottom: 18,
+        borderRadius: 16,
+        border: '1px solid rgba(255,255,255,0.09)',
+        background: 'rgba(255,255,255,0.035)',
+      }}>
+        <Stat label={`Close approaches through ${endYear}`} value={loading ? '...' : objects.length} color="#a78bfa" />
+        <Stat label="Risk proxy objects" value={loading ? '...' : riskCount} color="#fb7185" />
+        <Stat label="Large object proxy" value={loading ? '...' : largeCount} color="#fbbf24" />
+        <Stat label="Closest listed pass" value={closest ? `${closest.lunarDistance.toFixed(1)} LD` : 'n/a'} color="#67e8f9" />
+        <Stat label="Largest listed diameter" value={largest?.diameterKm ? `${largest.diameterKm.toFixed(2)} km` : 'n/a'} color="#86efac" />
+      </div>
 
-      {/* Summary bar */}
-      {!loading && (
-        <div style={{
-          display:'flex', flexWrap:'wrap', gap:'1rem',
-          background:'rgba(255,255,255,0.03)',
-          border:'1px solid rgba(255,255,255,0.07)',
-          borderRadius:14, padding:'1rem 1.25rem', marginBottom:'1.75rem',
-        }}>
-          {[
-            { label:'Total approaches', val:neos.length, col:'#a78bfa' },
-            { label:'Potentially hazardous', val:hazCount, col:'#f87171' },
-            { label:'Safe flybys', val:neos.length-hazCount, col:'#4ade80' },
-            { label:'Next 7 days', val:'Tracked', col:'#93c5fd' },
-          ].map(({ label, val, col }) => (
-            <div key={label} style={{ flex:'1 1 140px' }}>
-              <div style={{ fontSize:'1.6rem', fontWeight:900, color:col, fontFamily:'Space Grotesk,sans-serif', lineHeight:1 }}>{val}</div>
-              <div style={{ fontSize:'0.75rem', color:'rgba(255,255,255,0.4)' }}>{label}</div>
-            </div>
-          ))}
-          {error && <div style={{color:'#fbbf24',fontSize:'0.78rem',alignSelf:'center'}}>⚠ Demo data — NASA API rate-limited (30 req/hr)</div>}
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 18,
+        padding: '0.85rem',
+        borderRadius: 16,
+        border: '1px solid rgba(255,255,255,0.09)',
+        background: 'rgba(255,255,255,0.03)',
+      }}>
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search designation or asteroid name"
+          style={inputStyle}
+        />
+        <select value={endYear} onChange={(event) => setEndYear(Number(event.target.value))} style={selectStyle}>
+          <option value={2030}>Through 2030</option>
+          <option value={2040}>Through 2040</option>
+          <option value={2050}>Through 2050</option>
+        </select>
+        <select value={distMaxAu} onChange={(event) => setDistMaxAu(Number(event.target.value))} style={selectStyle}>
+          <option value={0.03}>Within 0.03 AU</option>
+          <option value={0.05}>Within 0.05 AU</option>
+          <option value={0.1}>Within 0.10 AU</option>
+          <option value={0.2}>Within 0.20 AU</option>
+        </select>
+        <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} style={selectStyle}>
+          <option value="date">Sort: date</option>
+          <option value="distance">Sort: nearest</option>
+          <option value="speed">Sort: fastest</option>
+          <option value="size">Sort: largest</option>
+          <option value="risk">Sort: risk proxy</option>
+        </select>
+        <button type="button" onClick={() => setRiskOnly((value) => !value)} style={toggleStyle(riskOnly, '#fb7185')}>Risk only</button>
+        <button type="button" onClick={() => setLargeOnly((value) => !value)} style={toggleStyle(largeOnly, '#fbbf24')}>Large only</button>
+        <button type="button" onClick={() => setRefreshIndex((value) => value + 1)} style={toggleStyle(false, '#67e8f9')}>Reload data</button>
+      </div>
+
+      {source === 'demo' && !loading && (
+        <div style={{ marginBottom: 18, borderRadius: 14, border: '1px solid rgba(251,191,36,0.24)', background: 'rgba(251,191,36,0.08)', color: '#fbbf24', padding: '0.75rem 1rem', fontSize: 13 }}>
+          JPL CAD could not be reached from the browser, so AstroBis is showing offline demo approaches.
+        </div>
+      )}
+      {source === 'snapshot' && generatedAt && !loading && (
+        <div style={{ marginBottom: 18, borderRadius: 14, border: '1px solid rgba(34,197,94,0.22)', background: 'rgba(34,197,94,0.07)', color: '#a7f3d0', padding: '0.75rem 1rem', fontSize: 13 }}>
+          Using a same-origin JPL close-approach snapshot generated during the site build on {new Date(generatedAt).toLocaleDateString()}.
         </div>
       )}
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1.6fr', gap:'1.75rem', alignItems:'start' }}>
-
-        {/* Left: orbit visualiser */}
-        <div style={{
-          background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.07)',
-          borderRadius:16, padding:'1.25rem', position:'sticky', top:90,
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 20, alignItems: 'start' }}>
+        <aside style={{
+          position: 'sticky',
+          top: 88,
+          borderRadius: 18,
+          border: '1px solid rgba(255,255,255,0.09)',
+          background: 'rgba(255,255,255,0.03)',
+          padding: '1rem',
         }}>
-          <div style={{fontFamily:'Space Grotesk,sans-serif',fontWeight:700,fontSize:'0.9rem',marginBottom:'0.75rem',color:'rgba(255,255,255,0.7)'}}>
-            Approach Proximity Map
-          </div>
+          <div style={{ color: '#fda4af', fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 900, marginBottom: 8 }}>Approach radar</div>
           {loading ? (
-            <div style={{height:340,display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,0.3)'}}>
-              Loading…
-            </div>
-          ) : <OrbitViz neos={filtered} />}
-          <div style={{marginTop:'0.75rem',fontSize:'0.68rem',color:'rgba(255,255,255,0.3)',lineHeight:1.6}}>
-            🟢 Safe &nbsp;|&nbsp; 🔴 Potentially hazardous<br/>
-            Dot size ∝ estimated diameter • Dashed ring = Moon's orbit<br/>
-            <span style={{color:'rgba(255,255,255,0.18)'}}>Biswajit Jana @2026</span>
-          </div>
-        </div>
-
-        {/* Right: controls + list */}
-        <div>
-          <div style={{
-            display:'flex', flexWrap:'wrap', gap:'0.6rem',
-            marginBottom:'1rem', alignItems:'center',
-          }}>
-            <select value={sort} onChange={e=>setSort(e.target.value)} style={{
-              background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)',
-              borderRadius:8, padding:'0.45rem 0.8rem', color:'#fff', fontSize:'0.82rem', cursor:'pointer',
-            }}>
-              <option value="date">Sort: Closest date</option>
-              <option value="distance">Sort: Nearest miss</option>
-              <option value="size">Sort: Largest first</option>
-              <option value="speed">Sort: Fastest first</option>
-            </select>
-
-            <button onClick={()=>setShowHaz(h=>!h)} style={{
-              background: showHaz ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.05)',
-              border: `1px solid ${showHaz ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.1)'}`,
-              color: showHaz ? '#f87171' : 'rgba(255,255,255,0.5)',
-              borderRadius:8, padding:'0.45rem 0.9rem',
-              fontSize:'0.82rem', cursor:'pointer', fontWeight:600,
-            }}>
-              {showHaz ? '⚠ Hazardous only' : 'All objects'}
-            </button>
-
-            <span style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.3)',marginLeft:'auto'}}>
-              {filtered.length} objects
-            </span>
-          </div>
-
-          {loading ? (
-            <div style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
-              {Array.from({length:6}).map((_,i)=>(
-                <div key={i} style={{height:100,borderRadius:12,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.05)'}} />
-              ))}
-            </div>
+            <div style={{ height: 390, display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,0.38)' }}>Loading JPL approaches...</div>
           ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:'0.7rem', maxHeight:'72vh', overflowY:'auto', paddingRight:4 }}>
-              {filtered.map(neo => <NEOCard key={neo.id} neo={neo} />)}
-            </div>
+            <ApproachMap objects={filtered} maxAu={distMaxAu} />
           )}
-        </div>
+          <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 11, lineHeight: 1.6, marginTop: 10 }}>
+            Ring labels use lunar distances. Dot size follows diameter estimate. Risk proxy uses close approach within 0.05 AU and H less than or equal to 22 when available.
+          </div>
+        </aside>
+
+        <section>
+          <div style={{ marginBottom: 14 }}>
+            <Timeline objects={filtered} endYear={endYear} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, color: 'rgba(255,255,255,0.42)', fontSize: 12, marginBottom: 10 }}>
+            <span>{loading ? 'Loading...' : `${filtered.length} objects shown`}</span>
+            <span>Source: {source === 'snapshot' ? 'build snapshot' : source === 'live' ? 'JPL SBDB close-approach data' : 'offline demo'}</span>
+          </div>
+          <div style={{ display: 'grid', gap: 12, maxHeight: '76vh', overflowY: 'auto', paddingRight: 5 }}>
+            {loading ? (
+              Array.from({ length: 7 }).map((_, index) => <div key={index} style={{ height: 130, borderRadius: 14, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }} />)
+            ) : filtered.length ? (
+              filtered.map((object) => <ObjectCard key={`${object.id}-${object.date}`} object={object} />)
+            ) : (
+              <div style={{ color: 'rgba(255,255,255,0.45)', textAlign: 'center', padding: '3rem 1rem' }}>No objects match those filters.</div>
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );
+}
+
+const inputStyle = {
+  flex: '1 1 240px',
+  minWidth: 0,
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.12)',
+  color: '#fff',
+  borderRadius: 999,
+  padding: '0.68rem 0.9rem',
+  outline: 'none',
 };
 
-// ─── Demo fallback ────────────────────────────────────────────────────────────
-const DEMO_NEOS = [
-  { id:'1',name:'(2024 BX1)',is_potentially_hazardous_asteroid:false,estimated_diameter:{kilometers:{estimated_diameter_min:0.012,estimated_diameter_max:0.027}},close_approach_data:[{close_approach_date:'2026-06-07',miss_distance:{kilometers:'2340000',lunar:'6.09'},relative_velocity:{kilometers_per_hour:'42300'}}] },
-  { id:'2',name:'(2023 YR3)',is_potentially_hazardous_asteroid:true, estimated_diameter:{kilometers:{estimated_diameter_min:0.140,estimated_diameter_max:0.313}},close_approach_data:[{close_approach_date:'2026-06-08',miss_distance:{kilometers:'5820000',lunar:'15.1'},relative_velocity:{kilometers_per_hour:'78100'}}] },
-  { id:'3',name:'(2024 DK4)',is_potentially_hazardous_asteroid:false,estimated_diameter:{kilometers:{estimated_diameter_min:0.055,estimated_diameter_max:0.122}},close_approach_data:[{close_approach_date:'2026-06-09',miss_distance:{kilometers:'1140000',lunar:'2.97'},relative_velocity:{kilometers_per_hour:'31500'}}] },
-  { id:'4',name:'(2022 AP7)',is_potentially_hazardous_asteroid:true, estimated_diameter:{kilometers:{estimated_diameter_min:1.150,estimated_diameter_max:2.570}},close_approach_data:[{close_approach_date:'2026-06-10',miss_distance:{kilometers:'7340000',lunar:'19.1'},relative_velocity:{kilometers_per_hour:'95600'}}] },
-  { id:'5',name:'(2024 GR2)',is_potentially_hazardous_asteroid:false,estimated_diameter:{kilometers:{estimated_diameter_min:0.022,estimated_diameter_max:0.049}},close_approach_data:[{close_approach_date:'2026-06-11',miss_distance:{kilometers:'3980000',lunar:'10.4'},relative_velocity:{kilometers_per_hour:'55200'}}] },
-  { id:'6',name:'(2019 OK)',is_potentially_hazardous_asteroid:true, estimated_diameter:{kilometers:{estimated_diameter_min:0.057,estimated_diameter_max:0.128}},close_approach_data:[{close_approach_date:'2026-06-12',miss_distance:{kilometers:'730000', lunar:'1.90'},relative_velocity:{kilometers_per_hour:'88400'}}] },
-  { id:'7',name:'(2024 HQ1)',is_potentially_hazardous_asteroid:false,estimated_diameter:{kilometers:{estimated_diameter_min:0.008,estimated_diameter_max:0.018}},close_approach_data:[{close_approach_date:'2026-06-13',miss_distance:{kilometers:'6120000',lunar:'15.9'},relative_velocity:{kilometers_per_hour:'27800'}}] },
-];
+const selectStyle = {
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.12)',
+  color: '#fff',
+  borderRadius: 999,
+  padding: '0.68rem 0.85rem',
+  outline: 'none',
+  cursor: 'pointer',
+  fontWeight: 760,
+};
 
-export default NEOTracker;
+function toggleStyle(active, color) {
+  return {
+    border: `1px solid ${active ? `${color}66` : 'rgba(255,255,255,0.12)'}`,
+    background: active ? `${color}18` : 'rgba(255,255,255,0.06)',
+    color: active ? color : 'rgba(255,255,255,0.72)',
+    borderRadius: 999,
+    padding: '0.68rem 0.85rem',
+    cursor: 'pointer',
+    fontWeight: 850,
+  };
+}

@@ -3,13 +3,12 @@ import Layout from '../layouts/Layout.astro';
 import SolarSystem from '../components/SolarSystem';
 ---
 
-<Layout title="3D Solar System Simulator" description="Interactive real-time 3D solar system — all 8 planets, Saturn's rings, Earth's moon, and the asteroid belt">
+<Layout title="AstroBis Solar System Atlas" description="Explore the Sun, planets, dwarf planets, belts, heliopause, and Oort Cloud in a compressed real-distance 3D atlas.">
   <div style="padding-top:64px;">
     <SolarSystem client:load />
   </div>
 </Layout>
 
 <style>
-  /* Remove default padding on viewer page */
   main { padding:0!important; }
 </style>

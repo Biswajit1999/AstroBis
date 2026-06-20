@@ -3,21 +3,17 @@ import Layout from '../layouts/Layout.astro';
 import NEOTracker from '../components/NEOTracker';
 ---
 
-<Layout title="NEO Watch — Near-Earth Objects" description="Live NASA data: asteroids approaching Earth this week — Biswajit Jana @2026">
-  <section style="padding:7rem 1.5rem 2.5rem;text-align:center;background:radial-gradient(ellipse at 50% 0%,rgba(239,68,68,0.08) 0%,transparent 60%);border-bottom:1px solid rgba(255,255,255,0.06);">
-    <div style="display:inline-flex;align-items:center;gap:0.5rem;background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.3);border-radius:50px;padding:0.35rem 1rem;font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#fca5a5;margin-bottom:1.2rem;">
-      ☄️ NASA NeoWs API · Next 7 Days
-    </div>
-    <h1 style="font-family:'Space Grotesk',sans-serif;font-size:clamp(2rem,5vw,3.2rem);font-weight:900;margin-bottom:0.75rem;background:linear-gradient(135deg,#fca5a5,#f87171,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
-      Near-Earth Object Watch
-    </h1>
-    <p style="color:rgba(255,255,255,0.45);font-size:0.95rem;max-width:540px;margin:0 auto;">
-      NASA tracks every asteroid making a close approach to Earth. Here are all the flybys happening in the next 7 days —
-      with size, speed, miss distance, and hazard classification.
+<Layout title="AstroBis NEO Watch" description="Track JPL close-approach objects through 2050 with distance, speed, size estimates, and risk proxy filters.">
+  <section class="page-hero page-hero-neo">
+    <div class="hero-chip">JPL SBDB close-approach data - through 2050</div>
+    <h1>Near-Earth Object Watch</h1>
+    <p>
+      Search future Earth close approaches, adjust the distance horizon, and inspect miss distance,
+      speed, estimated size, and risk-proxy status from JPL's CAD feed.
     </p>
   </section>
 
-  <section style="padding:2.5rem 0 0;">
+  <section style="padding:2.2rem 0 0;">
     <NEOTracker client:load />
   </section>
 </Layout>
