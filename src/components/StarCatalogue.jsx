@@ -100,6 +100,23 @@ const SPEC_LABEL = {
   M: 'Red giant',
 };
 
+const SPEC_TEMP = {
+  O: 30000,
+  B: 15000,
+  A: 9000,
+  F: 7000,
+  G: 5800,
+  K: 4500,
+  M: 3200,
+};
+
+const STAR_MODELS = STARS.map((star) => {
+  const tempK = SPEC_TEMP[star.spectral] || 5800;
+  const luminosity = 10 ** ((4.83 - star.absMag) / 2.5);
+  const radiusSolar = Math.sqrt(luminosity) / ((tempK / 5772) ** 2);
+  return { ...star, tempK, luminosity, radiusSolar };
+});
+
 const CONSTELLATIONS = [
   { name: 'Orion', color: '#67e8f9', pairs: [['Betelgeuse', 'Bellatrix'], ['Bellatrix', 'Mintaka'], ['Mintaka', 'Alnilam'], ['Alnilam', 'Alnitak'], ['Alnitak', 'Saiph'], ['Saiph', 'Rigel'], ['Rigel', 'Mintaka'], ['Betelgeuse', 'Alnitak']] },
   { name: 'Big Dipper', color: '#a78bfa', pairs: [['Dubhe', 'Alioth'], ['Alioth', 'Mizar'], ['Mizar', 'Alkaid'], ['Dubhe', 'Alkaid']] },
@@ -183,7 +200,7 @@ function StarMesh({ star, selected, onSelect }) {
 }
 
 function ConstellationLines({ enabled }) {
-  const byName = useMemo(() => new Map(STARS.map((star) => [star.name, star])), []);
+  const byName = useMemo(() => new Map(STAR_MODELS.map((star) => [star.name, star])), []);
   if (!enabled) return null;
   return (
     <>
@@ -301,6 +318,9 @@ function StarPanel({ star, onClose }) {
           ['Apparent magnitude', star.mag.toFixed(2)],
           ['Absolute magnitude', star.absMag.toFixed(2)],
           ['Distance', `${ly.toFixed(1)} light-years (${star.distPc} pc)`],
+          ['Temperature proxy', `${Math.round(star.tempK).toLocaleString()} K`],
+          ['Luminosity proxy', `${star.luminosity < 1000 ? star.luminosity.toFixed(1) : Math.round(star.luminosity).toLocaleString()} Ls`],
+          ['Radius proxy', `${star.radiusSolar < 100 ? star.radiusSolar.toFixed(1) : Math.round(star.radiusSolar).toLocaleString()} Rs`],
           ['RA / Dec', `${star.ra.toFixed(3)}h / ${star.dec.toFixed(2)} deg`],
           ['Spectral class', star.spectral],
         ].map(([label, value]) => (
@@ -334,6 +354,8 @@ function HRDiagram({ stars, selected }) {
 }
 
 function Controls({ search, setSearch, filter, setFilter, showConstellations, setShowConstellations, showShells, setShowShells, visibleCount, selected, setSelected }) {
+  const localCount = STAR_MODELS.filter((star) => star.distPc <= 25).length;
+  const supergiants = STAR_MODELS.filter((star) => star.luminosity > 10000).length;
   return (
     <aside className="star-controls-panel" style={{
       position: 'absolute',
@@ -359,6 +381,16 @@ function Controls({ search, setSearch, filter, setFilter, showConstellations, se
         <button type="button" onClick={() => setShowShells((value) => !value)} style={toggleStyle(showShells, '#fbbf24')}>Distance shells</button>
       </div>
       <div style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '0.7rem', marginTop: 12, background: 'rgba(255,255,255,0.035)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+          <div style={{ border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '0.5rem', background: 'rgba(255,255,255,0.03)' }}>
+            <div style={{ color: '#67e8f9', fontWeight: 950 }}>{localCount}</div>
+            <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 10 }}>within 25 pc</div>
+          </div>
+          <div style={{ border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '0.5rem', background: 'rgba(255,255,255,0.03)' }}>
+            <div style={{ color: '#fbbf24', fontWeight: 950 }}>{supergiants}</div>
+            <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 10 }}>high luminosity</div>
+          </div>
+        </div>
         {Object.entries(SPEC_COLOR).map(([spectral, color]) => (
           <div key={spectral} style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.56)', fontSize: 11, marginBottom: 5 }}>
             <span style={{ width: 8, height: 8, borderRadius: 99, background: color, boxShadow: `0 0 8px ${color}` }} />
@@ -368,18 +400,18 @@ function Controls({ search, setSearch, filter, setFilter, showConstellations, se
         ))}
       </div>
       <div style={{ marginTop: 12 }}>
-        <HRDiagram stars={STARS} selected={selected} />
+        <HRDiagram stars={STAR_MODELS} selected={selected} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, color: 'rgba(255,255,255,0.38)', fontSize: 11 }}>
         <span>{visibleCount} stars shown</span>
-        <button type="button" onClick={() => setSelected(STARS[0])} style={{ ...toggleStyle(false, '#a78bfa'), padding: '0.42rem 0.65rem' }}>Reset</button>
+        <button type="button" onClick={() => setSelected(STAR_MODELS[0])} style={{ ...toggleStyle(false, '#a78bfa'), padding: '0.42rem 0.65rem' }}>Reset</button>
       </div>
     </aside>
   );
 }
 
 export default function StarCatalogue() {
-  const [selected, setSelected] = useState(STARS[0]);
+  const [selected, setSelected] = useState(STAR_MODELS[0]);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [showConstellations, setShowConstellations] = useState(true);
@@ -387,7 +419,7 @@ export default function StarCatalogue() {
 
   const visibleStars = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return STARS.filter((star) => {
+    return STAR_MODELS.filter((star) => {
       if (filter !== 'all' && star.spectral !== filter) return false;
       if (query && !`${star.name} ${star.desc}`.toLowerCase().includes(query)) return false;
       return true;

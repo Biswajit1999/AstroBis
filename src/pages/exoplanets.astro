@@ -3,17 +3,17 @@ import Layout from '../layouts/Layout.astro';
 import ExoplanetExplorer from '../components/ExoplanetExplorer';
 ---
 
-<Layout title="AstroBis Exoplanet Archive" description="Browse hundreds of exoplanets from the NASA Exoplanet Archive with measured radius, mass, orbit, temperature, and references.">
+<Layout title="AstroBis Exoplanet Archive" description="Browse thousands of exoplanets from the NASA Exoplanet Archive with measured radius, mass, orbit, temperature, stellar luminosity proxies, and references.">
   <section class="page-hero page-hero-exo">
     <div class="hero-chip">NASA Exoplanet Archive TAP</div>
     <h1>Exoplanet Archive</h1>
     <p>
       Search and sort measured worlds from NASA's composite exoplanet table. Each card blends real orbital data,
-      star information, habitability proxies, and a reference link back to the archive.
+      star information, luminosity-derived habitable-zone proxies, and a reference link back to the archive.
     </p>
   </section>
 
   <section style="padding:2.2rem 0 0;">
-    <ExoplanetExplorer client:load />
+    <ExoplanetExplorer client:only="react" />
   </section>
 </Layout>

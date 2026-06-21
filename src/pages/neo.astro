@@ -3,17 +3,17 @@ import Layout from '../layouts/Layout.astro';
 import NEOTracker from '../components/NEOTracker';
 ---
 
-<Layout title="AstroBis NEO Watch" description="Track JPL close-approach objects through 2050 with distance, speed, size estimates, and risk proxy filters.">
+<Layout title="AstroBis NEO Watch" description="Track JPL close-approach objects through 2050 with distance, speed, size estimates, energy scale, and risk proxy filters.">
   <section class="page-hero page-hero-neo">
     <div class="hero-chip">JPL SBDB close-approach data - through 2050</div>
     <h1>Near-Earth Object Watch</h1>
     <p>
       Search future Earth close approaches, adjust the distance horizon, and inspect miss distance,
-      speed, estimated size, and risk-proxy status from JPL's CAD feed.
+      speed, estimated size, energy scale, and risk-proxy status from JPL's CAD feed.
     </p>
   </section>
 
   <section style="padding:2.2rem 0 0;">
-    <NEOTracker client:load />
+    <NEOTracker client:only="react" />
   </section>
 </Layout>

@@ -47,6 +47,11 @@ const SYSTEM_OBJECTS = [
     color: '#b6ada1',
     accent: '#d1c6b8',
     texture: 'mercury',
+    ecc: 0.2056,
+    inclinationDeg: 7.0,
+    axialTiltDeg: 0.03,
+    gravity: '3.70 m/s2',
+    escapeVelocity: '4.25 km/s',
     size: 0.58,
     speed: 4.15,
     fact: 'Airless, cratered, and locked in a 3:2 spin-orbit resonance.',
@@ -63,6 +68,11 @@ const SYSTEM_OBJECTS = [
     color: '#d9b46f',
     accent: '#f6d28b',
     texture: 'venus',
+    ecc: 0.0068,
+    inclinationDeg: 3.39,
+    axialTiltDeg: 177.4,
+    gravity: '8.87 m/s2',
+    escapeVelocity: '10.36 km/s',
     atmosphere: true,
     size: 0.96,
     speed: 1.62,
@@ -80,6 +90,11 @@ const SYSTEM_OBJECTS = [
     color: '#4f9cff',
     accent: '#60a5fa',
     texture: 'earth',
+    ecc: 0.0167,
+    inclinationDeg: 0,
+    axialTiltDeg: 23.44,
+    gravity: '9.81 m/s2',
+    escapeVelocity: '11.19 km/s',
     atmosphere: true,
     size: 1,
     speed: 1,
@@ -97,6 +112,11 @@ const SYSTEM_OBJECTS = [
     color: '#c65f36',
     accent: '#fb923c',
     texture: 'mars',
+    ecc: 0.0934,
+    inclinationDeg: 1.85,
+    axialTiltDeg: 25.19,
+    gravity: '3.71 m/s2',
+    escapeVelocity: '5.03 km/s',
     size: 0.72,
     speed: 0.53,
     fact: 'Cold desert world with Olympus Mons, Valles Marineris, Phobos, and Deimos.',
@@ -112,6 +132,11 @@ const SYSTEM_OBJECTS = [
     dayLength: '9.1 hours',
     color: '#a7a29a',
     accent: '#cbd5e1',
+    ecc: 0.076,
+    inclinationDeg: 10.6,
+    axialTiltDeg: 4,
+    gravity: '0.28 m/s2',
+    escapeVelocity: '0.51 km/s',
     size: 0.38,
     speed: 0.22,
     fact: 'Largest object in the asteroid belt and the only dwarf planet inside Neptune.',
@@ -128,6 +153,11 @@ const SYSTEM_OBJECTS = [
     color: '#d49a55',
     accent: '#f8c471',
     texture: 'jupiter',
+    ecc: 0.0489,
+    inclinationDeg: 1.30,
+    axialTiltDeg: 3.13,
+    gravity: '24.79 m/s2',
+    escapeVelocity: '59.5 km/s',
     size: 3.2,
     speed: 0.084,
     rings: false,
@@ -145,6 +175,11 @@ const SYSTEM_OBJECTS = [
     color: '#e8cf91',
     accent: '#fde68a',
     texture: 'saturn',
+    ecc: 0.0565,
+    inclinationDeg: 2.49,
+    axialTiltDeg: 26.73,
+    gravity: '10.44 m/s2',
+    escapeVelocity: '35.5 km/s',
     size: 2.75,
     speed: 0.034,
     rings: true,
@@ -162,6 +197,11 @@ const SYSTEM_OBJECTS = [
     color: '#8ce9e7',
     accent: '#67e8f9',
     texture: 'uranus',
+    ecc: 0.0463,
+    inclinationDeg: 0.77,
+    axialTiltDeg: 97.77,
+    gravity: '8.69 m/s2',
+    escapeVelocity: '21.3 km/s',
     size: 2.05,
     speed: 0.012,
     rings: true,
@@ -179,6 +219,11 @@ const SYSTEM_OBJECTS = [
     color: '#4169e1',
     accent: '#93c5fd',
     texture: 'neptune',
+    ecc: 0.009,
+    inclinationDeg: 1.77,
+    axialTiltDeg: 28.32,
+    gravity: '11.15 m/s2',
+    escapeVelocity: '23.5 km/s',
     size: 1.95,
     speed: 0.006,
     fact: 'Distant ice giant with supersonic winds and the captured moon Triton.',
@@ -195,6 +240,11 @@ const SYSTEM_OBJECTS = [
     color: '#d8c0a7',
     accent: '#f8d3ad',
     texture: 'pluto',
+    ecc: 0.2488,
+    inclinationDeg: 17.16,
+    axialTiltDeg: 119.6,
+    gravity: '0.62 m/s2',
+    escapeVelocity: '1.21 km/s',
     size: 0.52,
     speed: 0.0035,
     fact: 'Complex Kuiper-belt world with nitrogen ice plains and the large moon Charon.',
@@ -210,6 +260,11 @@ const SYSTEM_OBJECTS = [
     dayLength: '3.9 hours',
     color: '#dbeafe',
     accent: '#bfdbfe',
+    ecc: 0.19,
+    inclinationDeg: 28.2,
+    axialTiltDeg: 126,
+    gravity: '0.44 m/s2',
+    escapeVelocity: '0.84 km/s',
     size: 0.44,
     speed: 0.003,
     fact: 'Fast-spinning elongated dwarf planet with a ring and two known moons.',
@@ -225,6 +280,11 @@ const SYSTEM_OBJECTS = [
     dayLength: '22.5 hours',
     color: '#c7b49a',
     accent: '#f1c27d',
+    ecc: 0.16,
+    inclinationDeg: 29.0,
+    axialTiltDeg: 0,
+    gravity: '0.50 m/s2',
+    escapeVelocity: '0.80 km/s',
     size: 0.43,
     speed: 0.0028,
     fact: 'Bright trans-Neptunian dwarf planet with methane ice on its surface.',
@@ -240,6 +300,11 @@ const SYSTEM_OBJECTS = [
     dayLength: '25.9 hours',
     color: '#eef2ff',
     accent: '#c4b5fd',
+    ecc: 0.44,
+    inclinationDeg: 44.0,
+    axialTiltDeg: 78,
+    gravity: '0.82 m/s2',
+    escapeVelocity: '1.38 km/s',
     size: 0.52,
     speed: 0.0016,
     fact: 'Massive scattered-disk dwarf planet whose discovery helped redefine planet status.',
@@ -259,6 +324,22 @@ const REGIONS = [
 function auToScene(au, scaleMode) {
   if (scaleMode === 'inner') return Math.sqrt(au) * 17;
   return Math.log10(au + 1) * 38;
+}
+
+function orbitVector(au, eccentricity, inclinationDeg, angle, scaleMode, realOrbits) {
+  const semiMajor = auToScene(au, scaleMode);
+  if (!realOrbits) return [Math.cos(angle) * semiMajor, 0, Math.sin(angle) * semiMajor];
+
+  const e = Math.max(0, Math.min(0.82, Number(eccentricity) || 0));
+  const semiMinor = semiMajor * Math.sqrt(1 - e * e);
+  const x = semiMajor * (Math.cos(angle) - e);
+  const zFlat = semiMinor * Math.sin(angle);
+  const inclination = (Number(inclinationDeg) || 0) * Math.PI / 180;
+  return [
+    x,
+    Math.sin(inclination) * zFlat,
+    Math.cos(inclination) * zFlat,
+  ];
 }
 
 function numberFmt(value) {
@@ -366,16 +447,16 @@ function usePlanetTexture(body) {
   }, [body.name, body.color, body.accent, remoteTexture]);
 }
 
-function OrbitRing({ au, color = 'rgba(255,255,255,0.18)', scaleMode, label, showLabel }) {
+function OrbitRing({ au, color = 'rgba(255,255,255,0.18)', scaleMode, label, showLabel, eccentricity = 0, inclinationDeg = 0, realOrbits = false }) {
   const radius = auToScene(au, scaleMode);
   const points = useMemo(() => {
     const output = [];
     for (let i = 0; i <= 256; i += 1) {
       const t = (i / 256) * Math.PI * 2;
-      output.push([Math.cos(t) * radius, 0, Math.sin(t) * radius]);
+      output.push(orbitVector(au, eccentricity, inclinationDeg, t, scaleMode, realOrbits));
     }
     return output;
-  }, [radius]);
+  }, [au, eccentricity, inclinationDeg, realOrbits, scaleMode]);
 
   return (
     <group>
@@ -454,28 +535,38 @@ function Moon({ parentSize }) {
   );
 }
 
-function PlanetBody({ body, scaleMode, speed, showLabels, onSelect, selected }) {
+function PlanetBody({ body, scaleMode, speed, showLabels, onSelect, selected, realOrbits, sizeBoost }) {
   const group = useRef();
   const mesh = useRef();
   const angle = useRef((body.au * 1.71) % (Math.PI * 2));
   const texture = usePlanetTexture(body);
-  const radius = auToScene(body.au, scaleMode);
   const isSelected = selected?.name === body.name;
+  const displaySize = body.size * sizeBoost;
 
   useFrame((_, delta) => {
     angle.current += body.speed * speed * delta * 0.03;
     if (group.current) {
-      group.current.position.set(Math.cos(angle.current) * radius, 0, Math.sin(angle.current) * radius);
+      group.current.position.set(...orbitVector(body.au, body.ecc, body.inclinationDeg, angle.current, scaleMode, realOrbits));
     }
     if (mesh.current) mesh.current.rotation.y += delta * (body.group.includes('Gas') ? 0.32 : 0.12);
   });
 
   return (
     <group>
-      <OrbitRing au={body.au} label={body.name} showLabel={showLabels} color={body.accent} scaleMode={scaleMode} />
+      <OrbitRing
+        au={body.au}
+        label={body.name}
+        showLabel={showLabels}
+        color={body.accent}
+        scaleMode={scaleMode}
+        eccentricity={body.ecc}
+        inclinationDeg={body.inclinationDeg}
+        realOrbits={realOrbits}
+      />
       <group ref={group}>
         <mesh
           ref={mesh}
+          rotation={[0, 0, -(body.axialTiltDeg || 0) * Math.PI / 180]}
           onClick={(event) => {
             event.stopPropagation();
             onSelect(body);
@@ -488,7 +579,7 @@ function PlanetBody({ body, scaleMode, speed, showLabels, onSelect, selected }) 
             document.body.style.cursor = 'auto';
           }}
         >
-          <sphereGeometry args={[body.size * (isSelected ? 1.14 : 1), 48, 48]} />
+          <sphereGeometry args={[displaySize * (isSelected ? 1.14 : 1), 48, 48]} />
           <meshStandardMaterial
             color={body.color}
             map={texture}
@@ -500,14 +591,14 @@ function PlanetBody({ body, scaleMode, speed, showLabels, onSelect, selected }) 
         </mesh>
         {body.atmosphere && (
           <mesh>
-            <sphereGeometry args={[body.size * 1.08, 32, 32]} />
+            <sphereGeometry args={[displaySize * 1.08, 32, 32]} />
             <meshBasicMaterial color={body.accent} transparent opacity={0.16} side={THREE.BackSide} />
           </mesh>
         )}
-        {body.rings && <SaturnRings size={body.size} color={body.accent} />}
-        {body.name === 'Earth' && <Moon parentSize={body.size} />}
+        {body.rings && <SaturnRings size={displaySize} color={body.accent} />}
+        {body.name === 'Earth' && <Moon parentSize={displaySize} />}
         {(showLabels || isSelected) && (
-          <Html position={[0, body.size + 1.1, 0]} center distanceFactor={95}>
+          <Html position={[0, displaySize + 1.1, 0]} center distanceFactor={95}>
             <button
               type="button"
               onClick={() => onSelect(body)}
@@ -595,7 +686,7 @@ function ScaleGrid({ scaleMode, showLabels, showRegions }) {
   );
 }
 
-function Scene({ speed, scaleMode, showLabels, showRegions, selected, onSelect }) {
+function Scene({ speed, scaleMode, showLabels, showRegions, selected, onSelect, realOrbits, sizeBoost }) {
   return (
     <>
       <color attach="background" args={[palette.bg]} />
@@ -612,6 +703,8 @@ function Scene({ speed, scaleMode, showLabels, showRegions, selected, onSelect }
           showLabels={showLabels}
           selected={selected}
           onSelect={onSelect}
+          realOrbits={realOrbits}
+          sizeBoost={sizeBoost}
         />
       ))}
       <EffectComposer>
@@ -666,6 +759,11 @@ function InfoPanel({ selected, onClose }) {
           ['Known moons', selected.moons],
           ['Orbital period', selected.orbitalPeriod],
           ['Day length', selected.dayLength],
+          ['Eccentricity', selected.ecc?.toFixed(4) ?? 'n/a'],
+          ['Inclination', `${selected.inclinationDeg ?? 0} deg`],
+          ['Axial tilt', `${selected.axialTiltDeg ?? 0} deg`],
+          ['Surface gravity', selected.gravity || 'n/a'],
+          ['Escape velocity', selected.escapeVelocity || 'n/a'],
         ].map(([label, value]) => (
           <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: 7, fontSize: 12 }}>
             <span style={{ color: 'rgba(255,255,255,0.42)' }}>{label}</span>
@@ -680,7 +778,7 @@ function InfoPanel({ selected, onClose }) {
   );
 }
 
-function MissionPanel({ selected, scaleMode }) {
+function MissionPanel({ selected, scaleMode, realOrbits }) {
   const nearest = selected || SYSTEM_OBJECTS[2];
   return (
     <section className="solar-mission-panel" style={{
@@ -704,8 +802,8 @@ function MissionPanel({ selected, scaleMode }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
         {[
           ['Scale', scaleMode === 'inner' ? 'Inner zoom' : 'Log AU'],
+          ['Orbit model', realOrbits ? 'Eccentric' : 'Circular'],
           ['Planets', '8'],
-          ['Dwarf worlds', '5'],
           ['Selected', nearest.name],
         ].map(([k, v]) => (
           <div key={k} style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '0.6rem', background: 'rgba(255,255,255,0.035)' }}>
@@ -718,7 +816,7 @@ function MissionPanel({ selected, scaleMode }) {
   );
 }
 
-function ControlBar({ speed, setSpeed, scaleMode, setScaleMode, showLabels, setShowLabels, showRegions, setShowRegions }) {
+function ControlBar({ speed, setSpeed, scaleMode, setScaleMode, showLabels, setShowLabels, showRegions, setShowRegions, realOrbits, setRealOrbits, sizeBoost, setSizeBoost }) {
   const controlStyle = {
     background: 'rgba(255,255,255,0.06)',
     border: '1px solid rgba(255,255,255,0.14)',
@@ -755,6 +853,12 @@ function ControlBar({ speed, setSpeed, scaleMode, setScaleMode, showLabels, setS
         <option value="log">Log AU scale</option>
         <option value="inner">Inner-system zoom</option>
       </select>
+      <select aria-label="Planet size scale" value={sizeBoost} onChange={(event) => setSizeBoost(Number(event.target.value))} style={controlStyle}>
+        <option value={0.75}>Survey sizes</option>
+        <option value={1}>Atlas sizes</option>
+        <option value={1.35}>Enhanced sizes</option>
+      </select>
+      <button type="button" onClick={() => setRealOrbits((value) => !value)} style={{ ...controlStyle, color: realOrbits ? palette.amber : 'rgba(255,255,255,0.58)' }}>Eccentric orbits</button>
       <button type="button" onClick={() => setShowLabels((value) => !value)} style={{ ...controlStyle, color: showLabels ? palette.cyan : 'rgba(255,255,255,0.58)' }}>Labels</button>
       <button type="button" onClick={() => setShowRegions((value) => !value)} style={{ ...controlStyle, color: showRegions ? palette.green : 'rgba(255,255,255,0.58)' }}>Belts + Oort</button>
       <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>Drag to rotate. Scroll to travel outward. Click a world for details.</span>
@@ -768,15 +872,17 @@ export default function SolarSystem() {
   const [scaleMode, setScaleMode] = useState('log');
   const [showLabels, setShowLabels] = useState(true);
   const [showRegions, setShowRegions] = useState(true);
+  const [realOrbits, setRealOrbits] = useState(true);
+  const [sizeBoost, setSizeBoost] = useState(1);
 
   return (
     <div style={{ width: '100%', height: '100vh', position: 'relative', background: palette.bg, overflow: 'hidden' }}>
       <Canvas camera={{ position: [0, 78, 150], fov: 55 }} dpr={[1, 1.75]}>
         <Suspense fallback={null}>
-          <Scene speed={speed} scaleMode={scaleMode} showLabels={showLabels} showRegions={showRegions} selected={selected} onSelect={setSelected} />
+          <Scene speed={speed} scaleMode={scaleMode} showLabels={showLabels} showRegions={showRegions} selected={selected} onSelect={setSelected} realOrbits={realOrbits} sizeBoost={sizeBoost} />
         </Suspense>
       </Canvas>
-      <MissionPanel selected={selected} scaleMode={scaleMode} />
+      <MissionPanel selected={selected} scaleMode={scaleMode} realOrbits={realOrbits} />
       <InfoPanel selected={selected} onClose={() => setSelected(null)} />
       <ControlBar
         speed={speed}
@@ -787,6 +893,10 @@ export default function SolarSystem() {
         setShowLabels={setShowLabels}
         showRegions={showRegions}
         setShowRegions={setShowRegions}
+        realOrbits={realOrbits}
+        setRealOrbits={setRealOrbits}
+        sizeBoost={sizeBoost}
+        setSizeBoost={setSizeBoost}
       />
       <div style={{
         position: 'absolute',

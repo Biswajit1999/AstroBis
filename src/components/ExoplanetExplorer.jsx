@@ -94,6 +94,32 @@ function dataCompleteness(planet) {
   return Math.round((filled / fields.length) * 100);
 }
 
+function stellarLuminosity(planet) {
+  const radius = finiteNumber(planet.st_rad);
+  const temp = finiteNumber(planet.st_teff);
+  if (radius === null || temp === null) return null;
+  return radius ** 2 * (temp / 5772) ** 4;
+}
+
+function habitableZoneProxy(planet) {
+  const orbit = finiteNumber(planet.pl_orbsmax);
+  const luminosity = stellarLuminosity(planet);
+  if (orbit === null || luminosity === null || luminosity <= 0) return { label: 'HZ n/a', color: '#94a3b8', value: null };
+  const earthEquivalent = orbit / Math.sqrt(luminosity);
+  if (earthEquivalent >= 0.72 && earthEquivalent <= 1.77) return { label: 'HZ band', color: '#4ade80', value: earthEquivalent };
+  if (earthEquivalent < 0.72) return { label: 'inside HZ', color: '#fb923c', value: earthEquivalent };
+  return { label: 'outside HZ', color: '#60a5fa', value: earthEquivalent };
+}
+
+function temperatureBand(planet) {
+  const temp = finiteNumber(planet.pl_eqt);
+  if (temp === null) return { key: 'unknown', label: 'Temp unknown', color: '#94a3b8' };
+  if (temp < 180) return { key: 'cold', label: 'Cold', color: '#60a5fa' };
+  if (temp <= 320) return { key: 'temperate', label: 'Temperate', color: '#4ade80' };
+  if (temp <= 700) return { key: 'warm', label: 'Warm', color: '#fbbf24' };
+  return { key: 'hot', label: 'Hot', color: '#fb7185' };
+}
+
 function spectralColor(planet) {
   const type = String(planet.st_spectype || '').trim().charAt(0).toUpperCase();
   if (type === 'O' || type === 'B') return '#93c5fd';
@@ -229,6 +255,9 @@ function PlanetCard({ planet }) {
   const score = habitabilityScore(planet);
   const overview = `${ARCHIVE_OVERVIEW}${encodeURIComponent(planet.pl_name || '')}`;
   const scoreColor = score >= 70 ? '#4ade80' : score >= 45 ? '#fbbf24' : '#fb7185';
+  const hz = habitableZoneProxy(planet);
+  const tempBand = temperatureBand(planet);
+  const luminosity = stellarLuminosity(planet);
 
   return (
     <article className="card" style={{ padding: '1rem', borderRadius: 14, minHeight: 280 }}>
@@ -259,6 +288,18 @@ function PlanetCard({ planet }) {
             fontSize: 11,
             fontWeight: 900,
           }}>{type.label}</span>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            marginLeft: 6,
+            borderRadius: 999,
+            border: `1px solid ${tempBand.color}55`,
+            background: `${tempBand.color}18`,
+            color: tempBand.color,
+            padding: '3px 9px',
+            fontSize: 11,
+            fontWeight: 900,
+          }}>{tempBand.label}</span>
         </div>
       </div>
 
@@ -274,6 +315,8 @@ function PlanetCard({ planet }) {
             ['Distance', `${formatNumber(planet.sy_dist, 1)} pc`],
             ['Star', `${formatNumber(planet.st_teff, 0)} K`],
             ['Spectral', planet.st_spectype || 'n/a'],
+            ['Luminosity', luminosity ? `${formatNumber(luminosity, 2)} Ls` : 'n/a'],
+            ['HZ proxy', hz.value ? `${hz.value.toFixed(2)} EU` : 'n/a'],
           ].map(([label, value]) => (
             <div key={label} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 5 }}>
               <div style={{ color: 'rgba(255,255,255,0.36)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</div>
@@ -307,6 +350,12 @@ function PlanetCard({ planet }) {
         <span style={{ border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '0.45rem', background: 'rgba(255,255,255,0.025)' }}>
           Data filled <strong style={{ color: '#a7f3d0' }}>{dataCompleteness(planet)}%</strong>
         </span>
+        <span style={{ border: `1px solid ${hz.color}33`, borderRadius: 10, padding: '0.45rem', background: `${hz.color}10` }}>
+          Stellar flux <strong style={{ color: hz.color }}>{hz.label}</strong>
+        </span>
+        <span style={{ border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '0.45rem', background: 'rgba(255,255,255,0.025)' }}>
+          Detection <strong style={{ color: planet.discoverymethod === 'Imaging' ? '#67e8f9' : '#c4b5fd' }}>{planet.discoverymethod === 'Imaging' ? 'imaged system' : 'indirect'}</strong>
+        </span>
       </div>
 
       <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', fontSize: 11, color: 'rgba(255,255,255,0.36)' }}>
@@ -336,6 +385,7 @@ export default function ExoplanetExplorer() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [methodFilter, setMethodFilter] = useState('all');
+  const [tempFilter, setTempFilter] = useState('all');
   const [sortBy, setSortBy] = useState('habitability');
   const [visibleCount, setVisibleCount] = useState(60);
 
@@ -356,7 +406,7 @@ export default function ExoplanetExplorer() {
       } catch {
         try {
         const query = [
-          'select top 2000',
+          'select top 3000',
           'pl_name,hostname,discoverymethod,disc_year,pl_orbper,pl_rade,pl_bmasse,pl_eqt,pl_insol,pl_orbsmax,pl_orbeccen,pl_orbincl,sy_dist,st_teff,st_rad,st_mass,st_spectype',
           'from pscomppars',
           'where pl_name is not null and hostname is not null',
@@ -399,9 +449,11 @@ export default function ExoplanetExplorer() {
     return planets
       .filter((planet) => {
         const type = planetType(planet.pl_rade);
+        const band = temperatureBand(planet);
         if (query && !`${planet.pl_name || ''} ${planet.hostname || ''}`.toLowerCase().includes(query)) return false;
         if (typeFilter !== 'all' && type.family !== typeFilter) return false;
         if (methodFilter !== 'all' && planet.discoverymethod !== methodFilter) return false;
+        if (tempFilter !== 'all' && band.key !== tempFilter) return false;
         return true;
       })
       .sort((a, b) => {
@@ -410,12 +462,15 @@ export default function ExoplanetExplorer() {
         if (sortBy === 'radius') return (finiteNumber(b.pl_rade) ?? -1) - (finiteNumber(a.pl_rade) ?? -1);
         if (sortBy === 'year') return (finiteNumber(b.disc_year) ?? 0) - (finiteNumber(a.disc_year) ?? 0);
         if (sortBy === 'period') return (finiteNumber(a.pl_orbper) ?? Infinity) - (finiteNumber(b.pl_orbper) ?? Infinity);
+        if (sortBy === 'completeness') return dataCompleteness(b) - dataCompleteness(a);
         return (a.pl_name || '').localeCompare(b.pl_name || '');
       });
-  }, [methodFilter, planets, search, sortBy, typeFilter]);
+  }, [methodFilter, planets, search, sortBy, tempFilter, typeFilter]);
 
   const shown = filtered.slice(0, visibleCount);
   const promising = planets.filter((planet) => habitabilityScore(planet) >= 65).length;
+  const hzWorlds = planets.filter((planet) => habitableZoneProxy(planet).label === 'HZ band').length;
+  const imagingWorlds = planets.filter((planet) => planet.discoverymethod === 'Imaging').length;
   const nearest = planets.reduce((best, planet) => {
     const dist = finiteNumber(planet.sy_dist);
     if (dist === null) return best;
@@ -434,6 +489,8 @@ export default function ExoplanetExplorer() {
       }}>
         <Stat label="Worlds loaded" value={loading ? '...' : planets.length} accent="#fb923c" />
         <Stat label="Earth-like candidates" value={loading ? '...' : promising} accent="#4ade80" />
+        <Stat label="HZ proxy worlds" value={loading ? '...' : hzWorlds} accent="#fbbf24" />
+        <Stat label="Imaged systems" value={loading ? '...' : imagingWorlds} accent="#67e8f9" />
         <Stat label="Closest in list" value={nearest ? `${nearest.dist.toFixed(1)} pc` : 'n/a'} accent="#67e8f9" />
         <Stat label="Data source" value={sourceLabel} accent={source !== 'demo' ? '#a7f3d0' : '#fbbf24'} />
       </div>
@@ -480,12 +537,21 @@ export default function ExoplanetExplorer() {
           <option value="all">All methods</option>
           {methods.map((method) => <option key={method} value={method}>{method}</option>)}
         </select>
+        <select value={tempFilter} onChange={(event) => { setTempFilter(event.target.value); setVisibleCount(60); }} style={selectStyle}>
+          <option value="all">All temperatures</option>
+          <option value="temperate">Temperate</option>
+          <option value="cold">Cold</option>
+          <option value="warm">Warm</option>
+          <option value="hot">Hot</option>
+          <option value="unknown">Unknown</option>
+        </select>
         <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} style={selectStyle}>
           <option value="habitability">Sort: Earth-like proxy</option>
           <option value="distance">Sort: nearest system</option>
           <option value="radius">Sort: largest radius</option>
           <option value="year">Sort: newest discovery</option>
           <option value="period">Sort: shortest orbit</option>
+          <option value="completeness">Sort: data completeness</option>
           <option value="name">Sort: name</option>
         </select>
         <span style={{ color: 'rgba(255,255,255,0.44)', fontSize: 12, marginLeft: 'auto' }}>

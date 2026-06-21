@@ -1,116 +1,94 @@
 ---
 import Layout from '../layouts/Layout.astro';
+
+const portfolioUrl = 'https://biswajit1999.github.io/Biswajit_Jana.github.io/';
+const sources = [
+  ['NASA Exoplanet Archive', 'https://exoplanetarchive.ipac.caltech.edu', 'Composite exoplanet parameters, stellar metadata, orbit and discovery fields'],
+  ['JPL SBDB CAD', 'https://ssd-api.jpl.nasa.gov/doc/cad.html', 'Near-Earth close-approach objects through 2050'],
+  ['CelesTrak GP/TLE', 'https://celestrak.org/NORAD/documentation/gp-data-formats.php', 'ISS orbital elements propagated with SGP4'],
+  ['NASA APOD', 'https://api.nasa.gov', 'Daily astronomy image and scientific context'],
+  ['Solar System Scope / Wikimedia', 'https://www.solarsystemscope.com/textures/', 'Planet texture maps where available'],
+];
+const upgrades = [
+  'Eccentric and inclined orbit rendering for solar-system bodies',
+  'CelesTrak TLE snapshots with local SGP4 propagation for the ISS',
+  'Exoplanet archive cards with stellar luminosity and habitable-zone proxies',
+  'JPL close-approach snapshots with miss distance, velocity, size, and energy scale',
+  'Bright-star atlas with RA/Dec, distance shells, spectral color, H-R view, and physical proxies',
+];
 ---
 
-<Layout title="About" description="Built by Biswajit Jana — the science and technology behind this platform">
-
-  <section style="padding:7rem 1.5rem 4rem;max-width:780px;margin:0 auto;">
-
-    <!-- Eyebrow -->
+<Layout title="About" description="AstroBis is a research-style astronomy dashboard by Biswajit Jana, combining 3D WebGL scenes with NASA, JPL, and CelesTrak public data.">
+  <section style="padding:7rem 1.25rem 4.5rem;max-width:1080px;margin:0 auto;">
     <div style="
       display:inline-flex;align-items:center;gap:0.5rem;
       background:rgba(96,165,250,0.10);border:1px solid rgba(96,165,250,0.25);
       border-radius:50px;padding:0.35rem 1rem;
-      font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+      font-size:0.75rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;
       color:#93c5fd;margin-bottom:1.5rem;
-    ">🔭 About this Platform</div>
+    ">AstroBis research dashboard</div>
 
-    <h1 style="
-      font-family:'Space Grotesk',sans-serif;
-      font-size:clamp(2.2rem,5vw,3.5rem);
-      font-weight:900;margin-bottom:2rem;
-      background:linear-gradient(135deg,#93c5fd,#a78bfa,#f0abfc);
-      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-    ">Where Astrophysics Meets the Web</h1>
-
-    <div style="display:flex;flex-direction:column;gap:2rem;color:rgba(255,255,255,0.72);font-size:0.97rem;line-height:1.75;">
-
-      <div class="card">
-        <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.25rem;color:#fff;margin-bottom:0.75rem;">
-          🎓 The Science Behind It
-        </h2>
-        <p>
-          This platform is built by an astrophysics researcher — studying
-          stellar evolution, exoplanet detection via transit photometry and radial velocity, and
-          computational simulations of gravitational dynamics. Every number, every unit, and every
-          habitability metric is grounded in peer-reviewed methods.
+    <div style="display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,0.75fr);gap:1.25rem;align-items:start;">
+      <div>
+        <h1 style="
+          font-family:'Space Grotesk',sans-serif;
+          font-size:clamp(2.35rem,5vw,4rem);
+          font-weight:950;margin-bottom:1rem;line-height:1.02;
+          background:linear-gradient(135deg,#93c5fd,#a78bfa,#f0abfc);
+          -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+        ">A Modern Astronomy Console</h1>
+        <p style="color:rgba(255,255,255,0.66);font-size:1rem;line-height:1.8;max-width:760px;">
+          AstroBis is built as a browser-native astronomy workspace: part 3D atlas, part data dashboard,
+          and part educational research notebook. It favours traceable public data, careful unit labels,
+          and interactive visualisations that make scale, motion, and uncertainty visible.
         </p>
       </div>
 
-      <div class="card">
-        <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.25rem;color:#fff;margin-bottom:0.75rem;">
-          🛠 Technology Stack
-        </h2>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.85rem;">
-          {[
-            ['Astro 4.x', 'Static site generation + islands'],
-            ['React 18', 'Interactive UI components'],
-            ['Three.js / R3F', '3D WebGL solar system'],
-            ['@react-three/drei', 'OrbitControls, Stars, Html'],
-            ['Tailwind CSS', 'Utility-first styling'],
-            ['NASA Exoplanet API', 'Live planetary data'],
-            ['NASA APOD API', 'Daily astronomy images'],
-            ['Vercel', 'Global CDN deployment'],
-          ].map(([tech, desc]) => (
-            <div style={{
-              background:'rgba(255,255,255,0.04)',
-              border:'1px solid rgba(255,255,255,0.07)',
-              borderRadius:10,padding:'0.6rem 0.85rem',
-            }}>
-              <div style={{fontWeight:700,color:'#a78bfa',fontSize:'0.82rem',marginBottom:'0.15rem'}}>{tech}</div>
-              <div style={{color:'rgba(255,255,255,0.45)',fontSize:'0.75rem'}}>{desc}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div class="card">
-        <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.25rem;color:#fff;margin-bottom:0.75rem;">
-          📡 Data Sources
-        </h2>
-        <ul style="display:flex;flex-direction:column;gap:0.5rem;padding-left:0;list-style:none;">
-          {[
-            ['NASA Exoplanet Archive', 'https://exoplanetarchive.ipac.caltech.edu', '5,700+ confirmed exoplanets'],
-            ['NASA APOD API', 'https://api.nasa.gov', 'Daily astronomy image'],
-            ['IAU Minor Planet Center', 'https://www.minorplanetcenter.net', 'Asteroid data'],
-            ['Open Exoplanet Catalogue', 'https://github.com/openexoplanetcatalogue', 'Supplemental data'],
-          ].map(([name, url, note]) => (
-            <li style={{
-              display:'flex',alignItems:'center',gap:'0.75rem',
-              padding:'0.6rem 0',
-              borderBottom:'1px solid rgba(255,255,255,0.06)',
-            }}>
-              <span style={{width:8,height:8,borderRadius:'50%',background:'#a78bfa',flexShrink:0}} />
-              <div>
-                <a href={url} target="_blank" rel="noopener" style={{
-                  color:'#93c5fd',fontWeight:600,fontSize:'0.88rem',textDecoration:'none',
-                }}>{name}</a>
-                <div style={{color:'rgba(255,255,255,0.4)',fontSize:'0.76rem'}}>{note}</div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div class="card">
-        <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:1.25rem;color:#fff;margin-bottom:0.75rem;">
-          ⚙️ Habitability Index
-        </h2>
-        <p style="margin-bottom:0.75rem;">
-          The habitability score shown on each exoplanet card is a simplified proxy for the
-          <strong style="color:#c4b5fd;">Earth Similarity Index (ESI)</strong>. It weighs:
+      <aside class="card" style="padding:1.1rem;border-radius:18px;">
+        <div style="color:#c4b5fd;font-size:0.72rem;font-weight:900;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.45rem;">Author</div>
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.35rem;color:#fff;margin-bottom:0.45rem;">Biswajit Jana</h2>
+        <p style="color:rgba(255,255,255,0.56);font-size:0.9rem;line-height:1.65;margin-bottom:1rem;">
+          Astrophysics and instrumentation researcher focused on exoplanets, spectroscopy, optical systems,
+          scientific computing, and interactive research tools.
         </p>
-        <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:0.4rem;font-size:0.88rem;">
-          <li>🔵 <strong>Radius (60%)</strong> — planets near Earth's size (0.7–1.5 R⊕) score highest</li>
-          <li>🟡 <strong>Orbital period (40%)</strong> — periods 200–600 days suggest habitable-zone positioning</li>
-        </ul>
-        <p style="margin-top:0.75rem;font-size:0.82rem;color:rgba(255,255,255,0.45);">
-          Note: True habitability requires stellar luminosity, eccentricity, atmospheric data, and more.
-          This is a first-order approximation from available catalog data.
-        </p>
-      </div>
-
+        <a href={portfolioUrl} target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="width:100%;justify-content:center;border-radius:999px;">
+          Academic portfolio
+        </a>
+      </aside>
     </div>
-  </section>
 
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:1rem;margin-top:2rem;">
+      {upgrades.map((item) => (
+        <div class="card" style="padding:1rem;border-radius:16px;">
+          <div style="width:9px;height:9px;border-radius:999px;background:#67e8f9;box-shadow:0 0 16px rgba(103,232,249,0.65);margin-bottom:0.75rem;"></div>
+          <p style="color:rgba(255,255,255,0.68);font-size:0.9rem;line-height:1.6;">{item}</p>
+        </div>
+      ))}
+    </div>
+
+    <section class="card" style="margin-top:1.25rem;padding:1.25rem;border-radius:18px;">
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:1.35rem;color:#fff;margin-bottom:0.85rem;">Data Sources</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:0.85rem;">
+        {sources.map(([name, url, note]) => (
+          <a href={url} target="_blank" rel="noopener noreferrer" style="
+            display:block;text-decoration:none;border:1px solid rgba(255,255,255,0.08);
+            background:rgba(255,255,255,0.035);border-radius:14px;padding:0.85rem;
+          ">
+            <div style="color:#93c5fd;font-weight:850;font-size:0.9rem;margin-bottom:0.25rem;">{name}</div>
+            <div style="color:rgba(255,255,255,0.45);font-size:0.78rem;line-height:1.55;">{note}</div>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:1.25rem;padding:1.25rem;border-radius:18px;">
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:1.35rem;color:#fff;margin-bottom:0.65rem;">Method Notes</h2>
+      <p style="color:rgba(255,255,255,0.6);font-size:0.92rem;line-height:1.75;">
+        The project separates measured data from visual interpretation. Solar-system worlds use public texture maps
+        where possible; exoplanet portraits are explicitly labelled as data-driven artist renders because most
+        exoplanets are not directly resolved in visible light. ISS position is propagated from current TLE data,
+        and NEO hazard labels are risk proxies for prioritisation, not official impact predictions.
+      </p>
+    </section>
+  </section>
 </Layout>

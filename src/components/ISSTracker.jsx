@@ -10,6 +10,7 @@ const ISS_CATNR = 25544;
 const BASE_PATH = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
 const LOCAL_TLE_URL = `${BASE_PATH}data/iss-tle.json`;
 const CELESTRAK_TLE_URL = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${ISS_CATNR}&FORMAT=TLE`;
+const INITIAL_RENDER_DATE = new Date('2026-01-01T00:00:00.000Z');
 
 const EARTH_TEXTURES = {
   day: 'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg',
@@ -24,7 +25,7 @@ const FALLBACK_TLE = {
   line1: '1 25544U 98067A   26171.00000000  .00016717  00000+0  10270-3 0  9993',
   line2: '2 25544  51.6400 000.0000 0006703 000.0000 000.0000 15.50000000    10',
   source: 'offline fallback TLE',
-  generatedAt: new Date().toISOString(),
+  generatedAt: '2026-01-01T00:00:00.000Z',
 };
 
 function normalizeLon(lon) {
@@ -89,16 +90,40 @@ function computeState(satrec, date = new Date()) {
 }
 
 function isDaylight(lat, lon, date) {
+  const subsolar = subsolarPoint(date);
+  const hourAngle = (lon - subsolar.longitude) * Math.PI / 180;
+  const elevation = Math.asin(
+    Math.sin(lat * Math.PI / 180) * Math.sin(subsolar.latitude * Math.PI / 180)
+    + Math.cos(lat * Math.PI / 180) * Math.cos(subsolar.latitude * Math.PI / 180) * Math.cos(hourAngle),
+  ) * 180 / Math.PI;
+  return elevation > -6;
+}
+
+function subsolarPoint(date = INITIAL_RENDER_DATE) {
   const dayOfYear = Math.floor((Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) - Date.UTC(date.getUTCFullYear(), 0, 0)) / 86400000);
   const declination = 23.44 * Math.sin(((360 / 365) * (dayOfYear - 81)) * Math.PI / 180);
   const utcHours = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
-  const solarTime = utcHours + lon / 15;
-  const hourAngle = (solarTime - 12) * 15;
-  const elevation = Math.asin(
-    Math.sin(lat * Math.PI / 180) * Math.sin(declination * Math.PI / 180)
-    + Math.cos(lat * Math.PI / 180) * Math.cos(declination * Math.PI / 180) * Math.cos(hourAngle * Math.PI / 180),
-  ) * 180 / Math.PI;
-  return elevation > -6;
+  return {
+    latitude: declination,
+    longitude: normalizeLon((12 - utcHours) * 15),
+  };
+}
+
+function terminatorPath(subsolar) {
+  if (!subsolar) return '';
+  const declination = subsolar.latitude * Math.PI / 180;
+  const points = [];
+  for (let lon = -180; lon <= 180; lon += 4) {
+    const h = (lon - subsolar.longitude) * Math.PI / 180;
+    const denominator = Math.sin(declination);
+    const lat = Math.abs(denominator) < 0.03
+      ? (Math.cos(h) > 0 ? -89 : 89)
+      : Math.atan(-Math.cos(declination) * Math.cos(h) / denominator) * 180 / Math.PI;
+    const x = ((lon + 180) / 360) * 100;
+    const y = ((90 - Math.max(-89, Math.min(89, lat))) / 180) * 100;
+    points.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+  }
+  return `M ${points.join(' L ')}`;
 }
 
 function buildOrbitPoints(satrec, minutesBefore = 46, minutesAfter = 92, stepMinutes = 2) {
@@ -150,6 +175,13 @@ function EarthGlobe({ satrec, issData, trail, followMode }) {
   const issGlow = useRef();
   const controls = useRef();
   const issPoint = issData ? latLonVector(issData.latitude, issData.longitude, 1 + Math.max(0, issData.altitude) / EARTH_RADIUS_KM) : null;
+  const subsolar = useMemo(() => subsolarPoint(issData?.date || INITIAL_RENDER_DATE), [issData?.timestamp]);
+  const sunVector = useMemo(() => latLonVector(subsolar.latitude, subsolar.longitude, 6.6), [subsolar.latitude, subsolar.longitude]);
+  const nextPoint = useMemo(() => {
+    if (!satrec || !issData?.timestamp) return null;
+    const next = computeState(satrec, new Date(issData.timestamp + 60_000));
+    return next ? latLonVector(next.latitude, next.longitude, 1 + Math.max(0, next.altitude) / EARTH_RADIUS_KM) : null;
+  }, [satrec, issData?.timestamp]);
   const orbitPoints = useMemo(() => buildOrbitPoints(satrec), [satrec, issData?.timestamp]);
   const trailPoints = useMemo(() => trail.map((point) => latLonVector(point.latitude, point.longitude, 1 + Math.max(0, point.altitude) / EARTH_RADIUS_KM)), [trail]);
 
@@ -205,6 +237,27 @@ function EarthGlobe({ satrec, issData, trail, followMode }) {
 
         {orbitPoints.length > 1 && <Line points={orbitPoints} color="#e5e7eb" transparent opacity={0.28} lineWidth={0.9} />}
         {trailPoints.length > 1 && <Line points={trailPoints} color="#22c55e" transparent opacity={0.92} lineWidth={2.4} />}
+        {issPoint && nextPoint && <Line points={[issPoint, nextPoint]} color="#67e8f9" transparent opacity={0.9} lineWidth={2.2} />}
+
+        <group position={latLonVector(subsolar.latitude, subsolar.longitude, 1.018)}>
+          <mesh>
+            <sphereGeometry args={[0.018, 16, 16]} />
+            <meshBasicMaterial color="#fef08a" />
+          </mesh>
+          <Html center distanceFactor={2.4}>
+            <div style={{
+              color: '#fef9c3',
+              background: 'rgba(2,6,23,0.7)',
+              border: '1px solid rgba(250,204,21,0.35)',
+              borderRadius: 999,
+              padding: '2px 7px',
+              fontSize: 10,
+              fontWeight: 900,
+              whiteSpace: 'nowrap',
+              pointerEvents: 'none',
+            }}>subsolar</div>
+          </Html>
+        </group>
 
         {issPoint && (
           <group position={issPoint}>
@@ -241,13 +294,13 @@ function EarthGlobe({ satrec, issData, trail, followMode }) {
         )}
       </group>
 
-      <mesh position={[-5.5, 2.7, -4]}>
+      <mesh position={sunVector.toArray()}>
         <sphereGeometry args={[0.18, 32, 32]} />
         <meshBasicMaterial color="#fbbf24" />
       </mesh>
       <ambientLight intensity={0.12} color="#7dd3fc" />
-      <directionalLight position={[-4.6, 2.4, 5]} color="#fff7ed" intensity={3.8} />
-      <pointLight position={[-5, 2.7, -4]} color="#facc15" intensity={3.5} distance={12} />
+      <directionalLight position={sunVector.toArray()} color="#fff7ed" intensity={3.8} />
+      <pointLight position={sunVector.toArray()} color="#facc15" intensity={3.5} distance={12} />
       <EffectComposer>
         <Bloom luminanceThreshold={0.25} luminanceSmoothing={0.82} intensity={1.42} radius={0.75} />
       </EffectComposer>
@@ -270,6 +323,11 @@ function GroundMap({ issData, groundTrack }) {
     x: ((issData.longitude + 180) / 360) * 100,
     y: ((90 - issData.latitude) / 180) * 100,
   } : null;
+  const subsolar = subsolarPoint(issData?.date || INITIAL_RENDER_DATE);
+  const sun = {
+    x: ((subsolar.longitude + 180) / 360) * 100,
+    y: ((90 - subsolar.latitude) / 180) * 100,
+  };
 
   return (
     <div className="iss-ground-map" style={{
@@ -288,6 +346,9 @@ function GroundMap({ issData, groundTrack }) {
       boxShadow: '0 20px 70px rgba(0,0,0,0.32)',
     }}>
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(2,6,23,0.08), rgba(2,6,23,0.60))' }} />
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.9 }}>
+        <path d={terminatorPath(subsolar)} fill="none" stroke="rgba(250,204,21,0.78)" strokeWidth="0.45" strokeDasharray="1.6 1.2" />
+      </svg>
       {groundTrack.map((point, index) => {
         const x = ((point.longitude + 180) / 360) * 100;
         const y = ((90 - point.latitude) / 180) * 100;
@@ -310,6 +371,17 @@ function GroundMap({ issData, groundTrack }) {
           />
         );
       })}
+      <span style={{
+        position: 'absolute',
+        left: `${sun.x}%`,
+        top: `${sun.y}%`,
+        width: 11,
+        height: 11,
+        borderRadius: 99,
+        transform: 'translate(-50%, -50%)',
+        background: '#facc15',
+        boxShadow: '0 0 18px rgba(250,204,21,0.9)',
+      }} />
       {current && (
         <div style={{ position: 'absolute', left: `${current.x}%`, top: `${current.y}%`, transform: 'translate(-50%, -50%)' }}>
           <span style={{
@@ -325,7 +397,7 @@ function GroundMap({ issData, groundTrack }) {
       )}
       <div style={{ position: 'absolute', left: 14, top: 12, color: '#fff' }}>
         <div style={{ fontFamily: 'Space Grotesk, Inter, sans-serif', fontWeight: 950, fontSize: 14 }}>SGP4 ground track</div>
-        <div style={{ color: 'rgba(255,255,255,0.62)', fontSize: 11 }}>Green past / blue projected orbit</div>
+        <div style={{ color: 'rgba(255,255,255,0.62)', fontSize: 11 }}>Green past / blue projected orbit / yellow terminator</div>
       </div>
       <div style={{ position: 'absolute', right: 12, bottom: 10, color: 'rgba(255,255,255,0.74)', fontSize: 11, textAlign: 'right' }}>
         {issData ? `${issData.latitude.toFixed(2)} lat / ${issData.longitude.toFixed(2)} lon` : 'waiting for TLE propagation'}
@@ -336,6 +408,7 @@ function GroundMap({ issData, groundTrack }) {
 
 function TelemetryPanel({ issData, lastUpdated, tle, tleEpoch, error, source }) {
   const visibility = issData?.visibility === 'daylight' ? 'Daylight' : 'Eclipsed / night side';
+  const subsolar = subsolarPoint(issData?.date || INITIAL_RENDER_DATE);
   return (
     <aside className="iss-telemetry-panel" style={{
       position: 'absolute',
@@ -382,6 +455,7 @@ function TelemetryPanel({ issData, lastUpdated, tle, tleEpoch, error, source }) 
       <StatRow label="Inclination" value="51.64" unit="deg" color="#c4b5fd" />
       <StatRow label="Period" value="92.9" unit="min" color="#c4b5fd" />
       <StatRow label="Visibility" value={visibility} unit="" color="#fef08a" />
+      <StatRow label="Subsolar point" value={`${subsolar.latitude.toFixed(1)}, ${subsolar.longitude.toFixed(1)}`} unit="deg" color="#fef08a" />
       <StatRow label="TLE epoch age" value={ageText(tleEpoch)} unit="" color={tleEpoch && Date.now() - tleEpoch.getTime() < 172800000 ? '#86efac' : '#fbbf24'} />
 
       <div style={{ marginTop: 12, color: 'rgba(255,255,255,0.42)', fontSize: 11, lineHeight: 1.55, border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '0.65rem', background: 'rgba(255,255,255,0.035)' }}>

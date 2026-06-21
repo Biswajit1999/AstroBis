@@ -9,10 +9,10 @@ AstroBis is an interactive astronomy platform built with Astro, React, Three.js,
 ## Features
 
 - **Solar System Atlas** - Explore the Sun, planets, dwarf planets, asteroid belt, Kuiper belt, heliopause, and Oort Cloud on a compressed real-distance scale.
-- **Exoplanet Archive** - Browse NASA Exoplanet Archive composite parameters with planet type, orbit, mass, radius, temperature, stellar metadata, habitability proxy, and source links.
-- **ISS Mission Control** - Track the International Space Station using CelesTrak TLE data and SGP4 propagation over a textured 3D Earth with clouds, city lights, telemetry, orbit projection, and ground-track map.
-- **NEO Watch** - Query JPL close-approach data through 2050 with miss distance, velocity, size estimates, and risk-proxy filters.
-- **3D Stellar Atlas** - Navigate bright stars using real RA/Dec coordinates, spectral colors, constellation guides, distance shells, and an H-R style inset.
+- **Exoplanet Archive** - Browse NASA Exoplanet Archive composite parameters with planet type, orbit, mass, radius, temperature, stellar metadata, luminosity-derived habitable-zone proxies, and source links.
+- **ISS Mission Control** - Track the International Space Station using CelesTrak TLE data and SGP4 propagation over a textured 3D Earth with subsolar lighting, clouds, city lights, telemetry, orbit projection, and ground-track map.
+- **NEO Watch** - Query JPL close-approach data through 2050 with miss distance, velocity, size estimates, energy scale, and risk-proxy filters.
+- **3D Stellar Atlas** - Navigate bright stars using real RA/Dec coordinates, spectral colors, constellation guides, distance shells, luminosity proxies, and an H-R style inset.
 - **NASA APOD** - Display the Astronomy Picture of the Day with scientific context.
 
 ## Tech Stack
@@ -55,6 +55,8 @@ The GitHub Pages workflow builds the Astro site and refreshes the public exoplan
 ## Author
 
 Created by Biswajit Jana.
+
+Academic portfolio: https://biswajit1999.github.io/Biswajit_Jana.github.io/
 
 ## License
 

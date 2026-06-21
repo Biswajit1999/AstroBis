@@ -10,6 +10,8 @@ const { title, description = 'AstroBis is an interactive astronomy platform with
 const baseUrl = import.meta.env.BASE_URL;
 const basePath = baseUrl.replace(/\/$/, '');
 const withBase = (path: string) => path === '/' ? baseUrl : `${basePath}${path}`;
+const siteUrl = 'https://biswajit1999.github.io/AstroBis/';
+const authorUrl = 'https://biswajit1999.github.io/Biswajit_Jana.github.io/';
 const currentPath = basePath && Astro.url.pathname.startsWith(basePath)
   ? Astro.url.pathname.slice(basePath.length) || '/'
   : Astro.url.pathname;
@@ -23,6 +25,11 @@ const navLinks = [
   { path: '/stars', label: 'Star Atlas' },
   { path: '/about', label: 'About' },
 ];
+
+const externalLinks = [
+  { href: siteUrl, label: 'Website' },
+  { href: authorUrl, label: 'Author' },
+];
 ---
 
 <!doctype html>
@@ -32,8 +39,15 @@ const navLinks = [
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/svg+xml" href={withBase('/favicon.svg')} />
   <meta name="description" content={description} />
-  <meta property="og:title" content={title} />
+  <meta name="author" content="Biswajit Jana" />
+  <meta name="theme-color" content="#050816" />
+  <link rel="canonical" href={new URL(Astro.url.pathname, siteUrl).toString()} />
+  <meta property="og:title" content={`${title} | AstroBis`} />
   <meta property="og:description" content={description} />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content={new URL(Astro.url.pathname, siteUrl).toString()} />
+  <meta property="og:image" content={new URL(withBase('/assets/astrobis-banner.png'), siteUrl).toString()} />
+  <meta name="twitter:card" content="summary_large_image" />
   <title>{title} | AstroBis</title>
   <!-- Preload a nice font -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -94,6 +108,22 @@ const navLinks = [
           {link.label}
         </a>
       ))}
+      <span class="nav-divider" aria-hidden="true" style="width:1px;height:22px;background:rgba(255,255,255,0.12);margin:0 0.35rem;"></span>
+      {externalLinks.map(link => (
+        <a href={link.href} target="_blank" rel="noopener noreferrer" class="nav-external" style="
+          padding: 0.45rem 0.82rem;
+          border-radius: 999px;
+          font-size: 0.78rem;
+          font-weight: 850;
+          text-decoration: none;
+          color: rgba(255,255,255,0.82);
+          background: rgba(255,255,255,0.055);
+          border: 1px solid rgba(255,255,255,0.12);
+          transition: all 0.2s ease;
+        ">
+          {link.label}
+        </a>
+      ))}
     </nav>
   </header>
 
@@ -122,6 +152,7 @@ const navLinks = [
         Solar-system dynamics &bull; Astro &middot; React &middot; Three.js &middot; NASA/JPL data
       </p>
       <p style="font-size:0.8rem;">&copy; 2026 Biswajit Jana - AstroBis. Exploring the universe, one photon at a time.</p>
+      <p style="font-size:0.78rem;margin-top:0.8rem;"><a href={siteUrl} style="color:#93c5fd;text-decoration:none;">Live website</a>&nbsp;&bull;&nbsp;<a href={authorUrl} target="_blank" rel="noopener noreferrer" style="color:#c4b5fd;text-decoration:none;">Academic portfolio</a></p>
     </div>
   </footer>
 

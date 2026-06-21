@@ -749,7 +749,18 @@ body {
   }
 
   #navbar .site-nav {
+    display: flex !important;
+    margin-left: auto;
+  }
+
+  #navbar .site-nav a:not(.nav-external),
+  #navbar .site-nav .nav-divider {
     display: none !important;
+  }
+
+  #navbar .site-nav .nav-external {
+    padding: 0.38rem 0.58rem !important;
+    font-size: 0.68rem !important;
   }
 
   #navbar .brand-word {

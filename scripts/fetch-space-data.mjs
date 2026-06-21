@@ -45,7 +45,7 @@ async function keepExistingOrWriteFallback(filename, fallbackPayload, error) {
 
 async function fetchExoplanets() {
   const query = [
-    'select top 2000',
+    'select top 3000',
     'pl_name,hostname,discoverymethod,disc_year,pl_orbper,pl_rade,pl_bmasse,pl_eqt,pl_insol,pl_orbsmax,pl_orbeccen,pl_orbincl,sy_dist,st_teff,st_rad,st_mass,st_spectype',
     'from pscomppars',
     'where pl_name is not null and hostname is not null',
@@ -76,10 +76,10 @@ async function fetchNeoApproaches() {
   const params = new URLSearchParams({
     'date-min': todayISO(),
     'date-max': '2050-12-31',
-    'dist-max': '0.2',
+    'dist-max': '0.3',
     body: 'Earth',
     sort: 'date',
-    limit: '5000',
+    limit: '7500',
     fullname: 'true',
     diameter: 'true',
   });
@@ -109,6 +109,17 @@ async function fetchNeoApproaches() {
   }
 }
 
+function parseTleEpoch(line1) {
+  const epoch = String(line1 || '').slice(18, 32).trim();
+  const match = epoch.match(/^(\d{2})(\d{3}(?:\.\d+)?)$/);
+  if (!match) return null;
+  const yy = Number(match[1]);
+  const day = Number(match[2]);
+  if (!Number.isFinite(yy) || !Number.isFinite(day)) return null;
+  const year = yy < 57 ? 2000 + yy : 1900 + yy;
+  return new Date(Date.UTC(year, 0, 1) + (day - 1) * 86400000).toISOString();
+}
+
 async function fetchIssTle() {
   const url = 'https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE';
   const controller = new AbortController();
@@ -131,6 +142,7 @@ async function fetchIssTle() {
       name: lines[0],
       line1: lines[1],
       line2: lines[2],
+      epoch: parseTleEpoch(lines[1]),
     });
   } catch (error) {
     await keepExistingOrWriteFallback('iss-tle.json', {
@@ -140,6 +152,7 @@ async function fetchIssTle() {
       name: 'ISS (ZARYA)',
       line1: '1 25544U 98067A   26171.00000000  .00016717  00000+0  10270-3 0  9993',
       line2: '2 25544  51.6400 000.0000 0006703 000.0000 000.0000 15.50000000    10',
+      epoch: parseTleEpoch('1 25544U 98067A   26171.00000000  .00016717  00000+0  10270-3 0  9993'),
     }, error);
   } finally {
     clearTimeout(timeout);

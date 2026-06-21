@@ -50,6 +50,28 @@ function estimateDiameterKm(h) {
   return (1329 / Math.sqrt(0.14)) * (10 ** (-magnitude / 5));
 }
 
+function daysUntil(dateMs) {
+  if (!Number.isFinite(dateMs)) return null;
+  return Math.ceil((dateMs - Date.now()) / 86400000);
+}
+
+function impactEnergyMt(object) {
+  if (!object?.diameterKm || !object?.velocity) return null;
+  const radiusM = object.diameterKm * 500;
+  const density = 2500;
+  const massKg = (4 / 3) * Math.PI * (radiusM ** 3) * density;
+  const joules = 0.5 * massKg * ((object.velocity * 1000) ** 2);
+  return joules / 4.184e15;
+}
+
+function objectClass(object) {
+  const diameter = object.diameterKm ?? 0;
+  if (diameter >= 1) return 'kilometer-class';
+  if (diameter >= 0.14) return 'PHA-size proxy';
+  if (diameter >= 0.05) return 'building-scale';
+  return 'small body';
+}
+
 function normalizeObject(row) {
   const distAu = toNumber(row.dist) ?? 0;
   const h = toNumber(row.h);
@@ -200,6 +222,8 @@ function Timeline({ objects, endYear }) {
 function ObjectCard({ object }) {
   const color = object.riskProxy ? '#fb7185' : object.largeProxy ? '#fbbf24' : '#22c55e';
   const jplUrl = `https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/?sstr=${encodeURIComponent(object.designation)}`;
+  const days = daysUntil(object.dateMs);
+  const energy = impactEnergyMt(object);
   return (
     <article style={{
       border: `1px solid ${object.riskProxy ? 'rgba(248,113,113,0.35)' : 'rgba(255,255,255,0.09)'}`,
@@ -224,13 +248,15 @@ function ObjectCard({ object }) {
           fontSize: 10,
           fontWeight: 950,
           whiteSpace: 'nowrap',
-        }}>{object.riskProxy ? 'Risk proxy' : object.largeProxy ? 'Large' : 'Routine'}</span>
+        }}>{object.riskProxy ? 'Risk proxy' : object.largeProxy ? 'Large' : objectClass(object)}</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px 14px', fontSize: 12 }}>
         <Metric label="Closest approach" value={object.date} color="#fde68a" />
+        <Metric label="Time until pass" value={days === null ? 'n/a' : days <= 0 ? 'today' : `${days} days`} color="#fef08a" />
         <Metric label="Miss distance" value={`${formatKm(object.distanceKm)} / ${object.lunarDistance.toFixed(1)} LD`} color="#93c5fd" />
         <Metric label="Relative speed" value={`${object.velocity?.toFixed(2) ?? 'n/a'} km/s`} color="#c4b5fd" />
         <Metric label="Diameter" value={object.diameterKm ? `${object.diameterKm.toFixed(object.diameterKm < 1 ? 3 : 2)} km${object.measuredDiameter ? '' : ' est.'}` : 'n/a'} color="#86efac" />
+        <Metric label="Energy scale" value={energy ? `${energy < 1 ? energy.toFixed(3) : energy.toFixed(1)} Mt TNT` : 'n/a'} color="#fb923c" />
         <Metric label="Absolute mag. H" value={object.h?.toFixed(1) ?? 'n/a'} color="#fda4af" />
         <Metric label="Distance in AU" value={object.distAu.toFixed(5)} color="#67e8f9" />
       </div>
@@ -297,7 +323,7 @@ export default function NEOTracker() {
           'dist-max': String(distMaxAu),
           body: 'Earth',
           sort: 'date',
-          limit: '1000',
+          limit: '1500',
           fullname: 'true',
           diameter: 'true',
         });
@@ -397,6 +423,7 @@ export default function NEOTracker() {
           <option value={0.05}>Within 0.05 AU</option>
           <option value={0.1}>Within 0.10 AU</option>
           <option value={0.2}>Within 0.20 AU</option>
+          <option value={0.3}>Within 0.30 AU</option>
         </select>
         <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} style={selectStyle}>
           <option value="date">Sort: date</option>
@@ -437,7 +464,7 @@ export default function NEOTracker() {
             <ApproachMap objects={filtered} maxAu={distMaxAu} />
           )}
           <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 11, lineHeight: 1.6, marginTop: 10 }}>
-            Ring labels use lunar distances. Dot size follows diameter estimate. Risk proxy uses close approach within 0.05 AU and H less than or equal to 22 when available.
+            Ring labels use lunar distances. Dot size follows diameter estimate. Risk proxy is not an impact probability; it flags close passes within 0.05 AU and H less than or equal to 22 when available.
           </div>
         </aside>
 
