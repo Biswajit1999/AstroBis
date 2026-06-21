@@ -12,6 +12,8 @@ const basePath = baseUrl.replace(/\/$/, '');
 const withBase = (path: string) => path === '/' ? baseUrl : `${basePath}${path}`;
 const siteUrl = 'https://biswajit1999.github.io/AstroBis/';
 const authorUrl = 'https://biswajit1999.github.io/Biswajit_Jana.github.io/';
+const repoUrl = 'https://github.com/Biswajit1999/AstroBis';
+const reportUrl = `${repoUrl}/blob/main/docs/AstroBis-Ecosystem-Report.md`;
 const currentPath = basePath && Astro.url.pathname.startsWith(basePath)
   ? Astro.url.pathname.slice(basePath.length) || '/'
   : Astro.url.pathname;
@@ -21,14 +23,14 @@ const navLinks = [
   { path: '/viewer', label: 'Solar System' },
   { path: '/exoplanets', label: 'Exoplanets' },
   { path: '/iss', label: 'ISS Tracker' },
-  { path: '/neo', label: 'NEO Watch' },
+  { path: '/neo', label: 'Small Bodies' },
   { path: '/stars', label: 'Star Atlas' },
   { path: '/about', label: 'About' },
 ];
 
 const externalLinks = [
-  { href: siteUrl, label: 'Website' },
-  { href: authorUrl, label: 'Author' },
+  { href: authorUrl, label: 'About Author' },
+  { href: repoUrl, label: 'GitHub', icon: 'github' },
 ];
 ---
 
@@ -121,6 +123,11 @@ const externalLinks = [
           border: 1px solid rgba(255,255,255,0.12);
           transition: all 0.2s ease;
         ">
+          {link.icon === 'github' && (
+            <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:inline-block;vertical-align:-2px;margin-right:0.35rem;fill:currentColor;">
+              <path d="M8 .2a8 8 0 0 0-2.53 15.6c.4.08.55-.17.55-.38v-1.49c-2.24.49-2.71-1.08-2.71-1.08-.36-.93-.89-1.18-.89-1.18-.73-.5.05-.49.05-.49.81.06 1.24.83 1.24.83.72 1.23 1.88.88 2.34.67.07-.52.28-.88.51-1.08-1.79-.2-3.67-.9-3.67-3.98 0-.88.31-1.6.83-2.16-.08-.2-.36-1.02.08-2.13 0 0 .68-.22 2.2.82A7.58 7.58 0 0 1 8 4.08c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.11.16 1.93.08 2.13.52.56.83 1.28.83 2.16 0 3.09-1.89 3.77-3.69 3.97.29.25.55.74.55 1.5v2.23c0 .21.14.46.56.38A8 8 0 0 0 8 .2Z"/>
+            </svg>
+          )}
           {link.label}
         </a>
       ))}
@@ -152,7 +159,7 @@ const externalLinks = [
         Solar-system dynamics &bull; Astro &middot; React &middot; Three.js &middot; NASA/JPL data
       </p>
       <p style="font-size:0.8rem;">&copy; 2026 Biswajit Jana - AstroBis. Exploring the universe, one photon at a time.</p>
-      <p style="font-size:0.78rem;margin-top:0.8rem;"><a href={siteUrl} style="color:#93c5fd;text-decoration:none;">Live website</a>&nbsp;&bull;&nbsp;<a href={authorUrl} target="_blank" rel="noopener noreferrer" style="color:#c4b5fd;text-decoration:none;">Academic portfolio</a></p>
+      <p style="font-size:0.78rem;margin-top:0.8rem;"><a href={siteUrl} style="color:#93c5fd;text-decoration:none;">Live website</a>&nbsp;&bull;&nbsp;<a href={authorUrl} target="_blank" rel="noopener noreferrer" style="color:#c4b5fd;text-decoration:none;">Academic portfolio</a>&nbsp;&bull;&nbsp;<a href={reportUrl} target="_blank" rel="noopener noreferrer" style="color:#67e8f9;text-decoration:none;">Project report</a></p>
     </div>
   </footer>
 

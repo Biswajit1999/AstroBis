@@ -45,8 +45,8 @@ async function keepExistingOrWriteFallback(filename, fallbackPayload, error) {
 
 async function fetchExoplanets() {
   const query = [
-    'select top 3000',
-    'pl_name,hostname,discoverymethod,disc_year,pl_orbper,pl_rade,pl_bmasse,pl_eqt,pl_insol,pl_orbsmax,pl_orbeccen,pl_orbincl,sy_dist,st_teff,st_rad,st_mass,st_spectype',
+    'select top 4000',
+    'pl_name,hostname,discoverymethod,disc_facility,disc_year,pl_orbper,pl_rade,pl_bmasse,pl_eqt,pl_insol,pl_orbsmax,pl_orbeccen,pl_orbincl,sy_dist,st_teff,st_rad,st_mass,st_spectype',
     'from pscomppars',
     'where pl_name is not null and hostname is not null',
     'order by sy_dist asc',
@@ -109,6 +109,50 @@ async function fetchNeoApproaches() {
   }
 }
 
+async function fetchInterstellarVisitors() {
+  const targets = [
+    { sstr: '1I', displayName: "1I/'Oumuamua", visitorClass: 'Interstellar asteroid', note: 'First confirmed interstellar object observed passing through the Solar System.' },
+    { sstr: '2I', displayName: '2I/Borisov', visitorClass: 'Interstellar comet', note: 'First confirmed active interstellar comet.' },
+    { sstr: '3I', displayName: '3I/ATLAS', visitorClass: 'Interstellar comet', note: 'Third known interstellar object; discovered by the NASA-funded ATLAS survey in 2025.' },
+  ];
+  const query = targets.map((target) => target.sstr);
+  try {
+    const data = await Promise.all(targets.map(async (target) => {
+      const params = new URLSearchParams({
+        sstr: target.sstr,
+        'full-prec': '1',
+        'cd-epoch': '1',
+        'cd-tp': '1',
+        'phys-par': '1',
+      });
+      const url = `https://ssd-api.jpl.nasa.gov/sbdb.api?${params.toString()}`;
+      const payload = await fetchJson(url, `JPL SBDB ${target.sstr}`);
+      return {
+        ...target,
+        sourceUrl: url,
+        object: payload.object,
+        orbit: payload.orbit,
+        phys_par: payload.phys_par || [],
+      };
+    }));
+    await writeSnapshot('small-body-visitors.json', {
+      generatedAt,
+      source: 'NASA/JPL SBDB API interstellar visitor objects',
+      query,
+      count: data.length,
+      data,
+    });
+  } catch (error) {
+    await keepExistingOrWriteFallback('small-body-visitors.json', {
+      generatedAt,
+      source: 'offline fallback',
+      query,
+      count: 0,
+      data: [],
+    }, error);
+  }
+}
+
 function parseTleEpoch(line1) {
   const epoch = String(line1 || '').slice(18, 32).trim();
   const match = epoch.match(/^(\d{2})(\d{3}(?:\.\d+)?)$/);
@@ -159,4 +203,4 @@ async function fetchIssTle() {
   }
 }
 
-await Promise.all([fetchExoplanets(), fetchNeoApproaches(), fetchIssTle()]);
+await Promise.all([fetchExoplanets(), fetchNeoApproaches(), fetchIssTle(), fetchInterstellarVisitors()]);

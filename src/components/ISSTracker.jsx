@@ -150,6 +150,88 @@ function buildGroundTrack(satrec, minutesBefore = 46, minutesAfter = 92, stepMin
   return points;
 }
 
+function NightLightsLayer({ texture, sunDirection }) {
+  const material = useMemo(() => new THREE.ShaderMaterial({
+    uniforms: {
+      lightsMap: { value: texture },
+      sunDirection: { value: sunDirection },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      varying vec3 vNormalWorld;
+      void main() {
+        vUv = uv;
+        vNormalWorld = normalize(mat3(modelMatrix) * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D lightsMap;
+      uniform vec3 sunDirection;
+      varying vec2 vUv;
+      varying vec3 vNormalWorld;
+      void main() {
+        float daylight = dot(normalize(vNormalWorld), normalize(sunDirection));
+        float night = smoothstep(0.20, -0.18, daylight);
+        vec3 lights = texture2D(lightsMap, vUv).rgb;
+        gl_FragColor = vec4(lights * night * 1.65, night * 0.72);
+      }
+    `,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  }), [texture]);
+
+  useFrame(() => {
+    if (material.uniforms.sunDirection) material.uniforms.sunDirection.value = sunDirection;
+  });
+
+  useEffect(() => {
+    material.uniforms.lightsMap.value = texture;
+  }, [material, texture]);
+
+  return (
+    <mesh>
+      <sphereGeometry args={[1.006, 128, 128]} />
+      <primitive object={material} attach="material" />
+    </mesh>
+  );
+}
+
+function AtmosphereShell() {
+  const material = useMemo(() => new THREE.ShaderMaterial({
+    uniforms: {
+      glowColor: { value: new THREE.Color('#60a5fa') },
+    },
+    vertexShader: `
+      varying vec3 vNormal;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 glowColor;
+      varying vec3 vNormal;
+      void main() {
+        float rim = pow(0.72 - abs(vNormal.z), 2.2);
+        gl_FragColor = vec4(glowColor, clamp(rim, 0.0, 0.18));
+      }
+    `,
+    transparent: true,
+    side: THREE.BackSide,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  }), []);
+
+  return (
+    <mesh>
+      <sphereGeometry args={[1.052, 96, 96]} />
+      <primitive object={material} attach="material" />
+    </mesh>
+  );
+}
+
 function clockTime(date) {
   if (!date) return 'connecting';
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -177,6 +259,7 @@ function EarthGlobe({ satrec, issData, trail, followMode }) {
   const issPoint = issData ? latLonVector(issData.latitude, issData.longitude, 1 + Math.max(0, issData.altitude) / EARTH_RADIUS_KM) : null;
   const subsolar = useMemo(() => subsolarPoint(issData?.date || INITIAL_RENDER_DATE), [issData?.timestamp]);
   const sunVector = useMemo(() => latLonVector(subsolar.latitude, subsolar.longitude, 6.6), [subsolar.latitude, subsolar.longitude]);
+  const sunDirection = useMemo(() => sunVector.clone().normalize(), [sunVector]);
   const nextPoint = useMemo(() => {
     if (!satrec || !issData?.timestamp) return null;
     const next = computeState(satrec, new Date(issData.timestamp + 60_000));
@@ -222,18 +305,12 @@ function EarthGlobe({ satrec, issData, trail, followMode }) {
             shininess={22}
           />
         </mesh>
-        <mesh>
-          <sphereGeometry args={[1.004, 128, 128]} />
-          <meshBasicMaterial map={earthLights} transparent opacity={0.58} blending={THREE.AdditiveBlending} depthWrite={false} />
-        </mesh>
+        <NightLightsLayer texture={earthLights} sunDirection={sunDirection} />
         <mesh ref={clouds}>
           <sphereGeometry args={[1.013, 128, 128]} />
           <meshLambertMaterial map={earthClouds} transparent opacity={0.33} depthWrite={false} />
         </mesh>
-        <mesh>
-          <sphereGeometry args={[1.045, 96, 96]} />
-          <meshBasicMaterial color="#60a5fa" transparent opacity={0.13} side={THREE.BackSide} />
-        </mesh>
+        <AtmosphereShell />
 
         {orbitPoints.length > 1 && <Line points={orbitPoints} color="#e5e7eb" transparent opacity={0.28} lineWidth={0.9} />}
         {trailPoints.length > 1 && <Line points={trailPoints} color="#22c55e" transparent opacity={0.92} lineWidth={2.4} />}

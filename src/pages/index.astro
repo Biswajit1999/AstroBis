@@ -13,21 +13,21 @@ const missionTiles = [
     index: '01',
     label: 'Solar System',
     value: 'Oort-scale',
-    detail: 'Planets, dwarf planets, belts, heliopause, and Oort Cloud regions.',
+    detail: 'Planets, dwarf planets, AU ruler, heliopause, and spherical Oort Cloud shells.',
     href: withBase('/viewer'),
   },
   {
     index: '02',
     label: 'Exoplanets',
-    value: '900 worlds',
-    detail: 'NASA Archive snapshot with source links and procedural portraits.',
+    value: '4,000 rows',
+    detail: 'NASA Archive snapshot with source links, mission plots, and distribution charts.',
     href: withBase('/exoplanets'),
   },
   {
     index: '03',
-    label: 'NEO Watch',
+    label: 'Small Bodies',
     value: 'Through 2050',
-    detail: 'JPL close-approach data with distance, velocity, and size filters.',
+    detail: 'JPL close-approach data plus hyperbolic interstellar visitor context.',
     href: withBase('/neo'),
   },
   {
@@ -43,7 +43,7 @@ const featureModules = [
   {
     code: 'AU',
     title: 'Solar System Atlas',
-    desc: 'A compressed real-distance Solar System with planets, dwarf planets, moon counts, asteroid belt, Kuiper belt, heliopause, and Oort Cloud regions.',
+    desc: 'A compressed real-distance Solar System with planets, dwarf planets, moon counts, asteroid belt, trojans, Kuiper belt, heliopause, AU ruler, and Oort Cloud shells.',
     tag: 'Three.js + WebGL',
     tagCol: '#a78bfa',
     href: withBase('/viewer'),
@@ -52,7 +52,7 @@ const featureModules = [
   {
     code: 'EXO',
     title: 'Exoplanet Explorer',
-    desc: 'NASA Exoplanet Archive data with measured radius, mass, orbit, temperature, discovery method, procedural portraits, and source references.',
+    desc: 'NASA Exoplanet Archive data with measured radius, mass, orbit, temperature, discovery method, facility counts, distribution plots, and source references.',
     tag: 'NASA Archive',
     tagCol: '#f97316',
     href: withBase('/exoplanets'),
@@ -69,8 +69,8 @@ const featureModules = [
   },
   {
     code: 'NEO',
-    title: 'NEO Watch',
-    desc: 'Look ahead through 2050 using JPL close-approach data with distance filters, speed, size estimates, and risk-proxy sorting.',
+    title: 'Small-Body Watch',
+    desc: 'Look ahead through 2050 using JPL close-approach data with distance filters, speed, size estimates, risk-proxy sorting, and interstellar visitor orbits.',
     tag: 'JPL CAD',
     tagCol: '#fb7185',
     href: withBase('/neo'),
@@ -97,7 +97,7 @@ const featureModules = [
 ];
 ---
 
-<Layout title="Home" description="AstroBis is an interactive astronomy platform for realistic 3D space data, solar-system exploration, exoplanets, ISS tracking, NEO watch, and star maps.">
+<Layout title="Home" description="AstroBis is an interactive astronomy platform for realistic 3D space data, Oort-scale solar-system exploration, exoplanets, ISS tracking, small bodies, and star maps.">
   <section class="home-hero hero-scan">
     <StarfieldCanvas client:load />
 
@@ -119,7 +119,7 @@ const featureModules = [
 
       <p class="home-subtitle">
         A browser-native space lab for realistic Solar System scale, live orbital tracking,
-        future asteroid approaches, exoplanet discovery data, and a dimensional stellar atlas.
+        future asteroid approaches, interstellar visitors, exoplanet discovery data, and a dimensional stellar atlas.
       </p>
 
       <div class="home-cta-row">

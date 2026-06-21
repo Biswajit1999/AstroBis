@@ -5,6 +5,8 @@ const AU_KM = 149597870.7;
 const LD_KM = 384400;
 const BASE_PATH = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
 const LOCAL_NEO_URL = `${BASE_PATH}data/neo-approaches.json`;
+const LOCAL_VISITORS_URL = `${BASE_PATH}data/small-body-visitors.json`;
+const SOLAR_ESCAPE_SPEED_1AU = 29.7847;
 
 const FALLBACK_APPROACHES = [
   { des: '2026 AB', fullname: '(2026 AB) demo close approach', cd: '2026-Jun-25 14:20', dist: '0.012', v_rel: '12.6', h: '23.1', diameter: '' },
@@ -13,6 +15,12 @@ const FALLBACK_APPROACHES = [
   { des: '2015 RN35', fullname: '(2015 RN35)', cd: '2030-Dec-15 11:10', dist: '0.018', v_rel: '9.8', h: '21.7', diameter: '' },
   { des: '2007 FT3', fullname: '(2007 FT3)', cd: '2048-Oct-03 06:40', dist: '0.053', v_rel: '15.8', h: '20.0', diameter: '' },
   { des: '2020 AP3', fullname: '(2020 AP3)', cd: '2041-Jan-08 09:24', dist: '0.036', v_rel: '18.4', h: '24.1', diameter: '' },
+];
+
+const FALLBACK_VISITORS = [
+  { displayName: "1I/'Oumuamua", visitorClass: 'Interstellar asteroid', note: 'First confirmed interstellar object observed passing through the Solar System.', object: { fullname: "'Oumuamua (A/2017 U1)", orbit_class: { name: 'Hyperbolic Asteroid' } }, orbit: { moid: '.0958212', elements: [{ name: 'e', value: '1.2011' }, { name: 'a', value: '-1.2723' }, { name: 'q', value: '.2559' }, { name: 'i', value: '122.74' }, { name: 'tp', value: '2458006.0073' }] } },
+  { displayName: '2I/Borisov', visitorClass: 'Interstellar comet', note: 'First confirmed active interstellar comet.', object: { fullname: 'C/2019 Q4 (Borisov)', orbit_class: { name: 'Hyperbolic Comet' } }, orbit: { moid: '1.09292', elements: [{ name: 'e', value: '3.3565' }, { name: 'a', value: '-.85149' }, { name: 'q', value: '2.0065' }, { name: 'i', value: '44.05' }, { name: 'tp', value: '2458826.0528' }] } },
+  { displayName: '3I/ATLAS', visitorClass: 'Interstellar comet', note: 'Third known interstellar object; discovered by the NASA-funded ATLAS survey in 2025.', object: { fullname: 'C/2025 N1 (ATLAS)', orbit_class: { name: 'Hyperbolic Comet' } }, orbit: { moid: '.364723', elements: [{ name: 'e', value: '6.1414' }, { name: 'a', value: '-.26384' }, { name: 'q', value: '1.3565' }, { name: 'i', value: '175.12' }, { name: 'tp', value: '2460977.9953' }] } },
 ];
 
 function pad2(value) {
@@ -70,6 +78,39 @@ function objectClass(object) {
   if (diameter >= 0.14) return 'PHA-size proxy';
   if (diameter >= 0.05) return 'building-scale';
   return 'small body';
+}
+
+function orbitElement(visitor, name) {
+  const element = visitor?.orbit?.elements?.find((item) => item.name === name || item.label === name);
+  const value = toNumber(element?.value);
+  return value;
+}
+
+function jdToDate(jd) {
+  const number = toNumber(jd);
+  if (number === null) return null;
+  return new Date((number - 2440587.5) * 86400000);
+}
+
+function visitorSpeed(visitor) {
+  const semiMajor = Math.abs(orbitElement(visitor, 'a') || 0);
+  if (!semiMajor) return null;
+  return SOLAR_ESCAPE_SPEED_1AU / Math.sqrt(semiMajor);
+}
+
+function yearsToOortBoundary(visitor) {
+  const q = orbitElement(visitor, 'q');
+  const speed = visitorSpeed(visitor);
+  if (!q || !speed) return null;
+  const seconds = Math.max(0, (1000 - q) * AU_KM / speed);
+  return seconds / (86400 * 365.25);
+}
+
+function formatYears(value) {
+  if (!Number.isFinite(value)) return 'n/a';
+  if (value < 1) return `${Math.round(value * 365)} days`;
+  if (value < 1000) return `${Math.round(value)} years`;
+  return `${Math.round(value / 1000)}K years`;
 }
 
 function normalizeObject(row) {
@@ -287,11 +328,74 @@ function Stat({ label, value, color }) {
   );
 }
 
+function VisitorPanel({ visitors, generatedAt }) {
+  const rows = visitors.length ? visitors : FALLBACK_VISITORS;
+  return (
+    <section style={{
+      border: '1px solid rgba(103,232,249,0.16)',
+      background: 'linear-gradient(180deg, rgba(14,116,144,0.10), rgba(255,255,255,0.025))',
+      borderRadius: 18,
+      padding: '1rem',
+      marginBottom: 18,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div>
+          <div style={{ color: '#67e8f9', fontSize: 11, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Solar-system visitor channel</div>
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, lineHeight: 1.55, marginTop: 4 }}>
+            Hyperbolic objects from JPL SBDB. These are not ordinary NEO risk objects; they are fast visitors crossing or leaving the Sun's gravity well.
+          </p>
+        </div>
+        <span style={{ color: 'rgba(255,255,255,0.38)', fontSize: 11 }}>{generatedAt ? `Snapshot ${new Date(generatedAt).toLocaleDateString()}` : 'Curated fallback'}</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: 12 }}>
+        {rows.map((visitor) => {
+          const e = orbitElement(visitor, 'e');
+          const q = orbitElement(visitor, 'q');
+          const inc = orbitElement(visitor, 'i');
+          const speed = visitorSpeed(visitor);
+          const eta = yearsToOortBoundary(visitor);
+          const tp = jdToDate(orbitElement(visitor, 'tp'));
+          const color = e && e > 3 ? '#67e8f9' : '#a78bfa';
+          const lookup = `https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/?sstr=${encodeURIComponent(visitor.displayName || visitor.object?.fullname || '')}`;
+          return (
+            <article key={visitor.displayName} style={{
+              border: `1px solid ${color}33`,
+              borderRadius: 14,
+              padding: '0.85rem',
+              background: 'rgba(2,6,23,0.46)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start', marginBottom: 9 }}>
+                <div>
+                  <h3 style={{ color: '#fff', fontFamily: 'Space Grotesk, Inter, sans-serif', fontSize: '1.02rem', lineHeight: 1.1 }}>{visitor.displayName || visitor.object?.fullname}</h3>
+                  <div style={{ color, fontSize: 11, fontWeight: 900, marginTop: 3 }}>{visitor.visitorClass || visitor.object?.orbit_class?.name}</div>
+                </div>
+                <span style={{ border: `1px solid ${color}55`, color, background: `${color}16`, borderRadius: 999, padding: '3px 8px', fontSize: 10, fontWeight: 950 }}>e &gt; 1</span>
+              </div>
+              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, lineHeight: 1.55, minHeight: 50 }}>{visitor.note}</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px 10px', marginTop: 10 }}>
+                <Metric label="Eccentricity" value={e ? e.toFixed(3) : 'n/a'} color={color} />
+                <Metric label="Perihelion" value={q ? `${q.toFixed(3)} AU` : 'n/a'} color="#fde68a" />
+                <Metric label="Inclination" value={inc ? `${inc.toFixed(1)} deg` : 'n/a'} color="#c4b5fd" />
+                <Metric label="v infinity" value={speed ? `${speed.toFixed(1)} km/s` : 'n/a'} color="#93c5fd" />
+                <Metric label="Perihelion date" value={tp ? tp.toISOString().slice(0, 10) : 'n/a'} color="#fda4af" />
+                <Metric label="To 1,000 AU" value={formatYears(eta)} color="#86efac" />
+              </div>
+              <a href={lookup} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', marginTop: 10, color, fontSize: 11, fontWeight: 900, textDecoration: 'none' }}>JPL visitor orbit -&gt;</a>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default function NEOTracker() {
   const [objects, setObjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [source, setSource] = useState('snapshot');
   const [generatedAt, setGeneratedAt] = useState(null);
+  const [visitors, setVisitors] = useState([]);
+  const [visitorsGeneratedAt, setVisitorsGeneratedAt] = useState(null);
   const [refreshIndex, setRefreshIndex] = useState(0);
   const [endYear, setEndYear] = useState(2050);
   const [distMaxAu, setDistMaxAu] = useState(0.1);
@@ -353,6 +457,31 @@ export default function NEOTracker() {
       active = false;
     };
   }, [distMaxAu, endYear, refreshIndex]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadVisitors() {
+      try {
+        const local = await fetch(LOCAL_VISITORS_URL, { cache: 'no-store' });
+        if (!local.ok) throw new Error('Visitor snapshot unavailable');
+        const snapshot = await local.json();
+        if (!Array.isArray(snapshot.data) || snapshot.data.length === 0) throw new Error('Visitor snapshot empty');
+        if (active) {
+          setVisitors(snapshot.data);
+          setVisitorsGeneratedAt(snapshot.generatedAt || null);
+        }
+      } catch {
+        if (active) {
+          setVisitors(FALLBACK_VISITORS);
+          setVisitorsGeneratedAt(null);
+        }
+      }
+    }
+    loadVisitors();
+    return () => {
+      active = false;
+    };
+  }, [refreshIndex]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -447,6 +576,8 @@ export default function NEOTracker() {
           Using a same-origin JPL close-approach snapshot generated during the site build on {new Date(generatedAt).toLocaleDateString()}.
         </div>
       )}
+
+      {!loading && <VisitorPanel visitors={visitors} generatedAt={visitorsGeneratedAt} />}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 20, alignItems: 'start' }}>
         <aside style={{

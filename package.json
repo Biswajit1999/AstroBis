@@ -1,7 +1,7 @@
 {
   "name": "astrobis",
   "version": "1.0.0",
-  "description": "AstroBis - Interactive 3D astronomy platform with a solar-system atlas, exoplanets, ISS tracker, NEO watch, and star maps",
+  "description": "AstroBis - Interactive 3D astronomy platform with an Oort-scale solar-system atlas, exoplanets, ISS tracker, small-body watch, and star maps",
   "type": "module",
   "scripts": {
     "dev": "astro dev",

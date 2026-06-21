@@ -5,17 +5,20 @@ const portfolioUrl = 'https://biswajit1999.github.io/Biswajit_Jana.github.io/';
 const sources = [
   ['NASA Exoplanet Archive', 'https://exoplanetarchive.ipac.caltech.edu', 'Composite exoplanet parameters, stellar metadata, orbit and discovery fields'],
   ['JPL SBDB CAD', 'https://ssd-api.jpl.nasa.gov/doc/cad.html', 'Near-Earth close-approach objects through 2050'],
+  ['JPL SBDB API', 'https://ssd-api.jpl.nasa.gov/doc/sbdb.html', 'Known interstellar and hyperbolic visitor orbit elements'],
   ['CelesTrak GP/TLE', 'https://celestrak.org/NORAD/documentation/gp-data-formats.php', 'ISS orbital elements propagated with SGP4'],
+  ['NASA Oort Cloud', 'https://science.nasa.gov/resource/oort-cloud-and-scale-of-the-solar-system-infographic/', 'Oort Cloud AU scale and outer Solar System context'],
   ['NASA APOD', 'https://api.nasa.gov', 'Daily astronomy image and scientific context'],
   ['Solar System Scope / Wikimedia', 'https://www.solarsystemscope.com/textures/', 'Planet texture maps where available'],
 ];
 const upgrades = [
-  'Eccentric and inclined orbit rendering for solar-system bodies',
-  'CelesTrak TLE snapshots with local SGP4 propagation for the ISS',
-  'Exoplanet archive cards with stellar luminosity and habitable-zone proxies',
-  'JPL close-approach snapshots with miss distance, velocity, size, and energy scale',
+  'Oort-scale Solar System atlas with AU ruler, heliopause, and spherical cloud shells',
+  'CelesTrak TLE snapshots with local SGP4 propagation and night-side Earth lighting',
+  'Exoplanet archive cards plus mission, timeline, and distribution plot windows',
+  'JPL close-approach snapshots with interstellar visitor orbit context',
   'Bright-star atlas with RA/Dec, distance shells, spectral color, H-R view, and physical proxies',
 ];
+const reportUrl = 'https://github.com/Biswajit1999/AstroBis/blob/main/docs/AstroBis-Ecosystem-Report.md';
 ---
 
 <Layout title="About" description="AstroBis is a research-style astronomy dashboard by Biswajit Jana, combining 3D WebGL scenes with NASA, JPL, and CelesTrak public data.">
@@ -54,6 +57,9 @@ const upgrades = [
         <a href={portfolioUrl} target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="width:100%;justify-content:center;border-radius:999px;">
           Academic portfolio
         </a>
+        <a href={reportUrl} target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="width:100%;justify-content:center;border-radius:999px;margin-top:0.65rem;">
+          Project report
+        </a>
       </aside>
     </div>
 
@@ -87,7 +93,7 @@ const upgrades = [
         The project separates measured data from visual interpretation. Solar-system worlds use public texture maps
         where possible; exoplanet portraits are explicitly labelled as data-driven artist renders because most
         exoplanets are not directly resolved in visible light. ISS position is propagated from current TLE data,
-        and NEO hazard labels are risk proxies for prioritisation, not official impact predictions.
+        and small-body risk labels are prioritisation proxies, not official impact predictions.
       </p>
     </section>
   </section>

@@ -851,6 +851,11 @@ body {
     display: none !important;
   }
 
+  .oort-research-panel,
+  .solar-scale-ruler {
+    display: none !important;
+  }
+
   .solar-info-panel {
     top: 76px !important;
     left: 12px !important;

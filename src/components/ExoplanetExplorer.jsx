@@ -317,6 +317,7 @@ function PlanetCard({ planet }) {
             ['Spectral', planet.st_spectype || 'n/a'],
             ['Luminosity', luminosity ? `${formatNumber(luminosity, 2)} Ls` : 'n/a'],
             ['HZ proxy', hz.value ? `${hz.value.toFixed(2)} EU` : 'n/a'],
+            ['Facility', missionBucket(planet)],
           ].map(([label, value]) => (
             <div key={label} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 5 }}>
               <div style={{ color: 'rgba(255,255,255,0.36)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</div>
@@ -377,6 +378,217 @@ function Stat({ label, value, accent }) {
   );
 }
 
+function missionBucket(planet) {
+  const facility = String(planet.disc_facility || '').toLowerCase();
+  const method = String(planet.discoverymethod || '').toLowerCase();
+  const combined = `${facility} ${method}`;
+  if (combined.includes('tess') || combined.includes('transiting exoplanet survey')) return 'TESS';
+  if (combined.includes('k2')) return 'K2';
+  if (combined.includes('kepler')) return 'Kepler';
+  if (combined.includes('wasp') || combined.includes('hat') || combined.includes('trappist') || combined.includes('xo')) return 'Ground transit';
+  if (combined.includes('ogle') || combined.includes('moa') || combined.includes('kmt')) return 'Microlensing';
+  if (combined.includes('harps') || combined.includes('keck') || combined.includes('lick') || combined.includes('coralie') || combined.includes('radial')) return 'Radial velocity';
+  if (combined.includes('imaging')) return 'Direct imaging';
+  if (planet.discoverymethod) return planet.discoverymethod;
+  return 'Other';
+}
+
+function missionColor(bucket) {
+  const colors = {
+    TESS: '#67e8f9',
+    Kepler: '#fbbf24',
+    K2: '#f59e0b',
+    'Ground transit': '#a78bfa',
+    Microlensing: '#fb7185',
+    'Radial velocity': '#4ade80',
+    'Direct imaging': '#60a5fa',
+  };
+  return colors[bucket] || '#cbd5e1';
+}
+
+function ExoplanetSciencePanel({ planets, filtered }) {
+  const [mode, setMode] = useState('missions');
+  const chartPlanets = filtered.length ? filtered : planets;
+  const plotted = chartPlanets
+    .filter((planet) => finiteNumber(planet.pl_rade) !== null || finiteNumber(planet.pl_eqt) !== null || finiteNumber(planet.pl_orbper) !== null)
+    .slice(0, 1400);
+
+  const missionCounts = useMemo(() => {
+    const counts = new Map();
+    planets.forEach((planet) => {
+      const bucket = missionBucket(planet);
+      counts.set(bucket, (counts.get(bucket) || 0) + 1);
+    });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+  }, [planets]);
+
+  const yearCounts = useMemo(() => {
+    const counts = new Map();
+    planets.forEach((planet) => {
+      const year = finiteNumber(planet.disc_year);
+      if (year === null) return;
+      counts.set(year, (counts.get(year) || 0) + 1);
+    });
+    return [...counts.entries()].sort((a, b) => a[0] - b[0]);
+  }, [planets]);
+
+  return (
+    <section style={{
+      border: '1px solid rgba(255,255,255,0.09)',
+      background: 'rgba(255,255,255,0.032)',
+      borderRadius: 18,
+      padding: '1rem',
+      marginBottom: 20,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+        <div>
+          <div style={{ color: '#67e8f9', fontSize: 11, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Quantitative exoplanet plot window</div>
+          <p style={{ color: 'rgba(255,255,255,0.46)', fontSize: 12, marginTop: 4 }}>
+            Uses the loaded NASA Exoplanet Archive snapshot; dots are measured catalogue rows, not invented worlds.
+          </p>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {[
+            ['missions', 'Missions'],
+            ['timeline', 'Timeline'],
+            ['temperature', 'Temp x radius'],
+            ['orbit', 'Orbit x radius'],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setMode(key)}
+              style={{
+                border: `1px solid ${mode === key ? 'rgba(103,232,249,0.45)' : 'rgba(255,255,255,0.11)'}`,
+                background: mode === key ? 'rgba(103,232,249,0.14)' : 'rgba(255,255,255,0.045)',
+                color: mode === key ? '#a5f3fc' : 'rgba(255,255,255,0.7)',
+                borderRadius: 999,
+                padding: '0.48rem 0.75rem',
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 850,
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {mode === 'missions' && <MissionBars data={missionCounts} total={planets.length} />}
+      {mode === 'timeline' && <DiscoveryTimeline data={yearCounts} />}
+      {mode === 'temperature' && <ScatterPlot planets={plotted} xField="pl_eqt" yField="pl_rade" xLabel="Equilibrium temperature (K)" yLabel="Planet radius (Earth radii)" xMin={100} xMax={2600} yMin={0.4} yMax={22} />}
+      {mode === 'orbit' && <ScatterPlot planets={plotted} xField="pl_orbper" yField="pl_rade" xLabel="Orbital period (days, log)" yLabel="Planet radius (Earth radii, log)" xMin={0.2} xMax={12000} yMin={0.4} yMax={22} logX logY />}
+    </section>
+  );
+}
+
+function MissionBars({ data, total }) {
+  const max = Math.max(1, ...data.map(([, count]) => count));
+  return (
+    <div style={{ display: 'grid', gap: 9 }}>
+      {data.map(([bucket, count]) => {
+        const color = missionColor(bucket);
+        return (
+          <div key={bucket} style={{ display: 'grid', gridTemplateColumns: '132px 1fr 64px', gap: 10, alignItems: 'center' }}>
+            <span style={{ color: 'rgba(255,255,255,0.68)', fontSize: 12, fontWeight: 850, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bucket}</span>
+            <div style={{ height: 12, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+              <div style={{ width: `${(count / max) * 100}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${color}88, ${color})`, boxShadow: `0 0 16px ${color}44` }} />
+            </div>
+            <strong style={{ color, textAlign: 'right', fontSize: 12 }}>{count} <span style={{ color: 'rgba(255,255,255,0.36)', fontWeight: 600 }}>{Math.round((count / Math.max(1, total)) * 100)}%</span></strong>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DiscoveryTimeline({ data }) {
+  const width = 940;
+  const height = 230;
+  const years = data.map(([year]) => year);
+  const minYear = Math.min(...years, 1992);
+  const maxYear = Math.max(...years, new Date().getFullYear());
+  const maxCount = Math.max(1, ...data.map(([, count]) => count));
+  const points = data.map(([year, count]) => {
+    const x = 44 + ((year - minYear) / Math.max(1, maxYear - minYear)) * (width - 82);
+    const y = height - 34 - (count / maxCount) * (height - 70);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', display: 'block' }}>
+      <rect x="0" y="0" width={width} height={height} rx="16" fill="rgba(2,6,23,0.45)" stroke="rgba(255,255,255,0.08)" />
+      {[0, 0.25, 0.5, 0.75, 1].map((tick) => {
+        const x = 44 + tick * (width - 82);
+        const year = Math.round(minYear + tick * (maxYear - minYear));
+        return (
+          <g key={tick}>
+            <line x1={x} y1="28" x2={x} y2={height - 34} stroke="rgba(255,255,255,0.06)" />
+            <text x={x} y={height - 12} textAnchor="middle" fill="rgba(255,255,255,0.45)" fontSize="11">{year}</text>
+          </g>
+        );
+      })}
+      <polyline points={points} fill="none" stroke="#67e8f9" strokeWidth="2.5" />
+      {data.map(([year, count]) => {
+        const x = 44 + ((year - minYear) / Math.max(1, maxYear - minYear)) * (width - 82);
+        const y = height - 34 - (count / maxCount) * (height - 70);
+        return <circle key={year} cx={x} cy={y} r={count === maxCount ? 4 : 2.4} fill="#fbbf24" opacity="0.82" />;
+      })}
+      <text x="18" y="24" fill="rgba(255,255,255,0.72)" fontSize="12" fontWeight="800">Confirmed discoveries per year</text>
+      <text x={width - 18} y="24" textAnchor="end" fill="rgba(255,255,255,0.38)" fontSize="11">peak year count {maxCount}</text>
+    </svg>
+  );
+}
+
+function ScatterPlot({ planets, xField, yField, xLabel, yLabel, xMin, xMax, yMin, yMax, logX = false, logY = false }) {
+  const width = 940;
+  const height = 300;
+  const plot = { left: 58, right: 24, top: 28, bottom: 44 };
+  const scale = (value, min, max, log = false) => {
+    const safe = Math.max(min, Math.min(max, value));
+    if (!log) return (safe - min) / (max - min);
+    return (Math.log10(safe) - Math.log10(min)) / (Math.log10(max) - Math.log10(min));
+  };
+  const valid = planets.filter((planet) => finiteNumber(planet[xField]) !== null && finiteNumber(planet[yField]) !== null);
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', display: 'block' }}>
+      <rect x="0" y="0" width={width} height={height} rx="16" fill="rgba(2,6,23,0.45)" stroke="rgba(255,255,255,0.08)" />
+      {[0, 0.25, 0.5, 0.75, 1].map((tick) => {
+        const x = plot.left + tick * (width - plot.left - plot.right);
+        const y = plot.top + tick * (height - plot.top - plot.bottom);
+        return (
+          <g key={tick}>
+            <line x1={x} y1={plot.top} x2={x} y2={height - plot.bottom} stroke="rgba(255,255,255,0.055)" />
+            <line x1={plot.left} y1={y} x2={width - plot.right} y2={y} stroke="rgba(255,255,255,0.055)" />
+          </g>
+        );
+      })}
+      {valid.map((planet, index) => {
+        const xValue = finiteNumber(planet[xField]);
+        const yValue = finiteNumber(planet[yField]);
+        const x = plot.left + scale(xValue, xMin, xMax, logX) * (width - plot.left - plot.right);
+        const y = height - plot.bottom - scale(yValue, yMin, yMax, logY) * (height - plot.top - plot.bottom);
+        const type = planetType(planet.pl_rade);
+        return (
+          <circle
+            key={`${planet.pl_name}-${index}`}
+            cx={x}
+            cy={y}
+            r={planet.discoverymethod === 'Imaging' ? 3.7 : 2.25}
+            fill={type.color}
+            opacity="0.56"
+          />
+        );
+      })}
+      <line x1={plot.left} y1={height - plot.bottom} x2={width - plot.right} y2={height - plot.bottom} stroke="rgba(255,255,255,0.2)" />
+      <line x1={plot.left} y1={plot.top} x2={plot.left} y2={height - plot.bottom} stroke="rgba(255,255,255,0.2)" />
+      <text x={width / 2} y={height - 11} textAnchor="middle" fill="rgba(255,255,255,0.62)" fontSize="12" fontWeight="800">{xLabel}</text>
+      <text x="17" y={height / 2} transform={`rotate(-90 17 ${height / 2})`} textAnchor="middle" fill="rgba(255,255,255,0.62)" fontSize="12" fontWeight="800">{yLabel}</text>
+      <text x={width - 24} y="24" textAnchor="end" fill="rgba(255,255,255,0.38)" fontSize="11">{valid.length} plotted rows</text>
+    </svg>
+  );
+}
+
 export default function ExoplanetExplorer() {
   const [planets, setPlanets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -406,8 +618,8 @@ export default function ExoplanetExplorer() {
       } catch {
         try {
         const query = [
-          'select top 3000',
-          'pl_name,hostname,discoverymethod,disc_year,pl_orbper,pl_rade,pl_bmasse,pl_eqt,pl_insol,pl_orbsmax,pl_orbeccen,pl_orbincl,sy_dist,st_teff,st_rad,st_mass,st_spectype',
+          'select top 4000',
+          'pl_name,hostname,discoverymethod,disc_facility,disc_year,pl_orbper,pl_rade,pl_bmasse,pl_eqt,pl_insol,pl_orbsmax,pl_orbeccen,pl_orbincl,sy_dist,st_teff,st_rad,st_mass,st_spectype',
           'from pscomppars',
           'where pl_name is not null and hostname is not null',
           'order by sy_dist asc',
@@ -558,6 +770,10 @@ export default function ExoplanetExplorer() {
           {loading ? 'Loading NASA archive...' : `${filtered.length} matching worlds`}
         </span>
       </div>
+
+      {!loading && planets.length > 0 && (
+        <ExoplanetSciencePanel planets={planets} filtered={filtered} />
+      )}
 
       {source === 'demo' && !loading && (
         <div style={{ color: '#fbbf24', border: '1px solid rgba(251,191,36,0.24)', background: 'rgba(251,191,36,0.08)', borderRadius: 14, padding: '0.75rem 1rem', marginBottom: 18, fontSize: 13 }}>
