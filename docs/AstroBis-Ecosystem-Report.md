@@ -1,154 +1,626 @@
-# AstroBis Ecosystem Report
+# AstroBis
 
-**Author:** Biswajit Jana  
-**Live site:** https://biswajit1999.github.io/AstroBis/  
-**Repository:** https://github.com/Biswajit1999/AstroBis  
-**Report date:** 21 June 2026
+## Independent Research Project in Browser-Based Astronomy Visualisation
 
-## Executive Summary
+**Author:** Biswajit Jana
+**Role:** Independent Researcher — Astrophysics, Instrumentation and Scientific Computing
+**Project date:** 21 June 2026
 
-AstroBis is a browser-native astronomy dashboard designed to make Solar System scale, exoplanet catalogues, orbital tracking, near-Earth object monitoring, and stellar reference data visible in one coherent interface. The project combines an Astro static site, React interfaces, Three.js/WebGL scenes, SVG analytics, and public scientific data sources from NASA, JPL, CelesTrak, and related astronomy services.
+## Project scope
 
-The goal is not to clone a planetarium package. AstroBis is built as an animated research console: the Solar System is navigable as a compressed 3D scale model, the ISS is propagated from public TLE data, exoplanets are explored through quantitative archive fields, and small-body risk/visitor channels are separated from ordinary visual storytelling.
+AstroBis is an independently developed browser-based astronomy environment for exploring Solar System scale, exoplanet catalogue parameters, satellite motion, close-approach records, interstellar visitors, and bright-star geometry.
 
-This public report intentionally describes the scientific basis, interface design, and data provenance at a high level. It does not disclose private prompts, unpublished working artifacts, or internal production notes.
+The project is not intended to replace specialist packages such as NASA Horizons, mission operations software, full planetarium applications, or peer-reviewed catalogue analysis pipelines. Its purpose is narrower: to make public astronomical data, physical scale, and derived quantities inspectable through a coherent interactive interface.
 
-## Project Philosophy
+AstroBis combines Astro static-site delivery, React interfaces, Three.js/WebGL scenes, SVG data views, static JSON snapshots, and browser-side requests to public astronomy services.
 
-AstroBis follows four design principles:
+The implementation distinguishes three categories of content:
 
-1. **Measured data first.** Whenever possible, interface labels, orbital values, counts, distances, and source links come from traceable public data sources.
-2. **Visual interpretation is labelled.** Exoplanet portraits and distant cloud particles are scientific visualizations or artist-model representations, not direct photographs.
-3. **Scale must be navigable.** The Solar System spans too many orders of magnitude for one linear display, so the app uses logarithmic and focused scale modes.
-4. **Each page should work as a small scientific instrument.** The interface is not only decorative; every page offers filters, plots, controls, or telemetry.
+1. **Archive and propagated values** — catalogue parameters, orbital elements, timestamps, and propagated coordinates.
+2. **Derived quantities** — unit conversions, ranking values, approximate energy scales, and coordinate transformations.
+3. **Scientific visualisations** — compressed scale maps, planet textures, cloud particles, atmospheric effects, and exoplanet representations.
 
-## Solar System Atlas
+Visual components are not presented as direct observations unless the underlying source supports that interpretation.
 
-The Solar System scene presents the Sun, eight planets, officially recognized dwarf planets, major debris regions, and boundary zones using a compressed astronomical-unit scale. The scene includes:
+---
 
-- Eccentric and inclined orbit rendering.
-- Planet and dwarf-planet information panels.
-- Moon counts and selected physical values.
-- Asteroid belt, Jupiter trojan, Kuiper belt, scattered disk, heliopause, inner Oort Cloud, and outer Oort Cloud regions.
-- Camera presets for inner planets, giant planets, Kuiper belt, heliopause, and Oort Cloud scale.
-- An astronomical-unit ruler with light-time context.
+## Data handling and reproducibility
 
-### Oort Cloud Treatment
+AstroBis is deployed as a static website. To avoid dependence on a single live request, each main module uses a two-layer approach:
 
-NASA describes the Oort Cloud as a giant spherical shell surrounding the Sun, planets, and Kuiper Belt objects. NASA also notes that the Oort Cloud has not been directly imaged because of its great distance. The AstroBis visualization therefore treats it as a sparse modeled shell rather than a literal observed photograph.
+* a build-time JSON snapshot generated from a public source;
+* a browser-side refresh attempt when the source permits direct access.
 
-The scale used in the app follows NASA's public estimate that the main Oort Cloud may begin around **1,000 AU** and extend to roughly **100,000 AU** from the Sun. This creates a necessary user-interface challenge: from inside the planetary system the Oort Cloud should not look like a nearby ring. It only becomes readable after zooming out by orders of magnitude.
+Snapshot files retain fields such as:
 
-Key reference:  
-https://science.nasa.gov/resource/oort-cloud-and-scale-of-the-solar-system-infographic/  
-https://science.nasa.gov/solar-system/oort-cloud/
+[
+{\texttt{generatedAt},\ \texttt{source},\ \texttt{query},\ \texttt{count},\ \texttt{data}}
+]
 
-## Exoplanet Archive
+If an upstream request fails, the last valid snapshot is retained rather than replacing a working dataset with an empty response. This is important for a public project because browser CORS restrictions, source downtime, and API-rate limits can otherwise make a static deployment unreliable.
 
-The exoplanet page uses NASA Exoplanet Archive composite parameters through the TAP service. AstroBis stores a same-origin build snapshot for reliability and attempts browser-side refresh where possible.
+For each release, the repository should retain:
 
-The interface includes:
+* release tag or commit hash;
+* UTC snapshot-generation time;
+* source endpoint;
+* query parameters;
+* row count;
+* fallback status.
 
-- Approximately 4,000 loaded catalogue rows when the archive query succeeds.
-- Search by planet or host star.
-- Filters by planet class, discovery method, and temperature band.
-- Sorting by habitability proxy, distance, radius, discovery year, period, completeness, or name.
-- Mission/facility grouping for Kepler, K2, TESS, ground transit surveys, radial velocity, microlensing, and imaging channels.
-- Discovery timeline and distribution plots.
-- Radius-temperature and orbit-radius scatter views.
+---
 
-The habitability and stellar-luminosity values are proxies intended for exploration, not official classifications. They are useful for comparing candidates but should not be treated as claims of habitability.
+## Solar System atlas
 
-Key reference:  
-https://exoplanetarchive.ipac.caltech.edu/docs/TAP/usingTAP.html
+The Solar System module presents the Sun, planets, selected dwarf planets, major debris populations, heliopause scale, and an outer-cloud visualisation.
 
-## ISS Mission Control
+The real Solar System cannot be represented using one linear scale. The ratio between Earth's orbital distance and an outer Oort Cloud distance of (100{,}000\ \mathrm{AU}) is:
 
-The ISS page tracks the International Space Station using CelesTrak GP/TLE data and local SGP4 propagation through `satellite.js`. The globe renders a textured Earth with normal, specular, cloud, atmospheric, and night-side city-light layers. Telemetry includes:
+[
+\frac{100{,}000}{1}=10^5
+]
 
-- Latitude and longitude.
-- Altitude and velocity.
-- Orbital radius.
-- Inclination and approximate orbital period.
-- Visibility state.
-- Subsolar point.
-- TLE epoch age.
+A linear display would make the inner planetary system effectively invisible when the Oort Cloud is included. AstroBis therefore uses compressed scene coordinates.
 
-The scene separates measured propagation from visualization. TLE-based propagation is accurate enough for public educational tracking, but precision depends on TLE freshness and is not a replacement for mission operations software.
+For close-range viewing, the display coordinate is:
 
-Key references:  
-https://celestrak.org/NORAD/documentation/gp-data-formats.php  
-https://github.com/shashwatak/satellite-js
+[
+s_{\mathrm{inner}}(r)=17\sqrt{r_{\mathrm{AU}}}
+\tag{1}
+]
 
-## Small-Body And Visitor Watch
+For outer-system and Oort-scale viewing, it uses:
 
-The small-body page uses JPL's SBDB Close-Approach Data API for Earth close approaches through 2050. It also includes a separate visitor channel for known interstellar/hyperbolic objects from the JPL SBDB API.
+[
+s_{\log}(r)=38\log_{10}(r_{\mathrm{AU}}+1)
+\tag{2}
+]
 
-The close-approach dashboard includes:
+where (s) is a visual scene coordinate rather than a physical distance.
 
-- Miss distance in kilometers, AU, and lunar distances.
-- Relative speed.
-- Diameter estimate or measured diameter where available.
-- Absolute magnitude.
-- Energy-scale proxy.
-- Risk-proxy and large-object filters.
-- Timeline and approach radar views.
+The current scale regions are treated as explanatory bands:
 
-The visitor channel includes:
+| Region                                 |              Approximate radial interval |
+| -------------------------------------- | ---------------------------------------: |
+| Kuiper Belt                            |              (30\text{–}50\ \mathrm{AU}) |
+| Scattered Disc                         |             (50\text{–}120\ \mathrm{AU}) |
+| Heliopause reference region            |                   (\sim120\ \mathrm{AU}) |
+| Inner Oort Cloud / Hills Cloud display |   (1{,}000\text{–}20{,}000\ \mathrm{AU}) |
+| Outer Oort Cloud display               | (20{,}000\text{–}100{,}000\ \mathrm{AU}) |
 
-- 1I/'Oumuamua.
-- 2I/Borisov.
-- 3I/ATLAS.
-- Hyperbolic eccentricity, perihelion distance, inclination, estimated hyperbolic excess speed, perihelion date, and approximate time to the 1,000 AU Oort boundary.
+The Oort Cloud is represented as a sparse, spherical modelled shell. It is not an observed image or a complete orbital population. Its purpose is to make the scale transition between the planetary system and the distant Solar reservoir visible.
 
-Risk labels are prioritization aids only. They are not official impact probabilities.
+### Orbital geometry
 
-Key references:  
-https://ssd-api.jpl.nasa.gov/doc/cad.html  
-https://ssd-api.jpl.nasa.gov/doc/sbdb.html  
-https://science.nasa.gov/solar-system/comets/3i-atlas/3i-atlas-facts-and-faqs/
+For planets and dwarf planets, AstroBis can display eccentric and inclined orbit paths. With semi-major axis (a), eccentricity (e), inclination (i), and display parameter (\theta), the semi-minor axis is:
 
-## Stellar Atlas
+[
+b=a\sqrt{1-e^2}
+\tag{3}
+]
 
-The Stellar Atlas renders bright stars using right ascension, declination, distance, magnitude, and spectral-class metadata in a 3D coordinate field. The page includes constellation guide lines, distance shells, spectral filtering, and physical proxies for temperature, luminosity, and radius.
+The in-plane ellipse is drawn as:
 
-The stellar chart is a compact educational layer rather than a full astrometric catalogue. It is designed for visual orientation and comparison.
+[
+x=a(\cos\theta-e)
+\tag{4}
+]
 
-## Data Refresh Strategy
+[
+z_{\mathrm{flat}}=b\sin\theta
+\tag{5}
+]
 
-AstroBis is a static GitHub Pages site, so its data strategy combines two layers:
+and then rotated by inclination:
 
-1. **Build-time snapshots** refresh public JSON files during site builds and scheduled workflows.
-2. **Browser-side refresh attempts** allow pages to request live data directly when browser CORS and service availability permit.
+[
+y=\sin(i),z_{\mathrm{flat}}
+\tag{6}
+]
 
-This gives the site a reliable fallback while keeping data fresher than a purely hardcoded demo.
+[
+z=\cos(i),z_{\mathrm{flat}}
+\tag{7}
+]
 
-## User Interface Strategy
+These equations define visual orbit geometry. They are not a full time-dependent ephemeris calculation: the display does not solve Kepler’s equation or use an epoch-specific planetary state vector.
 
-AstroBis uses a restrained dark astronomy-console style: dense enough for repeated use, but still visually immersive. The interface prioritizes:
+### Light-time context
 
-- Stable controls with clear labels.
-- Scientific units next to values.
-- Separating data panels from 3D scenes.
-- Responsive behavior for mobile and desktop.
-- Avoiding marketing-page structure in tool pages.
+AstroBis uses:
 
-## Known Limitations
+[
+1\ \mathrm{AU}=149{,}597{,}870.7\ \mathrm{km}
+]
 
-- The Oort Cloud is theoretical and not directly imaged; AstroBis renders a scientifically motivated projection.
-- Exoplanet portraits are generated visual encodings of catalogue values, not telescope photographs.
-- TLE propagation accuracy depends on current orbital elements.
-- JPL close-approach and SBDB values can update as new observations refine orbits.
-- Some public APIs may be unavailable or blocked by browser CORS, so local snapshots are kept.
+and an approximate one-way light-time relation:
 
-## Source Register
+[
+t_{\mathrm{light}}[\mathrm{min}]
+================================
 
-- NASA Oort Cloud overview: https://science.nasa.gov/solar-system/oort-cloud/
-- NASA Oort Cloud scale infographic: https://science.nasa.gov/resource/oort-cloud-and-scale-of-the-solar-system-infographic/
-- NASA Exoplanet Archive TAP: https://exoplanetarchive.ipac.caltech.edu/docs/TAP/usingTAP.html
-- JPL Close-Approach Data API: https://ssd-api.jpl.nasa.gov/doc/cad.html
-- JPL Small-Body Database API: https://ssd-api.jpl.nasa.gov/doc/sbdb.html
-- JPL Horizons API: https://ssd-api.jpl.nasa.gov/doc/horizons.html
-- CelesTrak GP/TLE documentation: https://celestrak.org/NORAD/documentation/gp-data-formats.php
-- NASA 3I/ATLAS facts: https://science.nasa.gov/solar-system/comets/3i-atlas/3i-atlas-facts-and-faqs/
-- IAU/MPC 2026 satellite update: https://www.iau.org/IAU/IAU/News/Ann2026/MPC-New-Moons-Saturn-Jupiter.aspx
+8.316746 \times r_{\mathrm{AU}}
+\tag{8}
+]
+
+For example:
+
+[
+t_{\mathrm{Earth}}\approx8.3\ \mathrm{min}
+]
+
+[
+t_{\mathrm{Neptune}}\approx4.2\ \mathrm{hours}
+]
+
+[
+t_{1000\ \mathrm{AU}}\approx5.8\ \mathrm{days}
+]
+
+[
+t_{100000\ \mathrm{AU}}\approx1.58\ \mathrm{years}
+]
+
+This gives the user a physically meaningful way to understand why an Oort Cloud-scale display requires a different visual mode from the inner planetary system.
+
+---
+
+## Exoplanet explorer
+
+The exoplanet module uses a NASA Exoplanet Archive TAP query against the Planetary Systems Composite Parameters table, `PSCompPars`.
+
+The deployed snapshot is intentionally bounded:
+
+[
+N_{\max}=4000
+]
+
+The query selects up to 4,000 planet rows ordered by host-system distance:
+
+[
+\mathrm{ORDER\ BY}\ \texttt{sy_dist}\ \mathrm{ASC}
+]
+
+This is therefore a nearby-system-oriented working subset, not the complete confirmed exoplanet population and not a statistically unbiased sample.
+
+The interface includes catalogue values such as:
+
+[
+P_{\mathrm{orb}},\quad R_p,\quad M_p,\quad T_{\mathrm{eq}},\quad S,\quad a,\quad e,\quad i,\quad d,\quad T_{\star},\quad R_{\star},\quad M_{\star}
+]
+
+where (P_{\mathrm{orb}}) is orbital period, (R_p) is planetary radius, (M_p) is planetary mass, (T_{\mathrm{eq}}) is equilibrium temperature, (S) is incident flux, (a) is semi-major axis, (e) is eccentricity, (i) is inclination, and (d) is host-system distance.
+
+### Planet-class labels
+
+The interface uses radius-based exploratory categories:
+
+| Category     |                     Radius condition |
+| ------------ | -----------------------------------: |
+| Rocky        |                 (R_p<1.25R_{\oplus}) |
+| Super-Earth  | (1.25R_{\oplus}\leq R_p<2R_{\oplus}) |
+| Mini-Neptune |    (2R_{\oplus}\leq R_p<4R_{\oplus}) |
+| Neptune-like |   (4R_{\oplus}\leq R_p<10R_{\oplus}) |
+| Gas giant    |                (R_p\geq10R_{\oplus}) |
+
+These categories are visual and comparative labels. They do not imply a unique atmospheric composition or formation history.
+
+### Stellar luminosity proxy
+
+Where stellar radius and effective temperature are available, AstroBis estimates luminosity relative to the Sun as:
+
+[
+\frac{L_{\star}}{L_{\odot}}
+===========================
+
+\left(\frac{R_{\star}}{R_{\odot}}\right)^2
+\left(\frac{T_{\star}}{5772\ \mathrm{K}}\right)^4
+\tag{9}
+]
+
+This follows the Stefan–Boltzmann scaling relation.
+
+An Earth-equivalent orbital-distance proxy is then calculated as:
+
+[
+a_{\oplus}
+==========
+
+\frac{a}{\sqrt{L_{\star}/L_{\odot}}}
+\tag{10}
+]
+
+The present interface highlights:
+
+[
+0.72 \leq a_{\oplus}\leq1.77
+\tag{11}
+]
+
+as an exploratory “habitable-zone band.” This is not an official habitable-zone classification, because true habitability depends on stellar spectrum, atmospheric composition, albedo, greenhouse processes, planetary mass, rotation, clouds, and many other effects.
+
+### Exploration score
+
+AstroBis includes a comparative exploration score, not a scientific habitability claim:
+
+[
+H
+=
+
+100
+\frac{\sum_i w_i f_i}{\sum_i w_i}
+\tag{12}
+]
+
+The score combines available quantities:
+
+* radius similarity to (1.05R_{\oplus}), weight (w_R=38);
+* equilibrium-temperature similarity to (288\ \mathrm{K}), weight (w_T=40);
+* incident-flux similarity when temperature is unavailable, weight (w_S=34);
+* orbital-period similarity to (365.25\ \mathrm{days}), weight (w_P=22).
+
+For example, the radius term is:
+
+[
+f_R
+===
+
+\max
+\left[
+0,
+1-\frac{|R_p-1.05|}{2.2}
+\right]
+\tag{13}
+]
+
+The score should be labelled as an **exploration ranking proxy** throughout the interface.
+
+---
+
+## ISS mission-control view
+
+The ISS module uses CelesTrak General Perturbations orbital-element data for NORAD catalogue number:
+
+[
+\mathrm{CATNR}=25544
+]
+
+The element set is propagated locally using an SGP4 implementation. The propagated state provides position and velocity vectors:
+
+[
+\mathbf{r}=(x,y,z)
+]
+
+[
+\mathbf{v}=(v_x,v_y,v_z)
+]
+
+The instantaneous speed is:
+
+[
+v
+=
+
+\sqrt{v_x^2+v_y^2+v_z^2}
+\tag{14}
+]
+
+The orbital radius is approximated by:
+
+[
+r_{\mathrm{orb}}
+================
+
+R_{\oplus}+h
+\tag{15}
+]
+
+using:
+
+[
+R_{\oplus}=6371\ \mathrm{km}
+]
+
+where (h) is altitude above the reference Earth radius.
+
+The TLE age is shown as:
+
+[
+\Delta t_{\mathrm{TLE}}
+=======================
+
+\frac{t_{\mathrm{now}}-t_{\mathrm{epoch}}}{3600}
+\quad[\mathrm{hours}]
+\tag{16}
+]
+
+This value is essential because TLE-based propagation becomes less representative as the element epoch ages.
+
+The displayed reference values are approximately:
+
+[
+i\approx51.64^{\circ}
+]
+
+[
+P\approx92.9\ \mathrm{min}
+]
+
+The globe, cloud layer, atmospheric glow, city lights, and Earth shading are visual context. They do not alter the propagated orbital solution.
+
+AstroBis should describe this module as:
+
+> SGP4 propagation from the latest available GP/TLE element set or bundled snapshot.
+
+It should not use language such as “mission-grade live position” or “real-time operational tracking.”
+
+---
+
+## Small-body close approaches and interstellar visitors
+
+The small-body module uses JPL close-approach records for Earth encounters between the build date and:
+
+[
+31\ \mathrm{December}\ 2050
+]
+
+The current snapshot query includes objects with nominal miss distance:
+
+[
+d_{\mathrm{AU}}\leq0.3
+]
+
+and can return up to:
+
+[
+N_{\max}=7500
+]
+
+records.
+
+### Distance conversion
+
+AstroBis converts close-approach distance through:
+
+[
+d_{\mathrm{km}}
+===============
+
+d_{\mathrm{AU}}
+\times149{,}597{,}870.7
+\tag{17}
+]
+
+and lunar distance:
+
+[
+d_{\mathrm{LD}}
+===============
+
+\frac{d_{\mathrm{km}}}{384{,}400}
+\tag{18}
+]
+
+where (384{,}400\ \mathrm{km}) is the adopted mean Earth–Moon distance.
+
+### Diameter estimate from absolute magnitude
+
+When JPL does not provide a diameter, AstroBis estimates one from absolute magnitude (H), assuming geometric albedo:
+
+[
+p=0.14
+]
+
+[
+D[\mathrm{km}]
+==============
+
+\frac{1329}{\sqrt{p}}
+10^{-H/5}
+\tag{19}
+]
+
+This diameter is an albedo-dependent estimate, not a measurement. Different asteroid surface reflectivities can produce very different diameters for the same absolute magnitude.
+
+### Energy-scale proxy
+
+For a simplified impact-energy comparison, AstroBis assumes spherical geometry and bulk density:
+
+[
+\rho=2500\ \mathrm{kg,m^{-3}}
+]
+
+[
+M
+=
+
+\frac{4}{3}\pi R^3\rho
+\tag{20}
+]
+
+[
+E
+=
+
+\frac{1}{2}Mv^2
+\tag{21}
+]
+
+The energy is reported in megatons of TNT using:
+
+[
+E_{\mathrm{Mt}}
+===============
+
+\frac{E}{4.184\times10^{15}}
+\tag{22}
+]
+
+This is deliberately not an impact-damage calculation. It omits impact angle, composition, fragmentation, atmospheric entry, terrain, ocean effects, and impact location.
+
+### Risk-proxy label
+
+The interface marks a record with a risk-style proxy when:
+
+[
+d_{\mathrm{AU}}\leq0.05
+]
+
+and, where available,
+
+[
+H\leq22
+]
+
+This is a sorting aid only. It is not an impact probability, Torino-scale value, Palermo-scale value, or official hazard assessment.
+
+### Interstellar-visitor channel
+
+The visitor module includes:
+
+* 1I/'Oumuamua;
+* 2I/Borisov;
+* 3I/ATLAS.
+
+For hyperbolic visitors, the interface estimates asymptotic speed using:
+
+[
+v_{\infty}
+\approx
+\frac{29.7847}{\sqrt{|a_{\mathrm{AU}}|}}
+\quad[\mathrm{km,s^{-1}}]
+\tag{23}
+]
+
+where (a_{\mathrm{AU}}) is the magnitude of the hyperbolic semi-major axis in astronomical units.
+
+A simple constant-speed estimate to the nominal (1000\ \mathrm{AU}) Oort-scale boundary is:
+
+[
+t_{1000}
+\approx
+\frac{(1000-q)\times1\ \mathrm{AU}}{v_{\infty}}
+\tag{24}
+]
+
+where (q) is perihelion distance in AU.
+
+This quantity should be called a **ballistic outward-travel estimate**, not an ephemeris prediction.
+
+---
+
+## Stellar atlas
+
+The Stellar Atlas is a compact bright-star visual reference, not a complete astrometric catalogue.
+
+For apparent magnitude (m) and distance (d_{\mathrm{pc}}), absolute magnitude is calculated as:
+
+[
+M
+=
+
+## m
+
+5
+\left[
+\log_{10}(d_{\mathrm{pc}})-1
+\right]
+\tag{25}
+]
+
+The interface uses spectral-type temperature proxies:
+
+| Spectral class |      Temperature proxy |
+| -------------- | ---------------------: |
+| O              | (30{,}000\ \mathrm{K}) |
+| B              | (15{,}000\ \mathrm{K}) |
+| A              |  (9{,}000\ \mathrm{K}) |
+| F              |  (7{,}000\ \mathrm{K}) |
+| G              |  (5{,}800\ \mathrm{K}) |
+| K              |  (4{,}500\ \mathrm{K}) |
+| M              |  (3{,}200\ \mathrm{K}) |
+
+These values are broad display approximations, not individual stellar-atmosphere fits.
+
+Luminosity is estimated using:
+
+[
+\frac{L}{L_{\odot}}
+===================
+
+10^{(4.83-M)/2.5}
+\tag{26}
+]
+
+and stellar radius is then approximated through:
+
+[
+\frac{R}{R_{\odot}}
+===================
+
+\frac{\sqrt{L/L_{\odot}}}
+{(T/5772)^2}
+\tag{27}
+]
+
+For spatial display, right ascension (\alpha), declination (\delta), and a compressed distance coordinate are used:
+
+[
+r_{\mathrm{scene}}
+==================
+
+150\log_{10}(d_{\mathrm{pc}}+1)
+\tag{28}
+]
+
+[
+x=r\cos\delta\cos\alpha
+\tag{29}
+]
+
+[
+y=r\sin\delta
+\tag{30}
+]
+
+[
+z=r\cos\delta\sin\alpha
+\tag{31}
+]
+
+The logarithmic distance coordinate allows nearby and more distant bright stars to remain visible in one 3D frame. It is not a linearly scaled Galactic map.
+
+Before formal academic use, the project should explicitly document the source catalogue, catalogue version, coordinate epoch, distance convention, and licence for the stellar dataset.
+
+---
+
+## Interpretation limits
+
+AstroBis is strongest when treated as a transparent scientific interface rather than a source of new measurements.
+
+The following limits are explicit:
+
+* Oort Cloud particles are modelled visual markers, not detected bodies.
+* Planet renders are visual encodings of archive values, not direct images.
+* The exoplanet table is a 4,000-row distance-sorted subset, not the complete archive.
+* The exploration score and habitable-zone band are comparative proxies.
+* ISS coordinates depend on element age and the available GP/TLE set.
+* Small-body diameter estimates depend on assumed albedo.
+* Impact-energy values are scale comparisons, not consequence assessments.
+* Visitor outward-travel values are simplified constant-speed estimates.
+* The Stellar Atlas is a compact educational reference layer, not a full astrometric survey.
+
+---
+
+## Data and method record
+
+AstroBis currently draws on the following public scientific services and software layers:
+
+* NASA Exoplanet Archive TAP service and `PSCompPars` table;
+* NASA/JPL Small-Body Database Close-Approach Data API;
+* NASA/JPL Small-Body Database orbital data;
+* CelesTrak GP/TLE data for the ISS;
+* SGP4 propagation through `satellite.js`;
+* NASA Solar System science material for Oort Cloud scale context.
+
+AstroBis is developed independently as a public scientific-computing and visualisation project. Its value lies in bringing traceable data, explicit assumptions, physical scale, and transparent limitations into one accessible browser environment.
