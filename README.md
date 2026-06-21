@@ -6,7 +6,7 @@
 
 [Live site](https://biswajit1999.github.io/AstroBis/) · [Technical project report](docs/AstroBis-Ecosystem-Report.md) · [Repository](https://github.com/Biswajit1999/AstroBis)
 
-AstroBis is an independently developed browser-native astronomy platform by **Biswajit Jana**. It brings together Solar System scale, exoplanet catalogue data, ISS orbital propagation, small-body close approaches, interstellar visitors, stellar reference data, and NASA's Astronomy Picture of the Day in one interactive interface.
+AstroBis is an independently developed browser-native astronomy platform by **Biswajit Jana**. It combines Solar System scale, exoplanet catalogue data, ISS orbital propagation, small-body close approaches, interstellar visitors, stellar reference data, and NASA's Astronomy Picture of the Day in one interactive interface.
 
 The project is designed for exploration, comparison, and scientific communication. It is not mission-operations software, an impact-prediction system, or a replacement for specialist astronomy packages.
 
@@ -18,25 +18,20 @@ The project is designed for exploration, comparison, and scientific communicatio
 | ------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------- |
 | Solar System Atlas  | Explore planets, dwarf planets, debris regions, heliopause context, and Oort Cloud shells | Compressed AU-scale visual geometry |
 | Exoplanet Explorer  | Search, filter, compare, and plot planetary-system parameters                             | NASA Exoplanet Archive `PSCompPars` |
-| ISS Mission Control | Propagate the ISS position, orbit, telemetry, and ground track                            | CelesTrak GP/TLE + SGP4             |
+| ISS Mission Control | Propagate ISS position, telemetry, and ground track                                       | CelesTrak GP/TLE + SGP4             |
 | Small-Body Watch    | Browse Earth close approaches and selected interstellar visitors                          | NASA/JPL CAD and SBDB APIs          |
-| 3D Stellar Atlas    | Visualise bright stars using coordinate and spectral metadata                             | RA/Dec-based 3D reference field     |
+| 3D Stellar Atlas    | Visualise bright stars using coordinate and spectral metadata                             | RA/Dec-based reference field        |
 | NASA APOD           | Display NASA's Astronomy Picture of the Day                                               | NASA APOD service                   |
 
 ---
 
 ## Scientific approach
 
-AstroBis separates three types of information:
+AstroBis separates three kinds of information:
 
-1. **Source values**
-   Catalogue fields, orbital elements, timestamps, and published archive values.
-
-2. **Derived quantities**
-   Unit conversions, coordinate transformations, approximate size estimates, scale relations, and comparison metrics.
-
-3. **Illustrative layers**
-   Planet textures, Oort Cloud particles, atmosphere effects, cloud layers, city lights, and exoplanet visualisations.
+1. **Source values** — catalogue fields, orbital elements, timestamps, and archived parameters.
+2. **Derived quantities** — unit conversions, coordinate transformations, approximate size estimates, and comparison metrics.
+3. **Illustrative layers** — planet textures, Oort Cloud particles, atmosphere effects, cloud layers, city lights, and exoplanet visualisations.
 
 Illustrative components are not presented as direct observations unless stated otherwise.
 
@@ -51,26 +46,25 @@ The Solar System Atlas includes:
 * Kuiper Belt and scattered-disc regions
 * Heliopause reference region
 * Inner and outer Oort Cloud shells
-* Camera presets from the inner planets to Oort-scale viewing
+* Camera presets from inner planets to Oort-scale viewing
 * Astronomical-unit ruler and light-time context
 * Inclined and eccentric orbit visualisations
 
 The Solar System spans more than five orders of magnitude between Earth's orbit and an outer Oort Cloud scale:
 
-$$
+```math
 \frac{100{,}000\ \mathrm{AU}}{1\ \mathrm{AU}} = 10^5
-$$
+```
 
-A single linear display would make the inner planetary system unreadable at Oort Cloud scale. AstroBis therefore uses compressed and focused visual views rather than claiming a single physical scale across the entire scene.
+A single linear display would make the inner planetary system unreadable at Oort Cloud scale. AstroBis therefore uses compressed and focused visual views rather than claiming one physical scale across the entire scene.
 
 Approximate one-way light time is:
 
-$$
+```math
 t_{\mathrm{light}}[\mathrm{min}]
-================================
-
+=
 8.316746 \times r_{\mathrm{AU}}
-$$
+```
 
 | Distance from the Sun | Approximate one-way light time |
 | --------------------: | -----------------------------: |
@@ -89,11 +83,11 @@ AstroBis uses a build-time NASA Exoplanet Archive TAP query against the `PSCompP
 
 The deployed dataset is intentionally limited to:
 
-$$
+```math
 N_{\max}=4000
-$$
+```
 
-planet rows, ordered by host-system distance:
+planet rows, ordered by host-system distance.
 
 ```sql
 SELECT TOP 4000
@@ -121,7 +115,7 @@ WHERE pl_name IS NOT NULL
 ORDER BY sy_dist ASC
 ```
 
-This makes AstroBis a nearby-system-oriented exploration interface rather than a complete or statistically unbiased census of all confirmed exoplanets.
+This makes AstroBis a nearby-system-oriented exploration interface rather than a complete or statistically unbiased census of confirmed exoplanets.
 
 The module includes:
 
@@ -134,29 +128,27 @@ The module includes:
 * Archive source links
 * Luminosity-derived orbital comparison proxies
 
-A standard luminosity scaling relation is:
+A stellar-luminosity scaling relation is:
 
-$$
+```math
 \frac{L_{\star}}{L_{\odot}}
-===========================
-
+=
 \left(
 \frac{R_{\star}}{R_{\odot}}
 \right)^2
 \left(
 \frac{T_{\star}}{5772\ \mathrm{K}}
 \right)^4
-$$
+```
 
-An Earth-equivalent orbital-distance comparison can then be written as:
+An Earth-equivalent orbital-distance comparison is:
 
-$$
+```math
 a_{\oplus}
-==========
-
+=
 \frac{a}
 {\sqrt{L_{\star}/L_{\odot}}}
-$$
+```
 
 These are comparison tools only. They do not constitute atmospheric characterisation or a claim that a planet is habitable.
 
@@ -166,28 +158,28 @@ These are comparison tools only. They do not constitute atmospheric characterisa
 
 The ISS module uses CelesTrak GP/TLE data for:
 
-$$
+```math
 \mathrm{NORAD\ Catalogue\ Number}=25544
-$$
+```
 
 Orbital propagation is performed locally using `satellite.js` and the SGP4 model.
 
 The propagated position and velocity states are represented by:
 
-$$
+```math
 \mathbf{r}=(x,y,z)
-$$
+```
 
-$$
+```math
 \mathbf{v}=(v_x,v_y,v_z)
-$$
+```
 
 The instantaneous velocity magnitude is:
 
-$$
+```math
 v=
 \sqrt{v_x^2+v_y^2+v_z^2}
-$$
+```
 
 The module includes:
 
@@ -209,51 +201,48 @@ The rendered Earth layers are visual context only. AstroBis should not be used f
 
 The close-approach dataset covers Earth encounters from the build date through:
 
-$$
+```math
 31\ \mathrm{December}\ 2050
-$$
+```
 
 The current query applies:
 
-$$
-d_{\mathrm{AU}}\leq0.3
-$$
+```math
+d_{\mathrm{AU}} \leq 0.3
+```
 
 with a maximum API return limit of:
 
-$$
+```math
 N_{\max}=7500
-$$
+```
 
 The interface displays miss distance in astronomical units, kilometres, and lunar distances.
 
-$$
+```math
 d_{\mathrm{km}}
-===============
-
+=
 d_{\mathrm{AU}}
 \times
 149{,}597{,}870.7
-$$
+```
 
-$$
+```math
 d_{\mathrm{LD}}
-===============
-
+=
 \frac{d_{\mathrm{km}}}{384{,}400}
-$$
+```
 
 where $d_{\mathrm{LD}}$ is the approximate lunar-distance equivalent.
 
 When an asteroid diameter is unavailable, a simplified albedo-dependent estimate may be used:
 
-$$
+```math
 D[\mathrm{km}]
-==============
-
+=
 \frac{1329}{\sqrt{p}}
 10^{-H/5}
-$$
+```
 
 where:
 
@@ -291,35 +280,32 @@ The module includes:
 
 For apparent magnitude $m$ and distance $d_{\mathrm{pc}}$ in parsecs, absolute magnitude is:
 
-$$
+```math
 M
 =
-
-## m
-
+m
+-
 5
 \left[
 \log_{10}(d_{\mathrm{pc}})-1
 \right]
-$$
+```
 
-A luminosity comparison can be written as:
+A luminosity comparison is:
 
-$$
+```math
 \frac{L}{L_{\odot}}
-===================
-
+=
 10^{(4.83-M)/2.5}
-$$
+```
 
-For visual readability, distant stars can be displayed using a compressed radial scale:
+For visual readability, distant stars are shown using a compressed radial scale:
 
-$$
+```math
 r_{\mathrm{scene}}
-==================
-
+=
 150\log_{10}(d_{\mathrm{pc}}+1)
-$$
+```
 
 The Stellar Atlas is designed for orientation and comparison. It is not intended as a complete astrometric catalogue or precision stellar-parameter database.
 
@@ -362,32 +348,6 @@ If an upstream request fails, the build script retains an existing valid snapsho
 * NASA/JPL Small-Body Database APIs
 * CelesTrak GP/TLE data
 * GitHub Pages deployment
-
----
-
-## Repository structure
-
-```text
-AstroBis/
-├── assets/                         # README and project image assets
-├── docs/                           # Technical project documentation
-├── public/
-│   └── data/                       # Build-time public data snapshots
-├── scripts/
-│   └── fetch-space-data.mjs        # NASA/JPL/CelesTrak data pipeline
-├── src/
-│   ├── components/                 # React and Astro components
-│   ├── layouts/                    # Shared page layouts
-│   ├── lib/                        # Utilities and data helpers
-│   ├── pages/                      # Astro routes
-│   └── styles/                     # Global styles
-├── .github/
-│   └── workflows/
-│       └── deploy.yml              # GitHub Pages workflow
-├── astro.config.mjs
-├── package.json
-└── README.md
-```
 
 ---
 
@@ -445,15 +405,9 @@ Base path: /AstroBis
 
 The deployment workflow runs on:
 
-* pushes to `main`
-* manual workflow dispatch
-* scheduled daily refreshes
-
-The current scheduled workflow uses:
-
-```text
-18 4 * * *
-```
+* Pushes to `main`
+* Manual workflow dispatch
+* Scheduled daily refreshes
 
 ---
 
@@ -464,7 +418,7 @@ The current scheduled workflow uses:
 * The exoplanet interface uses a 4,000-row, distance-sorted working subset.
 * Exoplanet comparison metrics are exploratory proxies, not habitability conclusions.
 * ISS positions depend on the available GP/TLE element set and its epoch.
-* Small-body orbital solutions can change as new observations refine object trajectories.
+* Small-body orbital solutions can change as new observations refine trajectories.
 * Diameter estimates depend strongly on assumed albedo.
 * Energy values are simplified scale comparisons, not impact-consequence predictions.
 * The Stellar Atlas is a compact reference layer, not a full survey catalogue.
