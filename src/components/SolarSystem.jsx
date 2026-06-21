@@ -342,8 +342,8 @@ const VIEW_PRESETS = [
   { key: 'inner', label: 'Inner', camera: [0, 52, 92], target: [0, 0, 0], scaleMode: 'inner', note: 'Mercury through Mars' },
   { key: 'giants', label: 'Giants', camera: [0, 96, 178], target: [0, 0, 0], scaleMode: 'log', note: 'Jupiter to Neptune' },
   { key: 'kuiper', label: 'Kuiper', camera: [0, 132, 245], target: [0, 0, 0], scaleMode: 'log', note: 'TNO belt and Plutoids' },
-  { key: 'heliopause', label: 'Heliopause', camera: [0, 165, 304], target: [0, 0, 0], scaleMode: 'log', note: 'Voyager-scale boundary' },
-  { key: 'oort', label: 'Oort', camera: [0, 205, 354], target: [0, 0, 0], scaleMode: 'log', note: 'spherical comet cloud' },
+  { key: 'heliopause', label: 'Heliopause', camera: [0, 170, 330], target: [0, 0, 0], scaleMode: 'log', note: 'Voyager-scale boundary' },
+  { key: 'oort', label: 'Oort', camera: [0, 220, 430], target: [0, 0, 0], scaleMode: 'log', note: 'faint spherical comet reservoir' },
 ];
 
 function auToScene(au, scaleMode) {
@@ -392,6 +392,12 @@ function seededRandom(seed) {
 
 function regionSeed(name) {
   return String(name).split('').reduce((hash, char) => ((hash * 31) + char.charCodeAt(0)) % 2147483647, 17);
+}
+
+function getInitialViewPreset() {
+  if (typeof window === 'undefined') return 'giants';
+  const preset = new URLSearchParams(window.location.search).get('view');
+  return VIEW_PRESETS.some((item) => item.key === preset) ? preset : 'giants';
 }
 
 function useOptionalTexture(url, options = {}) {
@@ -679,14 +685,18 @@ function DustRegion({ region, scaleMode, visible }) {
     const inner = auToScene(region.innerAu, scaleMode);
     const outer = auToScene(region.outerAu || region.innerAu, scaleMode);
     const random = seededRandom(regionSeed(`${region.name}-${scaleMode}`));
+    const isOort = region.name.includes('Oort');
+    const isHills = region.name.includes('Hills');
     for (let i = 0; i < count; i += 1) {
       if (region.shape === 'shell') {
         const theta = random() * Math.PI * 2;
         const u = random() * 2 - 1;
         const phi = Math.acos(u);
-        const radius = inner + (outer - inner) * Math.pow(random(), 0.72);
+        const radiusBias = isOort ? Math.cbrt(random()) : Math.pow(random(), 0.72);
+        const radius = inner + (outer - inner) * radiusBias;
+        const flatten = isHills ? 0.88 : 1;
         data[i * 3] = Math.sin(phi) * Math.cos(theta) * radius;
-        data[i * 3 + 1] = Math.cos(phi) * radius * 0.88;
+        data[i * 3 + 1] = Math.cos(phi) * radius * flatten;
         data[i * 3 + 2] = Math.sin(phi) * Math.sin(theta) * radius;
       } else if (region.shape === 'arcs') {
         const l4 = Math.PI / 3;
@@ -714,14 +724,65 @@ function DustRegion({ region, scaleMode, visible }) {
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" count={region.count} array={positions} itemSize={3} />
       </bufferGeometry>
-      <pointsMaterial color={region.color} size={region.name.includes('Oort') ? 0.22 : 0.11} transparent opacity={region.name.includes('Oort') ? 0.36 : 0.5} sizeAttenuation />
+      <pointsMaterial
+        color={region.color}
+        size={region.name.includes('Oort') ? 0.42 : 0.11}
+        transparent
+        opacity={region.name.includes('Oort') ? 0.34 : 0.46}
+        sizeAttenuation
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
+      />
     </points>
+  );
+}
+
+function ShellGuide({ radius, color, opacity = 0.2, meridians = true }) {
+  const equator = useMemo(() => {
+    const points = [];
+    for (let i = 0; i <= 256; i += 1) {
+      const t = (i / 256) * Math.PI * 2;
+      points.push([Math.cos(t) * radius, 0, Math.sin(t) * radius]);
+    }
+    return points;
+  }, [radius]);
+
+  const verticalA = useMemo(() => {
+    const points = [];
+    for (let i = 0; i <= 256; i += 1) {
+      const t = (i / 256) * Math.PI * 2;
+      points.push([Math.cos(t) * radius, Math.sin(t) * radius, 0]);
+    }
+    return points;
+  }, [radius]);
+
+  const verticalB = useMemo(() => {
+    const points = [];
+    for (let i = 0; i <= 256; i += 1) {
+      const t = (i / 256) * Math.PI * 2;
+      points.push([0, Math.sin(t) * radius, Math.cos(t) * radius]);
+    }
+    return points;
+  }, [radius]);
+
+  return (
+    <group>
+      <Line points={equator} color={color} transparent opacity={opacity} lineWidth={0.75} />
+      {meridians && (
+        <>
+          <Line points={verticalA} color={color} transparent opacity={opacity * 0.48} lineWidth={0.55} />
+          <Line points={verticalB} color={color} transparent opacity={opacity * 0.36} lineWidth={0.5} />
+        </>
+      )}
+    </group>
   );
 }
 
 function RegionRing({ region, scaleMode, showLabels }) {
   const r = auToScene(region.outerAu || region.innerAu, scaleMode);
   const inner = auToScene(region.innerAu, scaleMode);
+  const isOort = region.name.includes('Oort');
+  const isHeliopause = region.name === 'Heliopause';
   return (
     <group>
       <OrbitRing au={region.outerAu || region.innerAu} label={region.name} showLabel={showLabels && region.shape !== 'shell'} color={region.color} scaleMode={scaleMode} />
@@ -732,13 +793,17 @@ function RegionRing({ region, scaleMode, showLabels }) {
         <>
           <mesh>
             <sphereGeometry args={[Math.max(0.1, r), 64, 32]} />
-            <meshBasicMaterial color={region.color} transparent opacity={region.name === 'Heliopause' ? 0.055 : 0.028} wireframe side={THREE.BackSide} />
+            <meshBasicMaterial
+              color={region.color}
+              transparent
+              opacity={isHeliopause ? 0.045 : isOort ? 0.014 : 0.008}
+              side={THREE.BackSide}
+              depthWrite={false}
+            />
           </mesh>
+          <ShellGuide radius={r} color={region.color} opacity={isHeliopause ? 0.26 : isOort ? 0.24 : 0.18} meridians={!isOort || region.name.includes('Outer')} />
           {region.innerAu !== region.outerAu && (
-            <mesh>
-              <sphereGeometry args={[Math.max(0.1, inner), 48, 24]} />
-              <meshBasicMaterial color={region.color} transparent opacity={0.035} wireframe side={THREE.BackSide} />
-            </mesh>
+            <ShellGuide radius={inner} color={region.color} opacity={isOort ? 0.14 : 0.14} meridians={false} />
           )}
         </>
       )}
@@ -775,33 +840,33 @@ function OortCloudCutaway({ scaleMode, visible, showLabels }) {
     <group rotation={[0.04, -0.32, 0]}>
       <mesh rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[outer, 0.035, 8, 256]} />
-        {rimMaterial('#e0f2fe', 0.34)}
+        {rimMaterial('#e0f2fe', 0.26)}
       </mesh>
       <mesh rotation={[0, Math.PI / 2, 0]}>
         <torusGeometry args={[outer, 0.026, 8, 220]} />
-        {rimMaterial('#93c5fd', 0.20)}
+        {rimMaterial('#93c5fd', 0.15)}
       </mesh>
       <mesh>
         <torusGeometry args={[outer, 0.026, 8, 220]} />
-        {rimMaterial('#c4b5fd', 0.18)}
+        {rimMaterial('#c4b5fd', 0.13)}
       </mesh>
 
       <mesh rotation={[0, 0, 0.02]}>
         <circleGeometry args={[outer, 160, wedgeStart, wedgeLength]} />
-        <meshBasicMaterial color="#7dd3fc" transparent opacity={0.035} side={THREE.DoubleSide} depthWrite={false} />
+        <meshBasicMaterial color="#7dd3fc" transparent opacity={0.018} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
       <mesh rotation={[0, 0, 0.02]}>
         <circleGeometry args={[hills, 120, wedgeStart, wedgeLength]} />
-        <meshBasicMaterial color="#f0f9ff" transparent opacity={0.052} side={THREE.DoubleSide} depthWrite={false} />
+        <meshBasicMaterial color="#f0f9ff" transparent opacity={0.026} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
 
-      <Line points={[[0, 0, 0], [Math.cos(wedgeStart) * outer, Math.sin(wedgeStart) * outer, 0]]} color="#e0f2fe" transparent opacity={0.32} lineWidth={0.65} />
-      <Line points={[[0, 0, 0], [Math.cos(wedgeStart + wedgeLength) * outer, Math.sin(wedgeStart + wedgeLength) * outer, 0]]} color="#e0f2fe" transparent opacity={0.32} lineWidth={0.65} />
+      <Line points={[[0, 0, 0], [Math.cos(wedgeStart) * outer, Math.sin(wedgeStart) * outer, 0]]} color="#e0f2fe" transparent opacity={0.2} lineWidth={0.5} />
+      <Line points={[[0, 0, 0], [Math.cos(wedgeStart + wedgeLength) * outer, Math.sin(wedgeStart + wedgeLength) * outer, 0]]} color="#e0f2fe" transparent opacity={0.2} lineWidth={0.5} />
 
       {[heliopause, innerMain, hills, outer].map((radius, index) => (
         <mesh key={radius} rotation={[0, 0, 0.02]}>
           <ringGeometry args={[Math.max(0.01, radius - 0.035), radius + 0.035, 160, 1, wedgeStart, wedgeLength]} />
-          <meshBasicMaterial color={['#22d3ee', '#bfdbfe', '#f0f9ff', '#e0f2fe'][index]} transparent opacity={[0.45, 0.34, 0.30, 0.38][index]} side={THREE.DoubleSide} depthWrite={false} />
+          <meshBasicMaterial color={['#22d3ee', '#bfdbfe', '#f0f9ff', '#e0f2fe'][index]} transparent opacity={[0.36, 0.28, 0.24, 0.3][index]} side={THREE.DoubleSide} depthWrite={false} />
         </mesh>
       ))}
 
@@ -890,7 +955,7 @@ function Scene({ speed, scaleMode, showLabels, showRegions, selected, onSelect, 
       <EffectComposer>
         <Bloom luminanceThreshold={0.15} luminanceSmoothing={0.85} intensity={1.8} radius={0.8} />
       </EffectComposer>
-      <OrbitControls makeDefault enableZoom enablePan enableDamping dampingFactor={0.06} minDistance={10} maxDistance={520} />
+      <OrbitControls makeDefault enableZoom enablePan enableDamping dampingFactor={0.06} minDistance={10} maxDistance={860} />
     </>
   );
 }
@@ -959,7 +1024,8 @@ function InfoPanel({ selected, onClose }) {
   );
 }
 
-function MissionPanel({ selected, scaleMode, realOrbits }) {
+function MissionPanel({ selected, scaleMode, realOrbits, viewPreset }) {
+  if (viewPreset === 'oort') return null;
   const nearest = selected || SYSTEM_OBJECTS[2];
   return (
     <section className="solar-mission-panel" style={{
@@ -1046,18 +1112,18 @@ function OortResearchPanel({ activePreset }) {
     <aside className="oort-research-panel" style={{
       position: 'absolute',
       top: 86,
-      left: '50%',
-      transform: 'translateX(-50%)',
+      left: oortActive ? 24 : '50%',
+      transform: oortActive ? 'none' : 'translateX(-50%)',
       zIndex: 24,
-      width: 'min(520px, calc(100vw - 40px))',
+      width: oortActive ? 'min(390px, calc(100vw - 48px))' : 'min(520px, calc(100vw - 40px))',
       pointerEvents: 'none',
       color: '#fff',
       border: `1px solid ${oortActive ? 'rgba(224,242,254,0.26)' : 'rgba(255,255,255,0.08)'}`,
-      background: oortActive ? 'rgba(8,20,36,0.68)' : 'rgba(5,8,18,0.54)',
+      background: oortActive ? 'rgba(5,10,22,0.56)' : 'rgba(5,8,18,0.54)',
       borderRadius: 18,
       padding: '0.85rem 1rem',
       backdropFilter: 'blur(18px)',
-      boxShadow: oortActive ? '0 0 70px rgba(147,197,253,0.12)' : 'none',
+      boxShadow: oortActive ? '0 18px 70px rgba(0,0,0,0.26)' : 'none',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
         <div>
@@ -1069,7 +1135,7 @@ function OortResearchPanel({ activePreset }) {
         <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 11, textAlign: 'right' }}>NASA estimate<br />1,000 to 100,000 AU</div>
       </div>
       <p style={{ marginTop: 9, color: 'rgba(255,255,255,0.58)', fontSize: 12, lineHeight: 1.55 }}>
-        The Oort Cloud is not directly imaged. AstroBis renders it as a sparse cometary shell: nearly invisible from the planetary region, then readable only after the camera moves outward by orders of magnitude.
+        The Oort Cloud is not directly imaged. AstroBis now treats it as a faint comet reservoir: sparse points, soft scale rings, and a subdued cutaway rather than a solid visible object.
       </p>
     </aside>
   );
@@ -1116,6 +1182,11 @@ function ControlBar({ speed, setSpeed, scaleMode, setScaleMode, showLabels, setS
             onClick={() => {
               setViewPreset(preset.key);
               setScaleMode(preset.scaleMode);
+              if (typeof window !== 'undefined') {
+                const url = new URL(window.location.href);
+                url.searchParams.set('view', preset.key);
+                window.history.replaceState(null, '', url);
+              }
             }}
             style={{
               border: 'none',
@@ -1159,7 +1230,15 @@ export default function SolarSystem() {
   const [showRuler, setShowRuler] = useState(true);
   const [realOrbits, setRealOrbits] = useState(true);
   const [sizeBoost, setSizeBoost] = useState(1);
-  const [viewPreset, setViewPreset] = useState('giants');
+  const [viewPreset, setViewPreset] = useState(getInitialViewPreset);
+
+  useEffect(() => {
+    if (viewPreset === 'oort') {
+      setSelected(null);
+      setShowLabels(false);
+      setShowRuler(false);
+    }
+  }, [viewPreset]);
 
   return (
     <div style={{ width: '100%', height: '100vh', position: 'relative', background: palette.bg, overflow: 'hidden' }}>
@@ -1168,9 +1247,16 @@ export default function SolarSystem() {
           <Scene speed={speed} scaleMode={scaleMode} showLabels={showLabels} showRegions={showRegions} selected={selected} onSelect={setSelected} realOrbits={realOrbits} sizeBoost={sizeBoost} viewPreset={viewPreset} />
         </Suspense>
       </Canvas>
-      <MissionPanel selected={selected} scaleMode={scaleMode} realOrbits={realOrbits} />
+      {viewPreset === 'oort' && (
+        <div className="oort-density-overlay" aria-hidden="true">
+          <span className="oort-density-shell oort-density-shell-outer"></span>
+          <span className="oort-density-shell oort-density-shell-inner"></span>
+          <span className="oort-density-shell oort-density-shell-heliosphere"></span>
+        </div>
+      )}
+      <MissionPanel selected={selected} scaleMode={scaleMode} realOrbits={realOrbits} viewPreset={viewPreset} />
       <OortResearchPanel activePreset={viewPreset} />
-      <InfoPanel selected={selected} onClose={() => setSelected(null)} />
+      {viewPreset !== 'oort' && <InfoPanel selected={selected} onClose={() => setSelected(null)} />}
       <ScaleRuler visible={showRuler} scaleMode={scaleMode} />
       <ControlBar
         speed={speed}
