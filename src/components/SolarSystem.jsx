@@ -904,16 +904,19 @@ function OortCloudCutaway({ scaleMode, visible, showLabels }) {
   );
 }
 
-function ScaleGrid({ scaleMode, showLabels, showRegions }) {
+function ScaleGrid({ scaleMode, showLabels, showRegions, showShellGuides }) {
   return (
     <>
-      {REGIONS.map((region) => (
+      {REGIONS.map((region) => {
+        const isShell = region.shape === 'shell';
+        return (
         <React.Fragment key={region.name}>
-          <RegionRing region={region} scaleMode={scaleMode} showLabels={showLabels} />
+          {showRegions && (!isShell || showShellGuides) && <RegionRing region={region} scaleMode={scaleMode} showLabels={showLabels} />}
           <DustRegion region={region} scaleMode={scaleMode} visible={showRegions && region.count > 0} />
         </React.Fragment>
-      ))}
-      <OortCloudCutaway scaleMode={scaleMode} visible={showRegions} showLabels={showLabels} />
+        );
+      })}
+      <OortCloudCutaway scaleMode={scaleMode} visible={showRegions && showShellGuides} showLabels={showLabels} />
     </>
   );
 }
@@ -930,7 +933,7 @@ function CameraDirector({ presetKey }) {
   return null;
 }
 
-function Scene({ speed, scaleMode, showLabels, showRegions, selected, onSelect, realOrbits, sizeBoost, viewPreset }) {
+function Scene({ speed, scaleMode, showLabels, showRegions, showShellGuides, selected, onSelect, realOrbits, sizeBoost, viewPreset }) {
   return (
     <>
       <color attach="background" args={[palette.bg]} />
@@ -938,7 +941,7 @@ function Scene({ speed, scaleMode, showLabels, showRegions, selected, onSelect, 
       <ambientLight intensity={0.12} color="#16213f" />
       <CameraDirector presetKey={viewPreset} />
       <Sun />
-      <ScaleGrid scaleMode={scaleMode} showLabels={showLabels} showRegions={showRegions} />
+      <ScaleGrid scaleMode={scaleMode} showLabels={showLabels} showRegions={showRegions} showShellGuides={showShellGuides} />
       {SYSTEM_OBJECTS.map((body) => (
         <PlanetBody
           key={body.name}
@@ -1135,13 +1138,13 @@ function OortResearchPanel({ activePreset }) {
         <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 11, textAlign: 'right' }}>NASA estimate<br />1,000 to 100,000 AU</div>
       </div>
       <p style={{ marginTop: 9, color: 'rgba(255,255,255,0.58)', fontSize: 12, lineHeight: 1.55 }}>
-        The Oort Cloud is not directly imaged. AstroBis now treats it as a faint comet reservoir: sparse points, soft scale rings, and a subdued cutaway rather than a solid visible object.
+        The Oort Cloud is not directly imaged. This view treats it as a faint comet reservoir: sparse points, optional scale rings, and a subdued cutaway rather than a solid visible object.
       </p>
     </aside>
   );
 }
 
-function ControlBar({ speed, setSpeed, scaleMode, setScaleMode, showLabels, setShowLabels, showRegions, setShowRegions, realOrbits, setRealOrbits, sizeBoost, setSizeBoost, showRuler, setShowRuler, viewPreset, setViewPreset }) {
+function ControlBar({ speed, setSpeed, scaleMode, setScaleMode, showLabels, setShowLabels, showRegions, setShowRegions, showShellGuides, setShowShellGuides, realOrbits, setRealOrbits, sizeBoost, setSizeBoost, showRuler, setShowRuler, viewPreset, setViewPreset }) {
   const controlStyle = {
     background: 'rgba(255,255,255,0.06)',
     border: '1px solid rgba(255,255,255,0.14)',
@@ -1203,11 +1206,11 @@ function ControlBar({ speed, setSpeed, scaleMode, setScaleMode, showLabels, setS
           </button>
         ))}
       </div>
-      <select aria-label="Distance scale" value={scaleMode} onChange={(event) => setScaleMode(event.target.value)} style={controlStyle}>
+      <select className="astro-select" aria-label="Distance scale" value={scaleMode} onChange={(event) => setScaleMode(event.target.value)} style={controlStyle}>
         <option value="log">Log AU scale</option>
         <option value="inner">Inner-system zoom</option>
       </select>
-      <select aria-label="Planet size scale" value={sizeBoost} onChange={(event) => setSizeBoost(Number(event.target.value))} style={controlStyle}>
+      <select className="astro-select" aria-label="Planet size scale" value={sizeBoost} onChange={(event) => setSizeBoost(Number(event.target.value))} style={controlStyle}>
         <option value={0.75}>Survey sizes</option>
         <option value={1}>Atlas sizes</option>
         <option value={1.35}>Enhanced sizes</option>
@@ -1215,6 +1218,7 @@ function ControlBar({ speed, setSpeed, scaleMode, setScaleMode, showLabels, setS
       <button type="button" onClick={() => setRealOrbits((value) => !value)} style={{ ...controlStyle, color: realOrbits ? palette.amber : 'rgba(255,255,255,0.58)' }}>Eccentric orbits</button>
       <button type="button" onClick={() => setShowLabels((value) => !value)} style={{ ...controlStyle, color: showLabels ? palette.cyan : 'rgba(255,255,255,0.58)' }}>Labels</button>
       <button type="button" onClick={() => setShowRegions((value) => !value)} style={{ ...controlStyle, color: showRegions ? palette.green : 'rgba(255,255,255,0.58)' }}>Belts + Oort</button>
+      <button type="button" onClick={() => setShowShellGuides((value) => !value)} style={{ ...controlStyle, color: showShellGuides ? '#e0f2fe' : 'rgba(255,255,255,0.58)' }}>Shell guide</button>
       <button type="button" onClick={() => setShowRuler((value) => !value)} style={{ ...controlStyle, color: showRuler ? '#93c5fd' : 'rgba(255,255,255,0.58)' }}>AU ruler</button>
       <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>Drag to rotate. Scroll to travel outward. Click a world for details.</span>
     </div>
@@ -1227,6 +1231,7 @@ export default function SolarSystem() {
   const [scaleMode, setScaleMode] = useState('log');
   const [showLabels, setShowLabels] = useState(true);
   const [showRegions, setShowRegions] = useState(true);
+  const [showShellGuides, setShowShellGuides] = useState(false);
   const [showRuler, setShowRuler] = useState(true);
   const [realOrbits, setRealOrbits] = useState(true);
   const [sizeBoost, setSizeBoost] = useState(1);
@@ -1237,6 +1242,7 @@ export default function SolarSystem() {
       setSelected(null);
       setShowLabels(false);
       setShowRuler(false);
+      setShowShellGuides(false);
     }
   }, [viewPreset]);
 
@@ -1244,10 +1250,10 @@ export default function SolarSystem() {
     <div style={{ width: '100%', height: '100vh', position: 'relative', background: palette.bg, overflow: 'hidden' }}>
       <Canvas camera={{ position: [0, 78, 150], fov: 55 }} dpr={[1, 1.75]}>
         <Suspense fallback={null}>
-          <Scene speed={speed} scaleMode={scaleMode} showLabels={showLabels} showRegions={showRegions} selected={selected} onSelect={setSelected} realOrbits={realOrbits} sizeBoost={sizeBoost} viewPreset={viewPreset} />
+          <Scene speed={speed} scaleMode={scaleMode} showLabels={showLabels} showRegions={showRegions} showShellGuides={showShellGuides} selected={selected} onSelect={setSelected} realOrbits={realOrbits} sizeBoost={sizeBoost} viewPreset={viewPreset} />
         </Suspense>
       </Canvas>
-      {viewPreset === 'oort' && (
+      {viewPreset === 'oort' && showRegions && showShellGuides && (
         <div className="oort-density-overlay" aria-hidden="true">
           <span className="oort-density-shell oort-density-shell-outer"></span>
           <span className="oort-density-shell oort-density-shell-inner"></span>
@@ -1267,6 +1273,8 @@ export default function SolarSystem() {
         setShowLabels={setShowLabels}
         showRegions={showRegions}
         setShowRegions={setShowRegions}
+        showShellGuides={showShellGuides}
+        setShowShellGuides={setShowShellGuides}
         realOrbits={realOrbits}
         setRealOrbits={setRealOrbits}
         sizeBoost={sizeBoost}

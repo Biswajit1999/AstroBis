@@ -4,6 +4,14 @@ const TAP_ENDPOINT = 'https://exoplanetarchive.ipac.caltech.edu/TAP/sync';
 const ARCHIVE_OVERVIEW = 'https://exoplanetarchive.ipac.caltech.edu/overview/';
 const BASE_PATH = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
 const LOCAL_EXOPLANETS_URL = `${BASE_PATH}data/exoplanets.json`;
+const EXOPLANET_QUERY_LIMIT = 7000;
+const ARCHIVE_COUNT_QUERY = 'select count(*) as confirmed_planets, count(distinct hostname) as planetary_systems from pscomppars';
+
+const UNIT = {
+  earth: '⊕',
+  sun: '☉',
+  jupiter: '♃',
+};
 
 const FALLBACK_PLANETS = [
   { pl_name: 'Proxima Cen b', hostname: 'Proxima Centauri', disc_year: 2016, discoverymethod: 'Radial Velocity', pl_rade: 1.08, pl_bmasse: 1.27, pl_orbper: 11.19, pl_eqt: 234, sy_dist: 1.30, st_teff: 3042, pl_orbsmax: 0.049 },
@@ -36,6 +44,30 @@ function formatNumber(value, digits = 2) {
   return number.toFixed(digits).replace(/\.?0+$/, '');
 }
 
+function formatInteger(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? new Intl.NumberFormat('en-US').format(number) : 'n/a';
+}
+
+function radiusDisplay(value) {
+  const radius = finiteNumber(value);
+  if (radius === null) return `n/a R${UNIT.earth}`;
+  if (radius >= 8) return `${formatNumber(radius / 11.209, 2)} R${UNIT.jupiter}`;
+  return `${formatNumber(radius, 2)} R${UNIT.earth}`;
+}
+
+function massDisplay(value) {
+  const mass = finiteNumber(value);
+  if (mass === null) return `n/a M${UNIT.earth}`;
+  if (mass >= 95) return `${formatNumber(mass / 317.83, 2)} M${UNIT.jupiter}`;
+  return `${formatNumber(mass, 2)} M${UNIT.earth}`;
+}
+
+function luminosityDisplay(value) {
+  const luminosity = finiteNumber(value);
+  return luminosity === null ? `n/a L${UNIT.sun}` : `${formatNumber(luminosity, 2)} L${UNIT.sun}`;
+}
+
 function planetType(radiusEarth) {
   const radius = finiteNumber(radiusEarth);
   if (radius === null) return { label: 'Unknown', color: '#94a3b8', bg: 'rgba(148,163,184,0.12)', family: 'unknown' };
@@ -51,6 +83,7 @@ function habitabilityScore(planet) {
   const temp = finiteNumber(planet.pl_eqt);
   const insol = finiteNumber(planet.pl_insol);
   const period = finiteNumber(planet.pl_orbper);
+  let hasClimateProxy = false;
   let score = 0;
   let weight = 0;
 
@@ -63,17 +96,22 @@ function habitabilityScore(planet) {
     const tempFit = Math.max(0, 1 - Math.abs(temp - 288) / 190);
     score += tempFit * 40;
     weight += 40;
+    hasClimateProxy = true;
   } else if (insol !== null) {
     const insolFit = Math.max(0, 1 - Math.abs(Math.log10(Math.max(insol, 0.001))) / 0.9);
     score += insolFit * 34;
     weight += 34;
+    hasClimateProxy = true;
   }
   if (period !== null) {
     const periodFit = Math.max(0, 1 - Math.abs(Math.log10(Math.max(period, 0.001) / 365.25)) / 2.1);
     score += periodFit * 22;
     weight += 22;
   }
-  return Math.round(weight ? (score / weight) * 100 : 0);
+  if (!weight) return 0;
+  const raw = (score / weight) * 100;
+  if (!hasClimateProxy) return Math.min(45, Math.round(raw * 0.5));
+  return Math.round(raw);
 }
 
 function portraitGradient(planet) {
@@ -307,16 +345,16 @@ function PlanetCard({ planet }) {
         <MiniOrbit planet={planet} />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px', fontSize: 12 }}>
           {[
-            ['Radius', `${formatNumber(planet.pl_rade)} Re`],
-            ['Mass', `${formatNumber(planet.pl_bmasse)} Me`],
+            ['Radius', radiusDisplay(planet.pl_rade)],
+            ['Mass', massDisplay(planet.pl_bmasse)],
             ['Period', `${formatNumber(planet.pl_orbper, 1)} days`],
             ['Orbit', `${formatNumber(planet.pl_orbsmax, 3)} AU`],
             ['Temp.', `${formatNumber(planet.pl_eqt, 0)} K`],
             ['Distance', `${formatNumber(planet.sy_dist, 1)} pc`],
             ['Star', `${formatNumber(planet.st_teff, 0)} K`],
             ['Spectral', planet.st_spectype || 'n/a'],
-            ['Luminosity', luminosity ? `${formatNumber(luminosity, 2)} Ls` : 'n/a'],
-            ['HZ proxy', hz.value ? `${hz.value.toFixed(2)} EU` : 'n/a'],
+            ['Luminosity', luminosityDisplay(luminosity)],
+            ['HZ index', hz.value ? `${hz.value.toFixed(2)} a/√L${UNIT.sun}` : 'n/a'],
             ['Facility', missionBucket(planet)],
           ].map(([label, value]) => (
             <div key={label} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 5 }}>
@@ -411,7 +449,7 @@ function ExoplanetSciencePanel({ planets, filtered }) {
   const chartPlanets = filtered.length ? filtered : planets;
   const plotted = chartPlanets
     .filter((planet) => finiteNumber(planet.pl_rade) !== null || finiteNumber(planet.pl_eqt) !== null || finiteNumber(planet.pl_orbper) !== null)
-    .slice(0, 1400);
+    .slice(0, 6500);
 
   const missionCounts = useMemo(() => {
     const counts = new Map();
@@ -477,8 +515,8 @@ function ExoplanetSciencePanel({ planets, filtered }) {
 
       {mode === 'missions' && <MissionBars data={missionCounts} total={planets.length} />}
       {mode === 'timeline' && <DiscoveryTimeline data={yearCounts} />}
-      {mode === 'temperature' && <ScatterPlot planets={plotted} xField="pl_eqt" yField="pl_rade" xLabel="Equilibrium temperature (K)" yLabel="Planet radius (Earth radii)" xMin={100} xMax={2600} yMin={0.4} yMax={22} />}
-      {mode === 'orbit' && <ScatterPlot planets={plotted} xField="pl_orbper" yField="pl_rade" xLabel="Orbital period (days, log)" yLabel="Planet radius (Earth radii, log)" xMin={0.2} xMax={12000} yMin={0.4} yMax={22} logX logY />}
+      {mode === 'temperature' && <ScatterPlot planets={plotted} xField="pl_eqt" yField="pl_rade" xLabel="Equilibrium temperature (K)" yLabel={`Planet radius (R${UNIT.earth})`} xMin={100} xMax={2600} yMin={0.4} yMax={22} />}
+      {mode === 'orbit' && <ScatterPlot planets={plotted} xField="pl_orbper" yField="pl_rade" xLabel="Orbital period (days, log)" yLabel={`Planet radius (R${UNIT.earth}, log)`} xMin={0.2} xMax={12000} yMin={0.4} yMax={22} logX logY />}
     </section>
   );
 }
@@ -589,11 +627,25 @@ function ScatterPlot({ planets, xField, yField, xLabel, yLabel, xMin, xMax, yMin
   );
 }
 
+async function fetchTapJson(query, timeoutMs = 6500) {
+  const controller = new AbortController();
+  const id = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const url = `${TAP_ENDPOINT}?query=${encodeURIComponent(query)}&format=json`;
+    const response = await fetch(url, { signal: controller.signal, headers: { accept: 'application/json' } });
+    if (!response.ok) throw new Error('NASA Exoplanet Archive unavailable');
+    return response.json();
+  } finally {
+    window.clearTimeout(id);
+  }
+}
+
 export default function ExoplanetExplorer() {
   const [planets, setPlanets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [source, setSource] = useState('snapshot');
   const [generatedAt, setGeneratedAt] = useState(null);
+  const [archiveMeta, setArchiveMeta] = useState(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [methodFilter, setMethodFilter] = useState('all');
@@ -614,38 +666,77 @@ export default function ExoplanetExplorer() {
           setPlanets(snapshotData.data);
           setSource('snapshot');
           setGeneratedAt(snapshotData.generatedAt || null);
+          setArchiveMeta(snapshotData.meta || {
+            confirmedPlanets: snapshotData.count || snapshotData.data.length,
+            planetarySystems: new Set(snapshotData.data.map((planet) => planet.hostname).filter(Boolean)).size,
+            queryLimit: EXOPLANET_QUERY_LIMIT,
+            archiveTable: 'pscomppars',
+          });
         }
       } catch {
         try {
-        const query = [
-          'select top 4000',
-          'pl_name,hostname,discoverymethod,disc_facility,disc_year,pl_orbper,pl_rade,pl_bmasse,pl_eqt,pl_insol,pl_orbsmax,pl_orbeccen,pl_orbincl,sy_dist,st_teff,st_rad,st_mass,st_spectype',
-          'from pscomppars',
-          'where pl_name is not null and hostname is not null',
-          'order by sy_dist asc',
-        ].join(' ');
-        const url = `${TAP_ENDPOINT}?query=${encodeURIComponent(query)}&format=json`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Exoplanet Archive unavailable');
-        const data = await response.json();
-        if (!Array.isArray(data) || data.length === 0) throw new Error('Exoplanet Archive returned no rows');
-        if (active) {
-          setPlanets(data);
-          setSource('live');
-          setGeneratedAt(null);
-        }
+          const query = [
+            `select top ${EXOPLANET_QUERY_LIMIT}`,
+            'pl_name,hostname,discoverymethod,disc_facility,disc_year,pl_orbper,pl_rade,pl_bmasse,pl_eqt,pl_insol,pl_orbsmax,pl_orbeccen,pl_orbincl,sy_dist,st_teff,st_rad,st_mass,st_spectype',
+            'from pscomppars',
+            'where pl_name is not null and hostname is not null',
+            'order by sy_dist asc',
+          ].join(' ');
+          const data = await fetchTapJson(query, 9000);
+          if (!Array.isArray(data) || data.length === 0) throw new Error('Exoplanet Archive returned no rows');
+          if (active) {
+            setPlanets(data);
+            setSource('live');
+            setGeneratedAt(null);
+            setArchiveMeta({
+              confirmedPlanets: data.length,
+              planetarySystems: new Set(data.map((planet) => planet.hostname).filter(Boolean)).size,
+              queryLimit: EXOPLANET_QUERY_LIMIT,
+              archiveTable: 'pscomppars',
+            });
+          }
         } catch {
-        if (active) {
-          setPlanets(FALLBACK_PLANETS);
-          setSource('demo');
-          setGeneratedAt(null);
-        }
+          if (active) {
+            setPlanets(FALLBACK_PLANETS);
+            setSource('demo');
+            setGeneratedAt(null);
+            setArchiveMeta({
+              confirmedPlanets: FALLBACK_PLANETS.length,
+              planetarySystems: new Set(FALLBACK_PLANETS.map((planet) => planet.hostname).filter(Boolean)).size,
+              queryLimit: FALLBACK_PLANETS.length,
+              archiveTable: 'fallback',
+            });
+          }
         }
       } finally {
         if (active) setLoading(false);
       }
     }
     load();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function refreshArchiveCounts() {
+      try {
+        const rows = await fetchTapJson(ARCHIVE_COUNT_QUERY, 6500);
+        const row = Array.isArray(rows) ? rows[0] : null;
+        if (!active || !row) return;
+        setArchiveMeta((previous) => ({
+          ...(previous || {}),
+          confirmedPlanets: Number(row.confirmed_planets || previous?.confirmedPlanets || 0),
+          planetarySystems: Number(row.planetary_systems || previous?.planetarySystems || 0),
+          countRefreshedAt: new Date().toISOString(),
+          archiveTable: 'pscomppars',
+        }));
+      } catch {
+        // Keep the same-origin snapshot counts when the browser cannot reach TAP.
+      }
+    }
+    refreshArchiveCounts();
     return () => {
       active = false;
     };
@@ -690,21 +781,28 @@ export default function ExoplanetExplorer() {
     return best;
   }, null);
   const sourceLabel = source === 'snapshot' ? 'Snapshot' : source === 'live' ? 'NASA' : 'Demo';
+  const confirmedCount = archiveMeta?.confirmedPlanets || planets.length;
+  const systemCount = archiveMeta?.planetarySystems || new Set(planets.map((planet) => planet.hostname).filter(Boolean)).size;
+  const refreshedLabel = archiveMeta?.countRefreshedAt
+    ? `Live TAP ${new Date(archiveMeta.countRefreshedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    : sourceLabel;
 
   return (
     <div style={{ maxWidth: 1320, margin: '0 auto', padding: '0 1.25rem 4.5rem' }}>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))',
         gap: 12,
         marginBottom: 18,
       }}>
-        <Stat label="Worlds loaded" value={loading ? '...' : planets.length} accent="#fb923c" />
+        <Stat label="Confirmed planets" value={loading ? '...' : formatInteger(confirmedCount)} accent="#fb923c" />
+        <Stat label="Planetary systems" value={loading ? '...' : formatInteger(systemCount)} accent="#67e8f9" />
+        <Stat label="Loaded records" value={loading ? '...' : formatInteger(planets.length)} accent="#a78bfa" />
         <Stat label="Earth-like candidates" value={loading ? '...' : promising} accent="#4ade80" />
         <Stat label="HZ proxy worlds" value={loading ? '...' : hzWorlds} accent="#fbbf24" />
         <Stat label="Imaged systems" value={loading ? '...' : imagingWorlds} accent="#67e8f9" />
-        <Stat label="Closest in list" value={nearest ? `${nearest.dist.toFixed(1)} pc` : 'n/a'} accent="#67e8f9" />
-        <Stat label="Data source" value={sourceLabel} accent={source !== 'demo' ? '#a7f3d0' : '#fbbf24'} />
+        <Stat label="Closest in list" value={nearest ? `${nearest.dist.toFixed(1)} pc` : 'n/a'} accent="#93c5fd" />
+        <Stat label="Count source" value={refreshedLabel} accent={source !== 'demo' ? '#a7f3d0' : '#fbbf24'} />
       </div>
 
       <div style={{
@@ -737,7 +835,7 @@ export default function ExoplanetExplorer() {
             outline: 'none',
           }}
         />
-        <select value={typeFilter} onChange={(event) => { setTypeFilter(event.target.value); setVisibleCount(60); }} style={selectStyle}>
+        <select className="astro-select" value={typeFilter} onChange={(event) => { setTypeFilter(event.target.value); setVisibleCount(60); }} style={selectStyle}>
           <option value="all">All planet types</option>
           <option value="rocky">Rocky</option>
           <option value="super-earth">Super-Earth</option>
@@ -745,11 +843,11 @@ export default function ExoplanetExplorer() {
           <option value="neptune">Neptune-like</option>
           <option value="gas-giant">Gas giant</option>
         </select>
-        <select value={methodFilter} onChange={(event) => { setMethodFilter(event.target.value); setVisibleCount(60); }} style={selectStyle}>
+        <select className="astro-select" value={methodFilter} onChange={(event) => { setMethodFilter(event.target.value); setVisibleCount(60); }} style={selectStyle}>
           <option value="all">All methods</option>
           {methods.map((method) => <option key={method} value={method}>{method}</option>)}
         </select>
-        <select value={tempFilter} onChange={(event) => { setTempFilter(event.target.value); setVisibleCount(60); }} style={selectStyle}>
+        <select className="astro-select" value={tempFilter} onChange={(event) => { setTempFilter(event.target.value); setVisibleCount(60); }} style={selectStyle}>
           <option value="all">All temperatures</option>
           <option value="temperate">Temperate</option>
           <option value="cold">Cold</option>
@@ -757,7 +855,7 @@ export default function ExoplanetExplorer() {
           <option value="hot">Hot</option>
           <option value="unknown">Unknown</option>
         </select>
-        <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} style={selectStyle}>
+        <select className="astro-select" value={sortBy} onChange={(event) => setSortBy(event.target.value)} style={selectStyle}>
           <option value="habitability">Sort: Earth-like proxy</option>
           <option value="distance">Sort: nearest system</option>
           <option value="radius">Sort: largest radius</option>
@@ -782,7 +880,7 @@ export default function ExoplanetExplorer() {
       )}
       {source === 'snapshot' && generatedAt && !loading && (
         <div style={{ color: '#a7f3d0', border: '1px solid rgba(34,197,94,0.22)', background: 'rgba(34,197,94,0.07)', borderRadius: 14, padding: '0.75rem 1rem', marginBottom: 18, fontSize: 13 }}>
-          Using a same-origin NASA Exoplanet Archive snapshot generated during the site build on {new Date(generatedAt).toLocaleDateString()}. Visuals are data-driven artist renders, not direct photographs.
+          Using a same-origin NASA Exoplanet Archive snapshot generated during the site build on {new Date(generatedAt).toLocaleDateString()}; headline counts refresh from TAP when the browser can reach the archive. Symbols: R{UNIT.earth}/M{UNIT.earth} Earth radius/mass, R{UNIT.jupiter}/M{UNIT.jupiter} Jupiter radius/mass, L{UNIT.sun} solar luminosity. Visuals are data-driven artist renders, not direct photographs.
         </div>
       )}
 
@@ -817,7 +915,7 @@ export default function ExoplanetExplorer() {
       )}
 
       <p style={{ maxWidth: 820, margin: '2rem auto 0', textAlign: 'center', color: 'rgba(255,255,255,0.36)', fontSize: 12, lineHeight: 1.7 }}>
-        Most exoplanets do not have resolved visible-light photographs. Planet portraits here are data-driven artist renders based on radius, temperature, and planet class; measurements and reference links come from the NASA Exoplanet Archive composite parameters table.
+        Most exoplanets do not have resolved visible-light photographs. Planet portraits here are data-driven artist renders based on measured radius, equilibrium temperature, orbit, host-star class, and detection method; measurements and reference links come from the NASA Exoplanet Archive composite parameters table.
       </p>
     </div>
   );

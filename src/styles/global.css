@@ -188,6 +188,26 @@ body {
   transform: translateY(-2px);
 }
 
+/* ===== DARK FORM CONTROLS ===== */
+.astro-select,
+.astro-select option {
+  background-color: #0b1020;
+  color: #f8fafc;
+}
+.astro-select {
+  color-scheme: dark;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(248,250,252,0.78) 50%),
+    linear-gradient(135deg, rgba(248,250,252,0.78) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 2px),
+    calc(100% - 13px) calc(50% - 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 2.4rem !important;
+}
+
 /* ===== NEBULA BACKGROUNDS ===== */
 .nebula-bg {
   position: relative;

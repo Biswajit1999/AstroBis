@@ -542,19 +542,19 @@ export default function NEOTracker() {
           placeholder="Search designation or asteroid name"
           style={inputStyle}
         />
-        <select value={endYear} onChange={(event) => setEndYear(Number(event.target.value))} style={selectStyle}>
+        <select className="astro-select" value={endYear} onChange={(event) => setEndYear(Number(event.target.value))} style={selectStyle}>
           <option value={2030}>Through 2030</option>
           <option value={2040}>Through 2040</option>
           <option value={2050}>Through 2050</option>
         </select>
-        <select value={distMaxAu} onChange={(event) => setDistMaxAu(Number(event.target.value))} style={selectStyle}>
+        <select className="astro-select" value={distMaxAu} onChange={(event) => setDistMaxAu(Number(event.target.value))} style={selectStyle}>
           <option value={0.03}>Within 0.03 AU</option>
           <option value={0.05}>Within 0.05 AU</option>
           <option value={0.1}>Within 0.10 AU</option>
           <option value={0.2}>Within 0.20 AU</option>
           <option value={0.3}>Within 0.30 AU</option>
         </select>
-        <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} style={selectStyle}>
+        <select className="astro-select" value={sortBy} onChange={(event) => setSortBy(event.target.value)} style={selectStyle}>
           <option value="date">Sort: date</option>
           <option value="distance">Sort: nearest</option>
           <option value="speed">Sort: fastest</option>

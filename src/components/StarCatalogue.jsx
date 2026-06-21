@@ -1,8 +1,11 @@
-import React, { Suspense, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Html, Line, OrbitControls, Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
+
+const BASE_PATH = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+const LOCAL_STARS_URL = `${BASE_PATH}data/bright-stars.json`;
 
 const RAW_STARS = [
   ['Sirius', 6.752, -16.716, 2.64, -1.46, 'A', 'Alpha Canis Majoris - brightest star in the night sky'],
@@ -110,12 +113,16 @@ const SPEC_TEMP = {
   M: 3200,
 };
 
-const STAR_MODELS = STARS.map((star) => {
+function buildStarModels(stars) {
+  return stars.map((star) => {
   const tempK = SPEC_TEMP[star.spectral] || 5800;
   const luminosity = 10 ** ((4.83 - star.absMag) / 2.5);
   const radiusSolar = Math.sqrt(luminosity) / ((tempK / 5772) ** 2);
   return { ...star, tempK, luminosity, radiusSolar };
-});
+  });
+}
+
+const FALLBACK_STAR_MODELS = buildStarModels(STARS);
 
 const CONSTELLATIONS = [
   { name: 'Orion', color: '#67e8f9', pairs: [['Betelgeuse', 'Bellatrix'], ['Bellatrix', 'Mintaka'], ['Mintaka', 'Alnilam'], ['Alnilam', 'Alnitak'], ['Alnitak', 'Saiph'], ['Saiph', 'Rigel'], ['Rigel', 'Mintaka'], ['Betelgeuse', 'Alnitak']] },
@@ -123,6 +130,14 @@ const CONSTELLATIONS = [
   { name: 'Summer Triangle', color: '#fbbf24', pairs: [['Vega', 'Altair'], ['Altair', 'Deneb'], ['Deneb', 'Vega']] },
   { name: 'Southern Cross', color: '#fb7185', pairs: [['Acrux', 'Mimosa'], ['Mimosa', 'Gacrux'], ['Acrux', 'Gacrux']] },
 ];
+
+function seededRandom(seed = 918273) {
+  let value = seed % 2147483647;
+  return () => {
+    value = (value * 16807) % 2147483647;
+    return (value - 1) / 2147483646;
+  };
+}
 
 function starPosition(star) {
   const ra = star.ra * (Math.PI / 12);
@@ -135,8 +150,42 @@ function starPosition(star) {
   );
 }
 
+function CatalogueBackgroundField({ count = 1800 }) {
+  const geometry = useMemo(() => {
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+    const random = seededRandom(24062026);
+    const palette = ['#9bb0ff', '#cad7ff', '#fff4ea', '#ffd2a1', '#ffad50'];
+    const color = new THREE.Color();
+    for (let i = 0; i < count; i += 1) {
+      const ra = random() * Math.PI * 2;
+      const dec = Math.asin(random() * 2 - 1);
+      const distance = 70 + random() ** 0.46 * 410;
+      positions[i * 3] = distance * Math.cos(dec) * Math.cos(ra);
+      positions[i * 3 + 1] = distance * Math.sin(dec);
+      positions[i * 3 + 2] = distance * Math.cos(dec) * Math.sin(ra);
+      color.set(palette[Math.floor(random() * palette.length)]);
+      const brightness = 0.32 + random() * 0.52;
+      colors[i * 3] = color.r * brightness;
+      colors[i * 3 + 1] = color.g * brightness;
+      colors[i * 3 + 2] = color.b * brightness;
+    }
+    return { positions, colors };
+  }, [count]);
+
+  return (
+    <points>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" count={count} array={geometry.positions} itemSize={3} />
+        <bufferAttribute attach="attributes-color" count={count} array={geometry.colors} itemSize={3} />
+      </bufferGeometry>
+      <pointsMaterial vertexColors size={0.95} transparent opacity={0.62} depthWrite={false} blending={THREE.AdditiveBlending} />
+    </points>
+  );
+}
+
 function magnitudeSize(mag) {
-  return Math.max(0.7, Math.min(6.5, (2.8 - mag) * 1.05 + 1.1));
+  return Math.max(0.55, Math.min(4.6, (2.8 - mag) * 0.82 + 0.9));
 }
 
 function StarMesh({ star, selected, onSelect }) {
@@ -171,12 +220,12 @@ function StarMesh({ star, selected, onSelect }) {
           onSelect(star);
         }}
       >
-        <sphereGeometry args={[size * 0.56, 18, 18]} />
+        <sphereGeometry args={[size * 0.34, 18, 18]} />
         <meshBasicMaterial color={isSelected ? '#ffffff' : color} />
       </mesh>
       <mesh>
-        <sphereGeometry args={[size * (isSelected ? 1.9 : 1.25), 18, 18]} />
-        <meshBasicMaterial color={color} transparent opacity={isSelected ? 0.32 : star.mag < 0.5 ? 0.18 : 0.09} />
+        <sphereGeometry args={[size * (isSelected ? 1.55 : 0.92), 18, 18]} />
+        <meshBasicMaterial color={color} transparent opacity={isSelected ? 0.28 : star.mag < 0.5 ? 0.14 : 0.06} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
       {(hovered || isSelected) && (
         <Html center position={[0, size * 2, 0]} distanceFactor={120}>
@@ -199,8 +248,8 @@ function StarMesh({ star, selected, onSelect }) {
   );
 }
 
-function ConstellationLines({ enabled }) {
-  const byName = useMemo(() => new Map(STAR_MODELS.map((star) => [star.name, star])), []);
+function ConstellationLines({ enabled, stars }) {
+  const byName = useMemo(() => new Map(stars.map((star) => [star.name, star])), [stars]);
   if (!enabled) return null;
   return (
     <>
@@ -250,20 +299,20 @@ function MilkyWayBand() {
   });
   return (
     <mesh ref={band} rotation={[Math.PI / 2.8, 0.1, 0.48]}>
-      <torusGeometry args={[260, 22, 12, 180]} />
-      <meshBasicMaterial color="#93c5fd" transparent opacity={0.055} depthWrite={false} />
+      <torusGeometry args={[260, 18, 10, 180]} />
+      <meshBasicMaterial color="#93c5fd" transparent opacity={0.024} depthWrite={false} blending={THREE.AdditiveBlending} />
     </mesh>
   );
 }
 
-function CatalogueScene({ stars, selected, onSelect, showConstellations, showShells }) {
+function CatalogueScene({ stars, allStars, selected, onSelect, showConstellations, showShells }) {
   return (
     <>
       <color attach="background" args={['#01030b']} />
-      <Stars radius={460} depth={90} count={16000} factor={3.4} saturation={0.45} fade speed={0.16} />
-      <MilkyWayBand />
+      <Stars radius={460} depth={90} count={22000} factor={3.0} saturation={0.35} fade speed={0.12} />
+      <CatalogueBackgroundField />
       <DistanceShells enabled={showShells} />
-      <ConstellationLines enabled={showConstellations} />
+      <ConstellationLines enabled={showConstellations} stars={allStars} />
       {stars.map((star) => (
         <StarMesh key={star.name} star={star} selected={selected} onSelect={onSelect} />
       ))}
@@ -319,8 +368,8 @@ function StarPanel({ star, onClose }) {
           ['Absolute magnitude', star.absMag.toFixed(2)],
           ['Distance', `${ly.toFixed(1)} light-years (${star.distPc} pc)`],
           ['Temperature proxy', `${Math.round(star.tempK).toLocaleString()} K`],
-          ['Luminosity proxy', `${star.luminosity < 1000 ? star.luminosity.toFixed(1) : Math.round(star.luminosity).toLocaleString()} Ls`],
-          ['Radius proxy', `${star.radiusSolar < 100 ? star.radiusSolar.toFixed(1) : Math.round(star.radiusSolar).toLocaleString()} Rs`],
+          ['Luminosity proxy', `${star.luminosity < 1000 ? star.luminosity.toFixed(1) : Math.round(star.luminosity).toLocaleString()} L☉`],
+          ['Radius proxy', `${star.radiusSolar < 100 ? star.radiusSolar.toFixed(1) : Math.round(star.radiusSolar).toLocaleString()} R☉`],
           ['RA / Dec', `${star.ra.toFixed(3)}h / ${star.dec.toFixed(2)} deg`],
           ['Spectral class', star.spectral],
         ].map(([label, value]) => (
@@ -353,9 +402,9 @@ function HRDiagram({ stars, selected }) {
   );
 }
 
-function Controls({ search, setSearch, filter, setFilter, showConstellations, setShowConstellations, showShells, setShowShells, visibleCount, selected, setSelected }) {
-  const localCount = STAR_MODELS.filter((star) => star.distPc <= 25).length;
-  const supergiants = STAR_MODELS.filter((star) => star.luminosity > 10000).length;
+function Controls({ search, setSearch, filter, setFilter, showConstellations, setShowConstellations, showShells, setShowShells, visibleCount, selected, setSelected, starModels, catalogueSource }) {
+  const localCount = starModels.filter((star) => star.distPc <= 25).length;
+  const supergiants = starModels.filter((star) => star.luminosity > 10000).length;
   return (
     <aside className="star-controls-panel" style={{
       position: 'absolute',
@@ -370,9 +419,9 @@ function Controls({ search, setSearch, filter, setFilter, showConstellations, se
       backdropFilter: 'blur(24px)',
       padding: '0.95rem',
     }}>
-      <div style={{ color: '#c4b5fd', fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 900 }}>AstroBis stellar atlas</div>
+      <div style={{ color: '#c4b5fd', fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 900 }}>Bright-star target atlas</div>
       <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search star" style={inputStyle} />
-      <select value={filter} onChange={(event) => setFilter(event.target.value)} style={inputStyle}>
+      <select className="astro-select" value={filter} onChange={(event) => setFilter(event.target.value)} style={inputStyle}>
         <option value="all">All spectral classes</option>
         {Object.entries(SPEC_LABEL).map(([key, label]) => <option key={key} value={key}>{key} - {label}</option>)}
       </select>
@@ -383,7 +432,11 @@ function Controls({ search, setSearch, filter, setFilter, showConstellations, se
       <div style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '0.7rem', marginTop: 12, background: 'rgba(255,255,255,0.035)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
           <div style={{ border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '0.5rem', background: 'rgba(255,255,255,0.03)' }}>
-            <div style={{ color: '#67e8f9', fontWeight: 950 }}>{localCount}</div>
+            <div style={{ color: '#67e8f9', fontWeight: 950 }}>{starModels.length}</div>
+            <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 10 }}>named targets</div>
+          </div>
+          <div style={{ border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '0.5rem', background: 'rgba(255,255,255,0.03)' }}>
+            <div style={{ color: '#a7f3d0', fontWeight: 950 }}>{localCount}</div>
             <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 10 }}>within 25 pc</div>
           </div>
           <div style={{ border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '0.5rem', background: 'rgba(255,255,255,0.03)' }}>
@@ -400,31 +453,66 @@ function Controls({ search, setSearch, filter, setFilter, showConstellations, se
         ))}
       </div>
       <div style={{ marginTop: 12 }}>
-        <HRDiagram stars={STAR_MODELS} selected={selected} />
+        <HRDiagram stars={starModels} selected={selected} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, color: 'rgba(255,255,255,0.38)', fontSize: 11 }}>
-        <span>{visibleCount} stars shown</span>
-        <button type="button" onClick={() => setSelected(STAR_MODELS[0])} style={{ ...toggleStyle(false, '#a78bfa'), padding: '0.42rem 0.65rem' }}>Reset</button>
+        <span>{visibleCount} shown · {catalogueSource}</span>
+        <button type="button" onClick={() => setSelected(starModels[0])} style={{ ...toggleStyle(false, '#a78bfa'), padding: '0.42rem 0.65rem' }}>Reset</button>
       </div>
     </aside>
   );
 }
 
 export default function StarCatalogue() {
-  const [selected, setSelected] = useState(STAR_MODELS[0]);
+  const [starModels, setStarModels] = useState(FALLBACK_STAR_MODELS);
+  const [catalogueSource, setCatalogueSource] = useState('fallback');
+  const [selected, setSelected] = useState(FALLBACK_STAR_MODELS[0]);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [showConstellations, setShowConstellations] = useState(true);
   const [showShells, setShowShells] = useState(true);
 
+  useEffect(() => {
+    let active = true;
+    async function loadCatalogue() {
+      try {
+        const response = await fetch(LOCAL_STARS_URL, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Bright-star snapshot unavailable');
+        const snapshot = await response.json();
+        if (!Array.isArray(snapshot.data) || snapshot.data.length < 40) throw new Error('Bright-star snapshot empty');
+        const mapped = snapshot.data.map((star) => ({
+          name: star.name,
+          ra: Number(star.ra),
+          dec: Number(star.dec),
+          distPc: Number(star.distPc),
+          mag: Number(star.mag),
+          spectral: star.spectral || 'G',
+          desc: star.desc || `${star.name} - bright-star catalogue entry`,
+          absMag: Number(star.mag) - 5 * (Math.log10(Number(star.distPc)) - 1),
+        })).filter((star) => Number.isFinite(star.ra) && Number.isFinite(star.dec) && Number.isFinite(star.distPc) && Number.isFinite(star.mag));
+        if (!active || mapped.length < 40) return;
+        const models = buildStarModels(mapped);
+        setStarModels(models);
+        setSelected(models[0]);
+        setCatalogueSource(snapshot.source?.includes('HYG') ? 'HYG snapshot' : 'snapshot');
+      } catch {
+        if (active) setCatalogueSource('fallback');
+      }
+    }
+    loadCatalogue();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const visibleStars = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return STAR_MODELS.filter((star) => {
+    return starModels.filter((star) => {
       if (filter !== 'all' && star.spectral !== filter) return false;
       if (query && !`${star.name} ${star.desc}`.toLowerCase().includes(query)) return false;
       return true;
     });
-  }, [filter, search]);
+  }, [filter, search, starModels]);
 
   return (
     <div style={{ width: '100%', height: '100vh', minHeight: 720, position: 'relative', background: '#01030b', overflow: 'hidden' }}>
@@ -432,6 +520,7 @@ export default function StarCatalogue() {
         <Suspense fallback={null}>
           <CatalogueScene
             stars={visibleStars}
+            allStars={starModels}
             selected={selected}
             onSelect={setSelected}
             showConstellations={showConstellations}
@@ -451,6 +540,8 @@ export default function StarCatalogue() {
         visibleCount={visibleStars.length}
         selected={selected}
         setSelected={setSelected}
+        starModels={starModels}
+        catalogueSource={catalogueSource}
       />
       <StarPanel star={selected} onClose={() => setSelected(null)} />
       <div style={{

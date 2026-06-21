@@ -3,6 +3,7 @@ import path from 'node:path';
 
 const outputDir = path.join(process.cwd(), 'public', 'data');
 const generatedAt = new Date().toISOString();
+const EXOPLANET_QUERY_LIMIT = 7000;
 
 function todayISO() {
   const date = new Date();
@@ -44,21 +45,34 @@ async function keepExistingOrWriteFallback(filename, fallbackPayload, error) {
 }
 
 async function fetchExoplanets() {
+  const countQuery = 'select count(*) as confirmed_planets, count(distinct hostname) as planetary_systems from pscomppars';
   const query = [
-    'select top 4000',
+    `select top ${EXOPLANET_QUERY_LIMIT}`,
     'pl_name,hostname,discoverymethod,disc_facility,disc_year,pl_orbper,pl_rade,pl_bmasse,pl_eqt,pl_insol,pl_orbsmax,pl_orbeccen,pl_orbincl,sy_dist,st_teff,st_rad,st_mass,st_spectype',
     'from pscomppars',
     'where pl_name is not null and hostname is not null',
     'order by sy_dist asc',
   ].join(' ');
   const url = `https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=${encodeURIComponent(query)}&format=json`;
+  const countUrl = `https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=${encodeURIComponent(countQuery)}&format=json`;
   try {
-    const data = await fetchJson(url, 'NASA Exoplanet Archive');
+    const [data, countData] = await Promise.all([
+      fetchJson(url, 'NASA Exoplanet Archive'),
+      fetchJson(countUrl, 'NASA Exoplanet Archive count'),
+    ]);
+    const countRow = Array.isArray(countData) ? countData[0] : null;
     await writeSnapshot('exoplanets.json', {
       generatedAt,
       source: 'NASA Exoplanet Archive TAP pscomppars',
       query,
+      countQuery,
       count: Array.isArray(data) ? data.length : 0,
+      meta: {
+        confirmedPlanets: Number(countRow?.confirmed_planets || 0),
+        planetarySystems: Number(countRow?.planetary_systems || 0),
+        queryLimit: EXOPLANET_QUERY_LIMIT,
+        archiveTable: 'pscomppars',
+      },
       data,
     });
   } catch (error) {
@@ -109,6 +123,34 @@ async function fetchNeoApproaches() {
   }
 }
 
+function parseCsvLine(line) {
+  const values = [];
+  let value = '';
+  let quoted = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const next = line[i + 1];
+    if (char === '"' && quoted && next === '"') {
+      value += '"';
+      i += 1;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if (char === ',' && !quoted) {
+      values.push(value);
+      value = '';
+    } else {
+      value += char;
+    }
+  }
+  values.push(value);
+  return values;
+}
+
+function spectralClass(value) {
+  const letter = String(value || '').trim().charAt(0).toUpperCase();
+  return ['O', 'B', 'A', 'F', 'G', 'K', 'M'].includes(letter) ? letter : 'G';
+}
+
 async function fetchInterstellarVisitors() {
   const targets = [
     { sstr: '1I', displayName: "1I/'Oumuamua", visitorClass: 'Interstellar asteroid', note: 'First confirmed interstellar object observed passing through the Solar System.' },
@@ -150,6 +192,69 @@ async function fetchInterstellarVisitors() {
       count: 0,
       data: [],
     }, error);
+  }
+}
+
+async function fetchBrightStarCatalogue() {
+  const url = 'https://raw.githubusercontent.com/astronexus/HYG-Database/main/hyg/CURRENT/hygdata_v41.csv';
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  try {
+    const response = await fetch(url, {
+      headers: { accept: 'text/csv' },
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`HYG star catalogue returned ${response.status}`);
+    const text = await response.text();
+    const lines = text.split(/\r?\n/).filter(Boolean);
+    const headers = parseCsvLine(lines.shift() || '').map((field) => field.replace(/^"|"$/g, ''));
+    const rows = lines
+      .map((line) => {
+        const values = parseCsvLine(line);
+        const row = Object.fromEntries(headers.map((header, index) => [header, values[index] || '']));
+        const ra = Number(row.ra);
+        const dec = Number(row.dec);
+        const distPc = Number(row.dist);
+        const mag = Number(row.mag);
+        if (!Number.isFinite(ra) || !Number.isFinite(dec) || !Number.isFinite(distPc) || !Number.isFinite(mag)) return null;
+        if (distPc <= 0 || row.proper === 'Sol') return null;
+        const name = row.proper || row.bf || (row.hr ? `HR ${row.hr}` : row.hd ? `HD ${row.hd}` : '');
+        if (!name) return null;
+        return {
+          name,
+          ra,
+          dec,
+          distPc,
+          mag,
+          spectral: spectralClass(row.spect),
+          spect: row.spect || null,
+          lum: Number.isFinite(Number(row.lum)) ? Number(row.lum) : null,
+          sourceId: row.id,
+          desc: `${name} - HYG bright-star catalogue entry (${row.spect || 'spectral class n/a'}, apparent magnitude ${mag.toFixed(2)})`,
+        };
+      })
+      .filter(Boolean)
+      .filter((row) => row.mag <= 5.6)
+      .sort((a, b) => a.mag - b.mag)
+      .slice(0, 420);
+
+    await writeSnapshot('bright-stars.json', {
+      generatedAt,
+      source: 'HYG Database v4.1 bright-star subset',
+      url,
+      count: rows.length,
+      data: rows,
+    });
+  } catch (error) {
+    await keepExistingOrWriteFallback('bright-stars.json', {
+      generatedAt,
+      source: 'offline fallback',
+      url,
+      count: 0,
+      data: [],
+    }, error);
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -203,4 +308,4 @@ async function fetchIssTle() {
   }
 }
 
-await Promise.all([fetchExoplanets(), fetchNeoApproaches(), fetchIssTle(), fetchInterstellarVisitors()]);
+await Promise.all([fetchExoplanets(), fetchNeoApproaches(), fetchIssTle(), fetchInterstellarVisitors(), fetchBrightStarCatalogue()]);

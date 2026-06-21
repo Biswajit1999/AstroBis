@@ -245,7 +245,19 @@ function ageText(date) {
   return `${(hours / 24).toFixed(1)} days`;
 }
 
-function EarthGlobe({ satrec, issData, trail, followMode }) {
+function accuracyScore(date) {
+  if (!date) {
+    return { score: 'n/a', color: '#fbbf24', note: 'Waiting for a valid TLE epoch.' };
+  }
+  const hours = Math.max(0, (Date.now() - date.getTime()) / 3600000);
+  if (hours <= 6) return { score: '9.0', color: '#86efac', note: 'Excellent for public real-time visualization.' };
+  if (hours <= 12) return { score: '8.5', color: '#a7f3d0', note: 'Very good for browser visualization.' };
+  if (hours <= 24) return { score: '8.0', color: '#fde68a', note: 'Good; refresh the TLE for the best match.' };
+  if (hours <= 48) return { score: '7.0', color: '#fbbf24', note: 'Useful visual estimate, but the TLE is aging.' };
+  return { score: '5.5', color: '#fb7185', note: 'Approximate only until a newer TLE is available.' };
+}
+
+function EarthGlobe({ satrec, issData, trail, followMode, layers }) {
   const [earthDay, earthNormal, earthSpecular, earthLights, earthClouds] = useLoader(THREE.TextureLoader, [
     EARTH_TEXTURES.day,
     EARTH_TEXTURES.normal,
@@ -305,21 +317,27 @@ function EarthGlobe({ satrec, issData, trail, followMode }) {
             shininess={22}
           />
         </mesh>
-        <NightLightsLayer texture={earthLights} sunDirection={sunDirection} />
-        <mesh ref={clouds}>
-          <sphereGeometry args={[1.013, 128, 128]} />
-          <meshLambertMaterial map={earthClouds} transparent opacity={0.33} depthWrite={false} />
-        </mesh>
+        {layers.cityLights && <NightLightsLayer texture={earthLights} sunDirection={sunDirection} />}
+        {layers.clouds && (
+          <mesh ref={clouds}>
+            <sphereGeometry args={[1.013, 128, 128]} />
+            <meshLambertMaterial map={earthClouds} transparent opacity={0.33} depthWrite={false} />
+          </mesh>
+        )}
         <AtmosphereShell />
 
-        {orbitPoints.length > 1 && <Line points={orbitPoints} color="#e5e7eb" transparent opacity={0.28} lineWidth={0.9} />}
-        {trailPoints.length > 1 && <Line points={trailPoints} color="#22c55e" transparent opacity={0.92} lineWidth={2.4} />}
-        {issPoint && nextPoint && <Line points={[issPoint, nextPoint]} color="#67e8f9" transparent opacity={0.9} lineWidth={2.2} />}
+        {layers.orbit && orbitPoints.length > 1 && <Line points={orbitPoints} color="#e5e7eb" transparent opacity={0.28} lineWidth={0.9} />}
+        {layers.orbit && trailPoints.length > 1 && <Line points={trailPoints} color="#22c55e" transparent opacity={0.92} lineWidth={2.4} />}
+        {layers.orbit && issPoint && nextPoint && <Line points={[issPoint, nextPoint]} color="#67e8f9" transparent opacity={0.9} lineWidth={2.2} />}
 
-        <group position={latLonVector(subsolar.latitude, subsolar.longitude, 1.018)}>
+        {layers.sun && <group position={latLonVector(subsolar.latitude, subsolar.longitude, 1.018)}>
           <mesh>
-            <sphereGeometry args={[0.018, 16, 16]} />
+            <sphereGeometry args={[0.026, 24, 24]} />
             <meshBasicMaterial color="#fef08a" />
+          </mesh>
+          <mesh>
+            <ringGeometry args={[0.034, 0.048, 48]} />
+            <meshBasicMaterial color="#facc15" transparent opacity={0.48} side={THREE.DoubleSide} />
           </mesh>
           <Html center distanceFactor={2.4}>
             <div style={{
@@ -332,9 +350,9 @@ function EarthGlobe({ satrec, issData, trail, followMode }) {
               fontWeight: 900,
               whiteSpace: 'nowrap',
               pointerEvents: 'none',
-            }}>subsolar</div>
+            }}>Sun overhead</div>
           </Html>
-        </group>
+        </group>}
 
         {issPoint && (
           <group position={issPoint}>
@@ -371,10 +389,22 @@ function EarthGlobe({ satrec, issData, trail, followMode }) {
         )}
       </group>
 
-      <mesh position={sunVector.toArray()}>
-        <sphereGeometry args={[0.18, 32, 32]} />
-        <meshBasicMaterial color="#fbbf24" />
-      </mesh>
+      {layers.sun && (
+        <group position={sunVector.toArray()}>
+          <mesh>
+            <sphereGeometry args={[0.28, 48, 48]} />
+            <meshBasicMaterial color="#fbbf24" />
+          </mesh>
+          <mesh>
+            <sphereGeometry args={[0.62, 48, 48]} />
+            <meshBasicMaterial color="#facc15" transparent opacity={0.16} blending={THREE.AdditiveBlending} depthWrite={false} />
+          </mesh>
+          <mesh>
+            <sphereGeometry args={[1.04, 48, 48]} />
+            <meshBasicMaterial color="#fb923c" transparent opacity={0.06} blending={THREE.AdditiveBlending} depthWrite={false} />
+          </mesh>
+        </group>
+      )}
       <ambientLight intensity={0.12} color="#7dd3fc" />
       <directionalLight position={sunVector.toArray()} color="#fff7ed" intensity={3.8} />
       <pointLight position={sunVector.toArray()} color="#facc15" intensity={3.5} distance={12} />
@@ -452,12 +482,13 @@ function GroundMap({ issData, groundTrack }) {
         position: 'absolute',
         left: `${sun.x}%`,
         top: `${sun.y}%`,
-        width: 11,
-        height: 11,
+        width: 18,
+        height: 18,
         borderRadius: 99,
         transform: 'translate(-50%, -50%)',
         background: '#facc15',
-        boxShadow: '0 0 18px rgba(250,204,21,0.9)',
+        border: '2px solid rgba(254,240,138,0.9)',
+        boxShadow: '0 0 22px rgba(250,204,21,0.95), 0 0 52px rgba(251,191,36,0.45)',
       }} />
       {current && (
         <div style={{ position: 'absolute', left: `${current.x}%`, top: `${current.y}%`, transform: 'translate(-50%, -50%)' }}>
@@ -486,6 +517,7 @@ function GroundMap({ issData, groundTrack }) {
 function TelemetryPanel({ issData, lastUpdated, tle, tleEpoch, error, source }) {
   const visibility = issData?.visibility === 'daylight' ? 'Daylight' : 'Eclipsed / night side';
   const subsolar = subsolarPoint(issData?.date || INITIAL_RENDER_DATE);
+  const accuracy = accuracyScore(tleEpoch);
   return (
     <aside className="iss-telemetry-panel" style={{
       position: 'absolute',
@@ -534,9 +566,10 @@ function TelemetryPanel({ issData, lastUpdated, tle, tleEpoch, error, source }) 
       <StatRow label="Visibility" value={visibility} unit="" color="#fef08a" />
       <StatRow label="Subsolar point" value={`${subsolar.latitude.toFixed(1)}, ${subsolar.longitude.toFixed(1)}`} unit="deg" color="#fef08a" />
       <StatRow label="TLE epoch age" value={ageText(tleEpoch)} unit="" color={tleEpoch && Date.now() - tleEpoch.getTime() < 172800000 ? '#86efac' : '#fbbf24'} />
+      <StatRow label="Tracking confidence" value={accuracy.score} unit={accuracy.score === 'n/a' ? '' : '/10'} color={accuracy.color} />
 
       <div style={{ marginTop: 12, color: 'rgba(255,255,255,0.42)', fontSize: 11, lineHeight: 1.55, border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '0.65rem', background: 'rgba(255,255,255,0.035)' }}>
-        Position is propagated locally from the latest CelesTrak GP/TLE set using SGP4. Accuracy depends on TLE freshness.
+        <strong style={{ color: 'rgba(255,255,255,0.7)' }}>ZARYA note:</strong> CelesTrak uses ISS (ZARYA) for NORAD 25544, the station TLE name inherited from the first ISS module. Position is propagated locally with SGP4. {accuracy.note}
       </div>
     </aside>
   );
@@ -572,6 +605,11 @@ export default function ISSTracker() {
   const [error, setError] = useState(false);
   const [paused, setPaused] = useState(false);
   const [followMode, setFollowMode] = useState(true);
+  const [showClouds, setShowClouds] = useState(true);
+  const [showCityLights, setShowCityLights] = useState(true);
+  const [showOrbit, setShowOrbit] = useState(true);
+  const [showSun, setShowSun] = useState(true);
+  const [showIssModel, setShowIssModel] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -639,7 +677,18 @@ export default function ISSTracker() {
     <div style={{ width: '100%', height: '100vh', minHeight: 720, position: 'relative', background: '#01030b', overflow: 'hidden' }}>
       <Canvas camera={{ position: [0.24, 0.22, 2.7], fov: 45 }} dpr={[1, 1.85]}>
         <Suspense fallback={null}>
-          <EarthGlobe satrec={satrec} issData={issData} trail={trail} followMode={followMode} />
+          <EarthGlobe
+            satrec={satrec}
+            issData={issData}
+            trail={trail}
+            followMode={followMode}
+            layers={{
+              clouds: showClouds,
+              cityLights: showCityLights,
+              orbit: showOrbit,
+              sun: showSun,
+            }}
+          />
         </Suspense>
       </Canvas>
 
@@ -651,7 +700,7 @@ export default function ISSTracker() {
         top: 88,
         left: 20,
         zIndex: 26,
-        width: 'min(330px, calc(100vw - 40px))',
+        width: 'min(360px, calc(100vw - 40px))',
         color: '#fff',
         background: 'rgba(2,6,23,0.72)',
         border: '1px solid rgba(255,255,255,0.11)',
@@ -671,6 +720,35 @@ export default function ISSTracker() {
             {paused ? 'Resume propagation' : 'Pause propagation'}
           </button>
         </div>
+        <div style={{ marginTop: 14 }}>
+          <div style={{ color: '#93c5fd', fontSize: 10, letterSpacing: '0.13em', textTransform: 'uppercase', fontWeight: 900, marginBottom: 8 }}>Visual layers</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+            <button type="button" onClick={() => setShowClouds((value) => !value)} style={buttonStyle(showClouds, '#93c5fd')}>Clouds</button>
+            <button type="button" onClick={() => setShowCityLights((value) => !value)} style={buttonStyle(showCityLights, '#facc15')}>City lights</button>
+            <button type="button" onClick={() => setShowOrbit((value) => !value)} style={buttonStyle(showOrbit, '#22c55e')}>Orbit trail</button>
+            <button type="button" onClick={() => setShowSun((value) => !value)} style={buttonStyle(showSun, '#fbbf24')}>Sun vector</button>
+            <button type="button" onClick={() => setShowIssModel((value) => !value)} style={buttonStyle(showIssModel, '#c4b5fd')}>ISS model</button>
+          </div>
+        </div>
+        {showIssModel && (
+          <div style={{
+            marginTop: 14,
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 16,
+            overflow: 'hidden',
+            background: 'rgba(0,0,0,0.36)',
+          }}>
+            <iframe
+              title="NASA 3D ISS model"
+              src="https://solarsystem.nasa.gov/gltf_embed/2378/"
+              loading="lazy"
+              style={{ width: '100%', height: 128, border: 0, display: 'block', background: '#000' }}
+            />
+            <div style={{ padding: '0.42rem 0.6rem', color: 'rgba(255,255,255,0.48)', fontSize: 10, lineHeight: 1.35 }}>
+              Official NASA 3D station model. The green marker in the globe is the propagated orbital position.
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={{ position: 'absolute', right: 24, bottom: 18, zIndex: 22, color: 'rgba(255,255,255,0.28)', fontSize: 11 }}>
@@ -680,11 +758,11 @@ export default function ISSTracker() {
   );
 }
 
-function buttonStyle(active) {
+function buttonStyle(active, color = '#22c55e') {
   return {
-    border: `1px solid ${active ? 'rgba(34,197,94,0.48)' : 'rgba(255,255,255,0.12)'}`,
-    background: active ? 'rgba(34,197,94,0.16)' : 'rgba(255,255,255,0.06)',
-    color: active ? '#bbf7d0' : 'rgba(255,255,255,0.7)',
+    border: `1px solid ${active ? `${color}78` : 'rgba(255,255,255,0.12)'}`,
+    background: active ? `${color}21` : 'rgba(255,255,255,0.06)',
+    color: active ? color : 'rgba(255,255,255,0.7)',
     borderRadius: 999,
     padding: '0.5rem 0.75rem',
     cursor: 'pointer',
