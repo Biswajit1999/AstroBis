@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, Line, OrbitControls, Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
@@ -9,37 +9,35 @@ const EARTH_RADIUS_KM = 6371;
 const AU_LIGHT_MINUTES = 8.316746;
 const AU_PER_LIGHT_YEAR = 63241.077;
 
-// Moon counts are refreshed on every page load from Wikidata's public SPARQL endpoint.
-// Bundled values remain the fallback if a browser blocks the request or the service is unavailable.
-const MOON_COUNT_ENTITY_TO_NAME = {
-  Q308: 'Mercury',
-  Q313: 'Venus',
-  Q2: 'Earth',
-  Q111: 'Mars',
-  Q596: 'Ceres',
-  Q319: 'Jupiter',
-  Q193: 'Saturn',
-  Q324: 'Uranus',
-  Q332: 'Neptune',
-  Q339: 'Pluto',
-  Q181527: 'Haumea',
-  Q1142726: 'Makemake',
-  Q170119: 'Eris',
-};
+// Moon counts are loaded from the AstroBis same-origin snapshot on every page refresh.
+ // The snapshot is versioned in public/data/moon-counts.json and should be updated from
+ // IAU/MPC announcements before each release or scheduled site-data refresh.
+ const MOON_COUNT_SNAPSHOT = {
+   asOf: '2026-03-26',
+   source: 'IAU Minor Planet Center confirmation for Jupiter and Saturn; curated planetary-satellite snapshot for the remaining systems',
+   counts: {
+     Mercury: 0,
+     Venus: 0,
+     Earth: 1,
+     Mars: 2,
+     Ceres: 0,
+     Jupiter: 101,
+     Saturn: 285,
+     Uranus: 29,
+     Neptune: 16,
+     Pluto: 5,
+     Haumea: 2,
+     Makemake: 1,
+     Eris: 1,
+   },
+ };
 
-const LIVE_MOON_COUNT_QUERY = `
-SELECT ?planet (COUNT(DISTINCT ?moon) AS ?moonCount) WHERE {
-  VALUES ?planet {
-    wd:Q308 wd:Q313 wd:Q2 wd:Q111 wd:Q596 wd:Q319 wd:Q193
-    wd:Q324 wd:Q332 wd:Q339 wd:Q181527 wd:Q1142726 wd:Q170119
-  }
-  ?moon wdt:P397 ?planet .
-}
-GROUP BY ?planet
-`;
-
-const LIVE_MOON_COUNT_ENDPOINT =
-  `https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(LIVE_MOON_COUNT_QUERY)}`;
+ function moonCountDataUrl() {
+   const base = typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL
+     ? import.meta.env.BASE_URL
+     : '/';
+   return `${base.endsWith('/') ? base : `${base}/`}data/moon-counts.json?ts=${Date.now()}`;
+ }
 
 const TEXTURE_URLS = {
   sun: 'https://commons.wikimedia.org/wiki/Special:FilePath/Solarsystemscope_texture_2k_sun.jpg',
@@ -53,6 +51,9 @@ const TEXTURE_URLS = {
   neptune: 'https://commons.wikimedia.org/wiki/Special:FilePath/Solarsystemscope_texture_2k_neptune.jpg',
   pluto: 'https://commons.wikimedia.org/wiki/Special:FilePath/Solarsystemscope_texture_2k_pluto.jpg',
   earth: 'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg',
+  earthNormal: 'https://threejs.org/examples/textures/planets/earth_normal_2048.jpg',
+  earthSpecular: 'https://threejs.org/examples/textures/planets/earth_specular_2048.jpg',
+  earthClouds: 'https://threejs.org/examples/textures/planets/earth_clouds_1024.png',
   moon: 'https://threejs.org/examples/textures/planets/moon_1024.jpg',
 };
 
@@ -67,6 +68,73 @@ const palette = {
   amber: '#fbbf24',
   violet: '#a78bfa',
   green: '#4ade80',
+};
+
+
+const BODY_SCIENCE = {
+  Mercury: {
+    visual: 'High-roughness cratered silicate regolith; no atmosphere layer.',
+    composition: 'Silicate crust and mantle around an unusually large iron-rich core.',
+  },
+  Venus: {
+    visual: 'Cloud-top visualisation. The solid surface is hidden by an opaque atmosphere.',
+    composition: 'CO₂-dominated atmosphere with sulfuric-acid cloud decks over basaltic terrain.',
+  },
+  Earth: {
+    visual: 'Land–ocean colour map with normal/specular response and an independently rotating cloud layer.',
+    composition: 'Silicate surface, liquid water oceans, and an N₂–O₂ atmosphere.',
+  },
+  Mars: {
+    visual: 'Iron-oxide-rich regolith map with high roughness and no ocean specular layer.',
+    composition: 'Basaltic crust, iron oxides, water ice, and a thin CO₂ atmosphere.',
+  },
+  Ceres: {
+    visual: 'Dwarf-planet body with a rough, dark regolith treatment.',
+    composition: 'Rock, hydrated minerals, water ice, salts, and probable brine-related deposits.',
+  },
+  Jupiter: {
+    visual: 'Cloud-top atmospheric bands and storm texture; Jupiter has no solid surface to depict.',
+    composition: 'Hydrogen and helium with ammonia, ammonium hydrosulfide, and water cloud layers.',
+  },
+  Saturn: {
+    visual: 'Cloud-top atmospheric texture plus an optically thin ring plane; no solid surface to depict.',
+    composition: 'Hydrogen and helium atmosphere; rings dominated by water-ice particles.',
+  },
+  Uranus: {
+    visual: 'Methane-tinted upper atmosphere and faint ring system; no solid surface to depict.',
+    composition: 'Hydrogen, helium, methane, and an ice-rich deep interior.',
+  },
+  Neptune: {
+    visual: 'Methane-tinted atmosphere and cloud-band texture; no solid surface to depict.',
+    composition: 'Hydrogen, helium, methane, and an ice-rich deep interior.',
+  },
+  Pluto: {
+    visual: 'Icy dwarf-planet texture based on global New Horizons-era cartographic rendering.',
+    composition: 'Nitrogen, methane, and carbon-monoxide ices over water-ice bedrock.',
+  },
+  Haumea: {
+    visual: 'Bright ice-rich dwarf-planet treatment; shape remains simplified in this atlas.',
+    composition: 'Water-ice-dominated surface with a rocky interior and a ring.',
+  },
+  Makemake: {
+    visual: 'Methane-ice-rich outer-system dwarf-planet treatment.',
+    composition: 'Methane, ethane, and likely nitrogen ices over a rocky/icy interior.',
+  },
+  Eris: {
+    visual: 'High-albedo methane-ice dwarf-planet treatment.',
+    composition: 'Methane ice over an icy-rocky body in the scattered disc.',
+  },
+};
+
+
+const BODY_SHAPES = {
+  Jupiter: [1, 0.935, 1],
+  Saturn: [1, 0.902, 1],
+  Uranus: [1, 0.977, 1],
+  Neptune: [1, 0.983, 1],
+  Earth: [1, 0.997, 1],
+  Mars: [1, 0.994, 1],
+  Haumea: [1.55, 0.74, 0.78],
 };
 
 const SYSTEM_OBJECTS = [
@@ -225,7 +293,7 @@ const SYSTEM_OBJECTS = [
     group: 'Ice giant',
     au: 19.191,
     radiusKm: 25362,
-    moons: 28,
+    moons: 29,
     orbitalPeriod: '84 years',
     dayLength: '17h 14m',
     color: '#8ce9e7',
@@ -347,13 +415,16 @@ const SYSTEM_OBJECTS = [
 ];
 
 const REGIONS = [
-  { name: 'Asteroid belt', innerAu: 2.1, outerAu: 3.3, color: '#a3a3a3', count: 1200, spread: 0.8, shape: 'disk' },
-  { name: 'Jupiter trojans', innerAu: 5.05, outerAu: 5.35, color: '#fbbf24', count: 360, spread: 0.6, shape: 'arcs' },
-  { name: 'Kuiper belt', innerAu: 30, outerAu: 50, color: '#93c5fd', count: 1100, spread: 1.3, shape: 'disk' },
-  { name: 'Scattered disk', innerAu: 50, outerAu: 120, color: '#c4b5fd', count: 640, spread: 2.8, shape: 'disk' },
+  { name: 'Asteroid belt', innerAu: 2.1, outerAu: 3.3, color: '#cbd5e1', count: 1800, spread: 0.8, shape: 'disk' },
+  { name: 'Jupiter trojans', innerAu: 5.05, outerAu: 5.35, color: '#fbbf24', count: 640, spread: 0.55, shape: 'arcs' },
+  { name: 'Kuiper belt', innerAu: 30, outerAu: 50, color: '#93c5fd', count: 1800, spread: 1.3, shape: 'disk' },
+  { name: 'Scattered disk', innerAu: 50, outerAu: 120, color: '#c4b5fd', count: 1000, spread: 2.8, shape: 'disk' },
   { name: 'Heliopause', innerAu: 120, outerAu: 120, color: '#22d3ee', count: 0, spread: 0, shape: 'shell' },
-  { name: 'Inner Oort Cloud / Hills cloud', innerAu: 1000, outerAu: 20000, color: '#f0f9ff', count: 1200, spread: 34, shape: 'shell' },
-  { name: 'Outer Oort Cloud', innerAu: 20000, outerAu: 100000, color: '#e0f2fe', count: 1800, spread: 52, shape: 'shell' },
+
+  // Visual marker counts only. The Oort Cloud has not been directly imaged or counted.
+  // This uses a seeded, broad spherical distribution rather than a measured density law.
+  { name: 'Inner Oort Cloud / Hills cloud', innerAu: 1000, outerAu: 20000, color: '#dbeafe', count: 3200, spread: 34, shape: 'shell' },
+  { name: 'Outer Oort Cloud', innerAu: 20000, outerAu: 100000, color: '#e0f2fe', count: 6500, spread: 52, shape: 'shell' },
 ];
 
 const SCALE_MARKERS = [
@@ -448,67 +519,62 @@ function useCompactViewport() {
   return compact;
 }
 
-function useLiveMoonCounts() {
-  const fallbackCounts = useMemo(
-    () => Object.fromEntries(SYSTEM_OBJECTS.map((body) => [body.name, body.moons])),
-    [],
-  );
-
-  const [moonCounts, setMoonCounts] = useState(fallbackCounts);
+function useMoonCounts() {
+  const [moonCounts, setMoonCounts] = useState(MOON_COUNT_SNAPSHOT.counts);
   const [moonMeta, setMoonMeta] = useState({
-    source: 'Bundled fallback values',
+    source: MOON_COUNT_SNAPSHOT.source,
+    asOf: MOON_COUNT_SNAPSHOT.asOf,
     refreshedAt: null,
-    isLive: false,
+    isSnapshot: true,
   });
 
   useEffect(() => {
     const controller = new AbortController();
 
-    const refreshMoonCounts = async () => {
+    async function refreshSnapshot() {
       try {
-        const response = await fetch(LIVE_MOON_COUNT_ENDPOINT, {
+        const response = await fetch(moonCountDataUrl(), {
           signal: controller.signal,
           cache: 'no-store',
-          headers: { Accept: 'application/sparql-results+json' },
+          headers: { Accept: 'application/json' },
         });
 
         if (!response.ok) {
-          throw new Error(`Moon-count request failed (${response.status})`);
+          throw new Error(`Moon-count snapshot request failed (${response.status})`);
         }
 
         const payload = await response.json();
-        const refreshed = {};
+        const incoming = payload?.counts;
 
-        for (const row of payload?.results?.bindings || []) {
-          const entityId = row?.planet?.value?.split('/').pop();
-          const name = MOON_COUNT_ENTITY_TO_NAME[entityId];
-          const count = Number(row?.moonCount?.value);
-          if (name && Number.isFinite(count)) refreshed[name] = count;
-        }
+        const required = ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'];
+        const valid = incoming
+          && required.every((name) => Number.isInteger(incoming[name]) && incoming[name] >= 0);
 
-        if (Object.keys(refreshed).length < 6) {
-          throw new Error('Moon-count response was incomplete');
+        if (!valid) {
+          throw new Error('Moon-count snapshot is incomplete or invalid');
         }
 
         if (!controller.signal.aborted) {
-          setMoonCounts((current) => ({ ...current, ...refreshed }));
+          setMoonCounts((previous) => ({ ...previous, ...incoming }));
           setMoonMeta({
-            source: 'Live public catalogue refresh',
+            source: payload.source || MOON_COUNT_SNAPSHOT.source,
+            asOf: payload.asOf || MOON_COUNT_SNAPSHOT.asOf,
             refreshedAt: new Date().toISOString(),
-            isLive: true,
+            isSnapshot: true,
           });
         }
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        setMoonMeta({
-          source: 'Bundled fallback values',
-          refreshedAt: new Date().toISOString(),
-          isLive: false,
-        });
+      } catch {
+        if (!controller.signal.aborted) {
+          setMoonMeta((previous) => ({
+            ...previous,
+            refreshedAt: new Date().toISOString(),
+            isSnapshot: true,
+          }));
+        }
       }
-    };
+    }
 
-    refreshMoonCounts();
+    refreshSnapshot();
     return () => controller.abort();
   }, []);
 
@@ -600,67 +666,43 @@ function makeTexture(name, colorA, colorB, colorC) {
 }
 
 
-function makeSolarGranulationTexture() {
+function makeSolarFallbackTexture() {
   if (typeof document === 'undefined') return null;
 
-  const width = 1024;
-  const height = 512;
   const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = 1024;
+  canvas.height = 512;
   const ctx = canvas.getContext('2d');
   const random = seededRandom(20260622);
 
-  const base = ctx.createLinearGradient(0, 0, width, height);
-  base.addColorStop(0, '#8a1408');
-  base.addColorStop(0.22, '#e74c12');
-  base.addColorStop(0.5, '#ffb11f');
-  base.addColorStop(0.78, '#e85510');
-  base.addColorStop(1, '#7a1007');
-  ctx.fillStyle = base;
-  ctx.fillRect(0, 0, width, height);
+  const background = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  background.addColorStop(0, '#e97812');
+  background.addColorStop(0.5, '#ffca43');
+  background.addColorStop(1, '#e45b0c');
+  ctx.fillStyle = background;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Multi-scale granular cells. This is an illustrative procedural layer, not live solar imagery.
-  for (let i = 0; i < 1500; i += 1) {
-    const x = random() * width;
-    const y = random() * height;
-    const radius = 2 + random() * (i % 6 === 0 ? 18 : 8);
-    const glow = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    glow.addColorStop(0, `rgba(255, ${190 + Math.floor(random() * 56)}, ${70 + Math.floor(random() * 80)}, ${0.18 + random() * 0.34})`);
-    glow.addColorStop(0.58, `rgba(255, ${90 + Math.floor(random() * 70)}, 10, ${0.06 + random() * 0.12})`);
-    glow.addColorStop(1, 'rgba(80, 0, 0, 0)');
-    ctx.fillStyle = glow;
+  // Fallback only: soft multi-scale granulation without synthetic line patterns.
+  for (let i = 0; i < 2200; i += 1) {
+    const x = random() * canvas.width;
+    const y = random() * canvas.height;
+    const radius = 1.8 + random() * (i % 7 === 0 ? 14 : 6);
+    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    gradient.addColorStop(0, `rgba(255, ${185 + Math.floor(random() * 65)}, ${72 + Math.floor(random() * 70)}, ${0.16 + random() * 0.28})`);
+    gradient.addColorStop(0.7, `rgba(218, 70, 8, ${0.03 + random() * 0.09})`);
+    gradient.addColorStop(1, 'rgba(90, 12, 0, 0)');
+    ctx.fillStyle = gradient;
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Darker filament-like bands and restrained active regions.
-  for (let i = 0; i < 36; i += 1) {
-    const y = random() * height;
-    const amplitude = 4 + random() * 18;
-    const wavelength = 90 + random() * 230;
-    ctx.strokeStyle = `rgba(90, 8, 0, ${0.08 + random() * 0.16})`;
-    ctx.lineWidth = 1 + random() * 3;
-    ctx.beginPath();
-    for (let x = 0; x <= width; x += 10) {
-      const waveY = y + Math.sin((x / wavelength) * Math.PI * 2 + random() * Math.PI) * amplitude;
-      if (x === 0) ctx.moveTo(x, waveY);
-      else ctx.lineTo(x, waveY);
-    }
-    ctx.stroke();
-  }
-
-  for (let i = 0; i < 9; i += 1) {
-    const x = random() * width;
-    const y = random() * height;
-    const rx = 14 + random() * 34;
-    const ry = 7 + random() * 16;
-    const spot = ctx.createRadialGradient(x, y, 0, x, y, rx);
-    spot.addColorStop(0, 'rgba(70, 6, 0, 0.6)');
-    spot.addColorStop(0.45, 'rgba(150, 24, 2, 0.25)');
-    spot.addColorStop(1, 'rgba(255, 130, 10, 0)');
-    ctx.fillStyle = spot;
+  for (let i = 0; i < 10; i += 1) {
+    const x = random() * canvas.width;
+    const y = random() * canvas.height;
+    const rx = 10 + random() * 24;
+    const ry = 5 + random() * 12;
+    ctx.fillStyle = 'rgba(92, 18, 1, 0.34)';
     ctx.beginPath();
     ctx.ellipse(x, y, rx, ry, random() * Math.PI, 0, Math.PI * 2);
     ctx.fill();
@@ -670,127 +712,41 @@ function makeSolarGranulationTexture() {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.ClampToEdgeWrapping;
-  texture.anisotropy = 8;
   return texture;
 }
 
-function SolarProminences() {
-  const paths = useMemo(() => ([
-    [[-3.8, 1.2, 1.1], [-5.2, 3.0, 1.4], [-3.1, 4.15, 0.8]],
-    [[3.7, -1.45, 0.7], [5.0, -3.25, 1.1], [2.8, -4.25, 0.25]],
-    [[-0.8, 4.05, -0.6], [0.3, 5.1, -0.9], [1.25, 4.0, -0.25]],
-  ]), []);
-
-  return (
-    <group rotation={[0.18, -0.32, 0.08]}>
-      {paths.map((points, index) => (
-        <Line
-          key={`prominence-${index}`}
-          points={points}
-          color={index === 1 ? '#ff7a18' : '#ffd166'}
-          transparent
-          opacity={0.22}
-          lineWidth={0.8}
-        />
-      ))}
-    </group>
-  );
-}
-
-function usePlanetTexture(body) {
-  const remoteTexture = useOptionalTexture(TEXTURE_URLS[body.texture]);
-  return useMemo(() => {
-    if (remoteTexture) return remoteTexture;
-    const colors = {
-      Mercury: ['#8b8580', '#c7c0b8', 'rgba(255,255,255,0.7)'],
-      Venus: ['#8b5e2c', '#e7c27c', 'rgba(255,236,189,0.9)'],
-      Mars: ['#5b2318', '#bd5d33', 'rgba(255,156,96,0.8)'],
-      Jupiter: ['#a7612d', '#e8bd78', 'rgba(255,220,160,0.9)'],
-      Saturn: ['#b99b62', '#f3dea5', 'rgba(255,245,210,0.8)'],
-      Uranus: ['#377c83', '#8ce9e7', 'rgba(220,255,255,0.7)'],
-      Neptune: ['#0b1d6d', '#4169e1', 'rgba(120,170,255,0.8)'],
-    }[body.name] || [body.color, body.accent, 'rgba(255,255,255,0.4)'];
-    return makeTexture(body.name, colors[0], colors[1], colors[2]);
-  }, [body.name, body.color, body.accent, remoteTexture]);
-}
-
-function OrbitRing({ au, color = 'rgba(255,255,255,0.18)', scaleMode, label, showLabel, eccentricity = 0, inclinationDeg = 0, realOrbits = false }) {
-  const radius = auToScene(au, scaleMode);
-  const points = useMemo(() => {
-    const output = [];
-    for (let i = 0; i <= 256; i += 1) {
-      const t = (i / 256) * Math.PI * 2;
-      output.push(orbitVector(au, eccentricity, inclinationDeg, t, scaleMode, realOrbits));
-    }
-    return output;
-  }, [au, eccentricity, inclinationDeg, realOrbits, scaleMode]);
-
-  return (
-    <group>
-      <Line points={points} color={color} transparent opacity={0.32} lineWidth={0.6} />
-      {showLabel && (
-        <Html position={[radius, 0.15, 0]} center distanceFactor={110}>
-          <span style={{
-            color: 'rgba(255,255,255,0.52)',
-            fontFamily: 'Space Grotesk, Inter, sans-serif',
-            fontSize: 10,
-            whiteSpace: 'nowrap',
-            pointerEvents: 'none',
-          }}>{label}</span>
-        </Html>
-      )}
-    </group>
-  );
-}
-
 function Sun({ scale = 1 }) {
-  const surface = useRef();
-  const proceduralOverlay = useRef();
-  const texture = useOptionalTexture(TEXTURE_URLS.sun);
-  const granulationTexture = useMemo(() => makeSolarGranulationTexture(), []);
+  const ref = useRef();
+  const observedTexture = useOptionalTexture(TEXTURE_URLS.sun);
+  const fallbackTexture = useMemo(() => makeSolarFallbackTexture(), []);
 
   useFrame(({ clock }) => {
-    const elapsed = clock.getElapsedTime();
-    if (surface.current) surface.current.rotation.y = elapsed * 0.045;
-    if (proceduralOverlay.current) proceduralOverlay.current.rotation.y = -elapsed * 0.012;
+    if (ref.current) ref.current.rotation.y = clock.getElapsedTime() * 0.018;
   });
 
   return (
     <group scale={scale}>
-      <pointLight intensity={5.2} distance={320} decay={1.4} color="#fff1b8" />
-      <mesh ref={surface}>
-        <sphereGeometry args={[4.4, 96, 96]} />
-        <meshBasicMaterial map={texture || granulationTexture || null} color={texture ? '#ffd484' : '#ffffff'} />
-      </mesh>
+      <pointLight intensity={2.25} distance={240} decay={1.45} color="#fff3d2" />
 
-      <mesh ref={proceduralOverlay} scale={1.012}>
-        <sphereGeometry args={[4.4, 96, 96]} />
+      <mesh ref={ref}>
+        <sphereGeometry args={[4.15, 96, 96]} />
         <meshBasicMaterial
-          map={granulationTexture || null}
-          color="#ff9d1e"
-          transparent
-          opacity={texture ? 0.30 : 0.92}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
+          map={observedTexture || fallbackTexture || null}
+          color={observedTexture ? '#fff0bd' : '#ffffff'}
         />
       </mesh>
 
-      <mesh scale={1.055}>
-        <sphereGeometry args={[4.4, 72, 72]} />
-        <meshBasicMaterial color="#fff2c4" transparent opacity={0.075} side={THREE.BackSide} depthWrite={false} />
+      {/* Very small corona only: no large opaque glow shells. */}
+      <mesh scale={1.022}>
+        <sphereGeometry args={[4.15, 72, 72]} />
+        <meshBasicMaterial
+          color="#ffd37d"
+          transparent
+          opacity={0.035}
+          side={THREE.BackSide}
+          depthWrite={false}
+        />
       </mesh>
-
-      <mesh>
-        <sphereGeometry args={[6.55, 64, 64]} />
-        <meshBasicMaterial color="#ff7a0b" transparent opacity={0.105} side={THREE.BackSide} depthWrite={false} />
-      </mesh>
-
-      <mesh>
-        <sphereGeometry args={[10.6, 56, 56]} />
-        <meshBasicMaterial color="#ffe49a" transparent opacity={0.036} side={THREE.BackSide} depthWrite={false} />
-      </mesh>
-
-      <SolarProminences />
     </group>
   );
 }
@@ -812,19 +768,89 @@ function SaturnRings({ size, color }) {
 }
 
 function Moon({ parentSize }) {
-  const moonTexture = useLoader(THREE.TextureLoader, TEXTURE_URLS.moon);
+  const moonTexture = useOptionalTexture(TEXTURE_URLS.moon);
   const ref = useRef();
+
   useFrame(({ clock }) => {
-    const a = clock.getElapsedTime() * 0.45;
+    const angle = clock.getElapsedTime() * 0.45;
     if (ref.current) {
-      ref.current.position.set(Math.cos(a) * parentSize * 4, 0.15, Math.sin(a) * parentSize * 4);
+      ref.current.position.set(
+        Math.cos(angle) * parentSize * 4,
+        0.15,
+        Math.sin(angle) * parentSize * 4,
+      );
       ref.current.rotation.y += 0.004;
     }
   });
+
   return (
     <mesh ref={ref}>
-      <sphereGeometry args={[parentSize * 0.27, 24, 24]} />
-      <meshStandardMaterial map={moonTexture} roughness={1} />
+      <sphereGeometry args={[parentSize * 0.27, 28, 28]} />
+      <meshStandardMaterial
+        map={moonTexture || null}
+        color={moonTexture ? '#ffffff' : '#a3a3a3'}
+        roughness={0.98}
+      />
+    </mesh>
+  );
+}
+
+function EarthSurfaceMaterial({ map, selected }) {
+  const normalMap = useOptionalTexture(TEXTURE_URLS.earthNormal, { linear: true });
+  const specularMap = useOptionalTexture(TEXTURE_URLS.earthSpecular, { linear: true });
+
+  return (
+    <meshPhongMaterial
+      map={map || null}
+      normalMap={normalMap || null}
+      specularMap={specularMap || null}
+      normalScale={new THREE.Vector2(0.42, 0.42)}
+      specular="#8cc8ff"
+      shininess={10}
+      color={selected ? '#d7ecff' : '#ffffff'}
+    />
+  );
+}
+
+function EarthCloudLayer({ radius }) {
+  const cloudMap = useOptionalTexture(TEXTURE_URLS.earthClouds);
+  const cloudRef = useRef();
+
+  useFrame((_, delta) => {
+    if (cloudRef.current) cloudRef.current.rotation.y += delta * 0.018;
+  });
+
+  if (!cloudMap) return null;
+
+  return (
+    <mesh ref={cloudRef} scale={1.014}>
+      <sphereGeometry args={[radius, 56, 56]} />
+      <meshLambertMaterial
+        map={cloudMap}
+        transparent
+        opacity={0.58}
+        depthWrite={false}
+      />
+    </mesh>
+  );
+}
+
+function AtmosphereShell({ body, radius }) {
+  if (!body.atmosphere || body.name === 'Earth') return null;
+
+  const colour = body.name === 'Venus' ? '#f7dc9a' : body.accent;
+  const opacity = body.name === 'Venus' ? 0.16 : 0.08;
+
+  return (
+    <mesh scale={1.022}>
+      <sphereGeometry args={[radius, 40, 40]} />
+      <meshBasicMaterial
+        color={colour}
+        transparent
+        opacity={opacity}
+        side={THREE.BackSide}
+        depthWrite={false}
+      />
     </mesh>
   );
 }
@@ -836,13 +862,29 @@ function PlanetBody({ body, scaleMode, speed, showLabels, onSelect, selected, re
   const texture = usePlanetTexture(body);
   const isSelected = selected?.name === body.name;
   const displaySize = body.size * sizeBoost;
+  const displayRadius = displaySize * (isSelected ? 1.10 : 1);
+  const shapeScale = BODY_SHAPES[body.name] || [1, 1, 1];
 
   useFrame((_, delta) => {
     angle.current += body.speed * speed * delta * 0.03;
+
     if (group.current) {
-      group.current.position.set(...orbitVector(body.au, body.ecc, body.inclinationDeg, angle.current, scaleMode, realOrbits));
+      group.current.position.set(
+        ...orbitVector(
+          body.au,
+          body.ecc,
+          body.inclinationDeg,
+          angle.current,
+          scaleMode,
+          realOrbits,
+        ),
+      );
     }
-    if (mesh.current) mesh.current.rotation.y += delta * (body.group.includes('Gas') ? 0.32 : 0.12);
+
+    if (mesh.current) {
+      const rotationSpeed = body.group.includes('Gas') || body.group.includes('Ice') ? 0.23 : 0.08;
+      mesh.current.rotation.y += delta * rotationSpeed;
+    }
   });
 
   return (
@@ -857,9 +899,11 @@ function PlanetBody({ body, scaleMode, speed, showLabels, onSelect, selected, re
         inclinationDeg={body.inclinationDeg}
         realOrbits={realOrbits}
       />
+
       <group ref={group}>
         <mesh
           ref={mesh}
+          scale={shapeScale}
           rotation={[0, 0, -(body.axialTiltDeg || 0) * Math.PI / 180]}
           onClick={(event) => {
             event.stopPropagation();
@@ -873,40 +917,44 @@ function PlanetBody({ body, scaleMode, speed, showLabels, onSelect, selected, re
             document.body.style.cursor = 'auto';
           }}
         >
-          <sphereGeometry args={[displaySize * (isSelected ? 1.14 : 1), 48, 48]} />
-          <meshStandardMaterial
-            color={body.color}
-            map={texture}
-            roughness={body.group.includes('Gas') || body.group.includes('Ice') ? 0.42 : 0.82}
-            metalness={0}
-            emissive={body.color}
-            emissiveIntensity={isSelected ? 0.15 : 0.035}
-          />
+          <sphereGeometry args={[displayRadius, 64, 64]} />
+
+          {body.name === 'Earth' ? (
+            <EarthSurfaceMaterial map={texture} selected={isSelected} />
+          ) : (
+            <meshStandardMaterial
+              color={body.color}
+              map={texture || null}
+              roughness={body.group.includes('Gas') || body.group.includes('Ice') ? 0.62 : 0.92}
+              metalness={0}
+              emissive={isSelected ? body.accent : '#000000'}
+              emissiveIntensity={isSelected ? 0.08 : 0}
+            />
+          )}
         </mesh>
-        {body.atmosphere && (
-          <mesh>
-            <sphereGeometry args={[displaySize * 1.08, 32, 32]} />
-            <meshBasicMaterial color={body.accent} transparent opacity={0.16} side={THREE.BackSide} />
-          </mesh>
-        )}
-        {body.rings && <SaturnRings size={displaySize} color={body.accent} />}
-        {body.name === 'Earth' && <Moon parentSize={displaySize} />}
+
+        {body.name === 'Earth' && <EarthCloudLayer radius={displayRadius} />}
+        <AtmosphereShell body={body} radius={displayRadius} />
+        {body.rings && <SaturnRings size={displayRadius} color={body.accent} />}
+        {body.name === 'Earth' && <Moon parentSize={displayRadius} />}
+
         {(showLabels || isSelected) && (
-          <Html position={[0, displaySize + 1.1, 0]} center distanceFactor={95}>
+          <Html position={[0, displayRadius + 1.1, 0]} center distanceFactor={95}>
             <button
               type="button"
               onClick={() => onSelect(body)}
               style={{
                 border: `1px solid ${body.accent}66`,
-                background: 'rgba(5,8,18,0.82)',
-                color: '#fff',
+                background: 'rgba(5,8,18,0.86)',
+                color: '#ffffff',
                 borderRadius: 999,
                 padding: '4px 10px',
                 fontSize: 11,
                 fontWeight: 800,
                 whiteSpace: 'nowrap',
                 fontFamily: 'Space Grotesk, Inter, sans-serif',
-                boxShadow: `0 0 20px ${body.accent}33`,
+                boxShadow: isSelected ? `0 0 18px ${body.accent}55` : 'none',
+                cursor: 'pointer',
               }}
             >
               {body.name}
@@ -918,62 +966,103 @@ function PlanetBody({ body, scaleMode, speed, showLabels, onSelect, selected, re
   );
 }
 
+function makeSoftPointSprite() {
+  if (typeof document === 'undefined') return null;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gradient.addColorStop(0, 'rgba(255,255,255,0.95)');
+  gradient.addColorStop(0.24, 'rgba(228,242,255,0.78)');
+  gradient.addColorStop(0.60, 'rgba(180,215,255,0.18)');
+  gradient.addColorStop(1, 'rgba(180,215,255,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 64, 64);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 function DustRegion({ region, scaleMode, visible, densityMultiplier = 1 }) {
   const particleCount = Math.max(0, Math.floor(region.count * densityMultiplier));
+  const softSprite = useMemo(() => makeSoftPointSprite(), []);
 
-  const positions = useMemo(() => {
-    const count = particleCount;
-    const data = new Float32Array(count * 3);
+  const { positions, colors } = useMemo(() => {
+    const positionData = new Float32Array(particleCount * 3);
+    const colourData = new Float32Array(particleCount * 3);
     const inner = auToScene(region.innerAu, scaleMode);
     const outer = auToScene(region.outerAu || region.innerAu, scaleMode);
     const random = seededRandom(regionSeed(`${region.name}-${scaleMode}`));
+    const base = new THREE.Color(region.color);
     const isOort = region.name.includes('Oort');
     const isHills = region.name.includes('Hills');
-    for (let i = 0; i < count; i += 1) {
+
+    for (let i = 0; i < particleCount; i += 1) {
       if (region.shape === 'shell') {
         const theta = random() * Math.PI * 2;
-        const u = random() * 2 - 1;
-        const phi = Math.acos(u);
-        const radiusBias = isOort ? Math.cbrt(random()) : Math.pow(random(), 0.72);
-        const radius = inner + (outer - inner) * radiusBias;
-        const flatten = isHills ? 0.88 : 1;
-        data[i * 3] = Math.sin(phi) * Math.cos(theta) * radius;
-        data[i * 3 + 1] = Math.cos(phi) * radius * flatten;
-        data[i * 3 + 2] = Math.sin(phi) * Math.sin(theta) * radius;
+        const cosPhi = random() * 2 - 1;
+        const sinPhi = Math.sqrt(1 - (cosPhi * cosPhi));
+
+        // A deliberately broad, seeded model distribution.
+        // It is not a fitted Oort-cloud density law because the cloud is not directly mapped.
+        const radialFraction = isHills
+          ? Math.pow(random(), 0.72)
+          : Math.cbrt(random());
+        const radius = inner + ((outer - inner) * radialFraction);
+
+        positionData[i * 3] = sinPhi * Math.cos(theta) * radius;
+        positionData[i * 3 + 1] = cosPhi * radius;
+        positionData[i * 3 + 2] = sinPhi * Math.sin(theta) * radius;
       } else if (region.shape === 'arcs') {
         const l4 = Math.PI / 3;
         const l5 = -Math.PI / 3;
-        const center = random() > 0.5 ? l4 : l5;
-        const t = center + (random() - 0.5) * 0.82;
-        const radius = inner + random() * Math.max(0.5, outer - inner);
-        data[i * 3] = Math.cos(t) * radius;
-        data[i * 3 + 1] = (random() - 0.5) * region.spread;
-        data[i * 3 + 2] = Math.sin(t) * radius;
+        const centre = random() > 0.5 ? l4 : l5;
+        const phase = centre + ((random() - 0.5) * 0.78);
+        const radius = inner + (random() * Math.max(0.2, outer - inner));
+
+        positionData[i * 3] = Math.cos(phase) * radius;
+        positionData[i * 3 + 1] = (random() - 0.5) * region.spread;
+        positionData[i * 3 + 2] = Math.sin(phase) * radius;
       } else {
-        const t = random() * Math.PI * 2;
-        const radius = inner + random() * Math.max(0.5, outer - inner);
-        data[i * 3] = Math.cos(t) * radius;
-        data[i * 3 + 1] = (random() - 0.5) * region.spread;
-        data[i * 3 + 2] = Math.sin(t) * radius;
+        const phase = random() * Math.PI * 2;
+        const radius = inner + (random() * Math.max(0.2, outer - inner));
+
+        positionData[i * 3] = Math.cos(phase) * radius;
+        positionData[i * 3 + 1] = (random() - 0.5) * region.spread;
+        positionData[i * 3 + 2] = Math.sin(phase) * radius;
       }
+
+      const brightness = isOort ? 0.48 + (random() * 0.46) : 0.56 + (random() * 0.38);
+      colourData[i * 3] = base.r * brightness;
+      colourData[i * 3 + 1] = base.g * brightness;
+      colourData[i * 3 + 2] = base.b * brightness;
     }
-    return data;
+
+    return { positions: positionData, colors: colourData };
   }, [particleCount, region, scaleMode]);
 
-  if (!visible) return null;
+  if (!visible || particleCount === 0) return null;
+
   return (
     <points>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" count={particleCount} array={positions} itemSize={3} />
+        <bufferAttribute attach="attributes-color" count={particleCount} array={colors} itemSize={3} />
       </bufferGeometry>
       <pointsMaterial
-        color={region.color}
-        size={region.name.includes('Oort') ? 0.34 : 0.11}
+        map={softSprite || null}
+        alphaMap={softSprite || null}
+        vertexColors
+        size={region.name.includes('Oort') ? 0.19 : 0.095}
         transparent
-        opacity={region.name.includes('Oort') ? 0.27 : 0.46}
+        opacity={region.name.includes('Oort') ? 0.54 : 0.55}
+        alphaTest={0.02}
         sizeAttenuation
         depthWrite={false}
-        blending={THREE.AdditiveBlending}
+        blending={THREE.NormalBlending}
       />
     </points>
   );
@@ -1020,37 +1109,113 @@ function ShellGuide({ radius, color, opacity = 0.2, meridians = true }) {
   );
 }
 
-function RegionRing({ region, scaleMode, showLabels }) {
-  const r = auToScene(region.outerAu || region.innerAu, scaleMode);
-  const inner = auToScene(region.innerAu, scaleMode);
-  const isOort = region.name.includes('Oort');
-  const isHeliopause = region.name === 'Heliopause';
+function TrojanArcGuide({ scaleMode, showLabels }) {
+  const radius = auToScene(5.203, scaleMode);
+
+  const buildArc = (centre) => {
+    const points = [];
+    for (let i = 0; i <= 72; i += 1) {
+      const phase = centre - 0.42 + ((i / 72) * 0.84);
+      points.push([
+        Math.cos(phase) * radius,
+        0,
+        Math.sin(phase) * radius,
+      ]);
+    }
+    return points;
+  };
+
+  const l4 = useMemo(() => buildArc(Math.PI / 3), [radius]);
+  const l5 = useMemo(() => buildArc(-Math.PI / 3), [radius]);
+
   return (
     <group>
-      <OrbitRing au={region.outerAu || region.innerAu} label={region.name} showLabel={showLabels && region.shape !== 'shell'} color={region.color} scaleMode={scaleMode} />
-      {region.innerAu !== region.outerAu && region.shape !== 'shell' && (
-        <OrbitRing au={region.innerAu} label={`${region.name} inner`} showLabel={false} color={region.color} scaleMode={scaleMode} />
+      <Line points={l4} color="#fbbf24" transparent opacity={0.36} lineWidth={0.7} />
+      <Line points={l5} color="#fbbf24" transparent opacity={0.36} lineWidth={0.7} />
+      {showLabels && (
+        <>
+          <Html position={[Math.cos(Math.PI / 3) * radius, 0.25, Math.sin(Math.PI / 3) * radius]} center distanceFactor={110}>
+            <span style={{ color: '#fbbf24', fontSize: 9, fontWeight: 800, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+              Jupiter Trojan L4
+            </span>
+          </Html>
+          <Html position={[Math.cos(-Math.PI / 3) * radius, 0.25, Math.sin(-Math.PI / 3) * radius]} center distanceFactor={110}>
+            <span style={{ color: '#fbbf24', fontSize: 9, fontWeight: 800, pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+              Jupiter Trojan L5
+            </span>
+          </Html>
+        </>
       )}
+    </group>
+  );
+}
+
+function RegionRing({ region, scaleMode, showLabels }) {
+  if (region.shape === 'arcs') {
+    return <TrojanArcGuide scaleMode={scaleMode} showLabels={showLabels} />;
+  }
+
+  const outerRadius = auToScene(region.outerAu || region.innerAu, scaleMode);
+  const innerRadius = auToScene(region.innerAu, scaleMode);
+  const isOort = region.name.includes('Oort');
+  const isHeliopause = region.name === 'Heliopause';
+
+  return (
+    <group>
+      {region.shape !== 'shell' && (
+        <>
+          <OrbitRing
+            au={region.outerAu || region.innerAu}
+            label={region.name}
+            showLabel={showLabels}
+            color={region.color}
+            scaleMode={scaleMode}
+          />
+          {region.innerAu !== region.outerAu && (
+            <OrbitRing
+              au={region.innerAu}
+              label={`${region.name} inner edge`}
+              showLabel={false}
+              color={region.color}
+              scaleMode={scaleMode}
+            />
+          )}
+        </>
+      )}
+
       {region.shape === 'shell' && (
         <>
           <mesh>
-            <sphereGeometry args={[Math.max(0.1, r), 64, 32]} />
+            <sphereGeometry args={[Math.max(0.1, outerRadius), 64, 32]} />
             <meshBasicMaterial
               color={region.color}
               transparent
-              opacity={isHeliopause ? 0.045 : isOort ? 0.014 : 0.008}
+              opacity={isHeliopause ? 0.03 : isOort ? 0.009 : 0.006}
               side={THREE.BackSide}
               depthWrite={false}
             />
           </mesh>
-          <ShellGuide radius={r} color={region.color} opacity={isHeliopause ? 0.26 : isOort ? 0.24 : 0.18} meridians={!isOort || region.name.includes('Outer')} />
+
+          <ShellGuide
+            radius={outerRadius}
+            color={region.color}
+            opacity={isHeliopause ? 0.20 : isOort ? 0.16 : 0.12}
+            meridians={region.name.includes('Outer')}
+          />
+
           {region.innerAu !== region.outerAu && (
-            <ShellGuide radius={inner} color={region.color} opacity={isOort ? 0.14 : 0.14} meridians={false} />
+            <ShellGuide
+              radius={innerRadius}
+              color={region.color}
+              opacity={isOort ? 0.10 : 0.08}
+              meridians={false}
+            />
           )}
         </>
       )}
-      {showLabels && (
-        <Html position={[0, 0.4, -r]} center distanceFactor={130}>
+
+      {showLabels && region.shape === 'shell' && (
+        <Html position={[0, 0.4, -outerRadius]} center distanceFactor={135}>
           <span style={{
             color: region.color,
             fontSize: 10,
@@ -1059,7 +1224,9 @@ function RegionRing({ region, scaleMode, showLabels }) {
             textTransform: 'uppercase',
             whiteSpace: 'nowrap',
             pointerEvents: 'none',
-          }}>{region.name}</span>
+          }}>
+            {region.name}
+          </span>
         </Html>
       )}
     </group>
@@ -1265,8 +1432,9 @@ function Scene({
   return (
     <>
       <color attach="background" args={[palette.bg]} />
-      <Stars radius={460} depth={90} count={9000} factor={3.6} saturation={0.2} fade speed={0.16} />
-      <ambientLight intensity={0.12} color="#16213f" />
+      <Stars radius={460} depth={90} count={6500} factor={2.0} saturation={0.18} fade speed={0.10} />
+      <ambientLight intensity={0.075} color="#1a2948" />
+      <hemisphereLight intensity={0.10} color="#7898c6" groundColor="#03030a" />
       <CameraDirector presetKey={viewPreset} trigger={guidedCameraTick} cancelTrigger={manualCameraTick} />
       <Sun scale={viewPreset === 'oort' ? 1.18 : 1} />
       <ScaleGrid
@@ -1290,7 +1458,7 @@ function Scene({
         />
       ))}
       <EffectComposer>
-        <Bloom luminanceThreshold={0.15} luminanceSmoothing={0.85} intensity={1.45} radius={0.72} />
+        <Bloom luminanceThreshold={1.10} luminanceSmoothing={0.72} intensity={0.52} radius={0.42} />
       </EffectComposer>
       <OrbitControls
         makeDefault
@@ -1308,21 +1476,23 @@ function Scene({
 
 function InfoPanel({ selected, onClose, moonMeta }) {
   if (!selected) return null;
+
+  const science = BODY_SCIENCE[selected.name] || null;
   const diameter = selected.radiusKm * 2;
   const distanceKm = selected.au * AU_KM;
   const moonLabel =
     typeof selected.moons === 'number'
       ? `${selected.moons} ${selected.moons === 1 ? 'moon' : 'moons'}`
       : '—';
-  const moonRefreshLabel = moonMeta?.refreshedAt
-    ? new Date(moonMeta.refreshedAt).toLocaleString()
-    : 'not checked yet';
+
   return (
     <aside className="solar-info-panel" style={{
       position: 'absolute',
       top: 86,
       right: 20,
       width: 330,
+      maxHeight: 'calc(100vh - 132px)',
+      overflowY: 'auto',
       zIndex: 30,
       color: '#fff',
       background: palette.panelStrong,
@@ -1334,8 +1504,12 @@ function InfoPanel({ selected, onClose, moonMeta }) {
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
         <div>
-          <div style={{ color: selected.accent, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.13em', fontWeight: 800 }}>{selected.group}</div>
-          <h2 style={{ fontFamily: 'Space Grotesk, Inter, sans-serif', fontSize: '1.65rem', lineHeight: 1, marginTop: 4 }}>{selected.name}</h2>
+          <div style={{ color: selected.accent, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.13em', fontWeight: 800 }}>
+            {selected.group}
+          </div>
+          <h2 style={{ fontFamily: 'Space Grotesk, Inter, sans-serif', fontSize: '1.65rem', lineHeight: 1, marginTop: 4 }}>
+            {selected.name}
+          </h2>
         </div>
         <button type="button" onClick={onClose} aria-label="Close object details" style={{
           width: 30,
@@ -1345,9 +1519,33 @@ function InfoPanel({ selected, onClose, moonMeta }) {
           background: 'rgba(255,255,255,0.06)',
           color: 'rgba(255,255,255,0.75)',
           cursor: 'pointer',
-        }}>x</button>
+        }}>
+          ×
+        </button>
       </div>
-      <p style={{ margin: '0.9rem 0', color: 'rgba(255,255,255,0.62)', fontSize: 13, lineHeight: 1.6 }}>{selected.fact}</p>
+
+      <p style={{ margin: '0.85rem 0 0.6rem', color: 'rgba(255,255,255,0.66)', fontSize: 13, lineHeight: 1.58 }}>
+        {selected.fact}
+      </p>
+
+      {science && (
+        <div style={{
+          marginBottom: 12,
+          padding: '0.65rem',
+          borderRadius: 12,
+          border: `1px solid ${selected.accent}2e`,
+          background: 'rgba(255,255,255,0.035)',
+          fontSize: 11,
+          lineHeight: 1.52,
+        }}>
+          <div style={{ color: selected.accent, fontSize: 10, fontWeight: 900, letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 4 }}>
+            Visual and physical basis
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.70)' }}>{science.visual}</div>
+          <div style={{ color: 'rgba(255,255,255,0.48)', marginTop: 5 }}>{science.composition}</div>
+        </div>
+      )}
+
       <div style={{ display: 'grid', gap: 8 }}>
         {[
           ['Mean distance', `${selected.au} AU`],
@@ -1364,14 +1562,33 @@ function InfoPanel({ selected, onClose, moonMeta }) {
           ['Surface gravity', selected.gravity || 'n/a'],
           ['Escape velocity', selected.escapeVelocity || 'n/a'],
         ].map(([label, value]) => (
-          <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: 7, fontSize: 12 }}>
+          <div key={label} style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: 12,
+            borderBottom: '1px solid rgba(255,255,255,0.07)',
+            paddingBottom: 7,
+            fontSize: 12,
+          }}>
             <span style={{ color: 'rgba(255,255,255,0.42)' }}>{label}</span>
             <strong style={{ color: selected.accent, textAlign: 'right' }}>{value}</strong>
           </div>
         ))}
       </div>
-      <div style={{ marginTop: 12, padding: '0.65rem', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.45)', fontSize: 11, lineHeight: 1.5 }}>
-        Reference: {selected.reference}. Moon count source: {moonMeta?.source || 'bundled values'} · checked {moonRefreshLabel}. Counts refresh when this page loads and can change as small irregular satellites are confirmed.
+
+      <div style={{
+        marginTop: 12,
+        padding: '0.65rem',
+        borderRadius: 12,
+        border: '1px solid rgba(255,255,255,0.08)',
+        background: 'rgba(255,255,255,0.04)',
+        color: 'rgba(255,255,255,0.47)',
+        fontSize: 11,
+        lineHeight: 1.5,
+      }}>
+        Moon-count snapshot: {moonMeta?.asOf || MOON_COUNT_SNAPSHOT.asOf}.<br />
+        Source: {moonMeta?.source || MOON_COUNT_SNAPSHOT.source}.<br />
+        Reloading the page requests the newest deployed snapshot; counts can change as small irregular satellites are confirmed.
       </div>
     </aside>
   );
@@ -1461,6 +1678,11 @@ function ScaleRuler({ visible, scaleMode }) {
 function OortResearchPanel({ activePreset }) {
   const preset = VIEW_PRESETS.find((item) => item.key === activePreset) || VIEW_PRESETS[0];
   const oortActive = activePreset === 'oort' || activePreset === 'heliopause';
+
+  const description = oortActive
+    ? 'The Oort Cloud has not been directly imaged. This is a physically motivated scale model using seeded, unresolved comet-nucleus markers, reference shells, and an optional cutaway — not a measured density map.'
+    : 'Choose a scale preset to change the atlas context. The camera remains under manual control until Guided flyby is selected.';
+
   return (
     <aside className="oort-research-panel" style={{
       position: 'absolute',
@@ -1468,7 +1690,7 @@ function OortResearchPanel({ activePreset }) {
       left: oortActive ? 24 : '50%',
       transform: oortActive ? 'none' : 'translateX(-50%)',
       zIndex: 24,
-      width: oortActive ? 'min(390px, calc(100vw - 48px))' : 'min(520px, calc(100vw - 40px))',
+      width: oortActive ? 'min(410px, calc(100vw - 48px))' : 'min(520px, calc(100vw - 40px))',
       pointerEvents: 'none',
       color: '#fff',
       border: `1px solid ${oortActive ? 'rgba(224,242,254,0.26)' : 'rgba(255,255,255,0.08)'}`,
@@ -1483,12 +1705,19 @@ function OortResearchPanel({ activePreset }) {
           <div style={{ color: oortActive ? '#e0f2fe' : '#a78bfa', fontSize: 11, fontWeight: 950, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
             {oortActive ? 'Modelled Oort Cloud projection' : 'Scale view'}
           </div>
-          <div style={{ fontFamily: 'Space Grotesk, Inter, sans-serif', fontSize: '1rem', fontWeight: 900, marginTop: 3 }}>{preset.note}</div>
+          <div style={{ fontFamily: 'Space Grotesk, Inter, sans-serif', fontSize: '1rem', fontWeight: 900, marginTop: 3 }}>
+            {preset.note}
+          </div>
         </div>
-        <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 11, textAlign: 'right' }}>NASA estimate<br />1,000 to 100,000 AU</div>
+        {oortActive && (
+          <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 11, textAlign: 'right' }}>
+            NASA scale context<br />1,000–100,000 AU
+          </div>
+        )}
       </div>
+
       <p style={{ marginTop: 9, color: 'rgba(255,255,255,0.58)', fontSize: 12, lineHeight: 1.55 }}>
-        The Oort Cloud is not directly imaged. This is a scale-based visual model: a sparse point reservoir, an optional cutaway, and reference distances rather than a photographed shell.
+        {description}
       </p>
     </aside>
   );
@@ -1604,9 +1833,9 @@ export default function SolarSystem() {
   const [manualCameraTick, setManualCameraTick] = useState(0);
 
   const compactViewport = useCompactViewport();
-  const { moonCounts, moonMeta } = useLiveMoonCounts();
+  const { moonCounts, moonMeta } = useMoonCounts();
 
-  const selectedWithLiveMoons = useMemo(() => {
+  const selectedWithMoonCounts = useMemo(() => {
     if (!selected) return null;
     return {
       ...selected,
@@ -1641,7 +1870,7 @@ export default function SolarSystem() {
             showLabels={showLabels}
             showRegions={showRegions}
             showShellGuides={showShellGuides}
-            selected={selectedWithLiveMoons}
+            selected={selectedWithMoonCounts}
             onSelect={setSelected}
             realOrbits={realOrbits}
             sizeBoost={sizeBoost}
@@ -1660,11 +1889,11 @@ export default function SolarSystem() {
           <span className="oort-density-shell oort-density-shell-heliosphere"></span>
         </div>
       )}
-      <MissionPanel selected={selectedWithLiveMoons} scaleMode={scaleMode} realOrbits={realOrbits} viewPreset={viewPreset} />
+      <MissionPanel selected={selectedWithMoonCounts} scaleMode={scaleMode} realOrbits={realOrbits} viewPreset={viewPreset} />
       <OortResearchPanel activePreset={viewPreset} />
       {viewPreset !== 'oort' && (
         <InfoPanel
-          selected={selectedWithLiveMoons}
+          selected={selectedWithMoonCounts}
           onClose={() => setSelected(null)}
           moonMeta={moonMeta}
         />
