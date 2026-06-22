@@ -10,11 +10,10 @@ const AU_LIGHT_MINUTES = 8.316746;
 const AU_PER_LIGHT_YEAR = 63241.077;
 
 // Moon counts are loaded from the AstroBis same-origin snapshot on every page refresh.
- // The snapshot is versioned in public/data/moon-counts.json. A browser refresh checks
- // the latest deployed snapshot; the file itself must be updated from verified IAU/MPC or
- // NASA announcements during a build or release (there is no public live IAU moon-count API).
+ // The snapshot is versioned in public/data/moon-counts.json and should be updated from
+ // IAU/MPC announcements before each release or scheduled site-data refresh.
  const MOON_COUNT_SNAPSHOT = {
-   asOf: '2026-06-22',
+   asOf: '2026-03-26',
    source: 'IAU Minor Planet Center confirmation for Jupiter and Saturn; curated planetary-satellite snapshot for the remaining systems',
    counts: {
      Mercury: 0,
@@ -24,7 +23,7 @@ const AU_PER_LIGHT_YEAR = 63241.077;
      Ceres: 0,
      Jupiter: 101,
      Saturn: 285,
-     Uranus: 28,
+     Uranus: 29,
      Neptune: 16,
      Pluto: 5,
      Haumea: 2,
@@ -294,7 +293,7 @@ const SYSTEM_OBJECTS = [
     group: 'Ice giant',
     au: 19.191,
     radiusKm: 25362,
-    moons: 28,
+    moons: 29,
     orbitalPeriod: '84 years',
     dayLength: '17h 14m',
     color: '#8ce9e7',
@@ -416,47 +415,16 @@ const SYSTEM_OBJECTS = [
 ];
 
 const REGIONS = [
-  // Marker counts are rendering densities, not population estimates.
-  { name: 'Asteroid belt', innerAu: 2.1, outerAu: 3.3, color: '#cbd5e1', count: 4200, spread: 0.82, shape: 'disk' },
-  { name: 'Jupiter trojans', innerAu: 5.05, outerAu: 5.35, color: '#fbbf24', count: 1400, spread: 0.56, shape: 'arcs' },
-  { name: 'Kuiper belt', innerAu: 30, outerAu: 50, color: '#93c5fd', count: 7000, spread: 1.35, shape: 'disk' },
-  { name: 'Scattered disk', innerAu: 50, outerAu: 120, color: '#c4b5fd', count: 3000, spread: 3.0, shape: 'disk' },
+  { name: 'Asteroid belt', innerAu: 2.1, outerAu: 3.3, color: '#cbd5e1', count: 1800, spread: 0.8, shape: 'disk' },
+  { name: 'Jupiter trojans', innerAu: 5.05, outerAu: 5.35, color: '#fbbf24', count: 640, spread: 0.55, shape: 'arcs' },
+  { name: 'Kuiper belt', innerAu: 30, outerAu: 50, color: '#93c5fd', count: 1800, spread: 1.3, shape: 'disk' },
+  { name: 'Scattered disk', innerAu: 50, outerAu: 120, color: '#c4b5fd', count: 1000, spread: 2.8, shape: 'disk' },
   { name: 'Heliopause', innerAu: 120, outerAu: 120, color: '#22d3ee', count: 0, spread: 0, shape: 'shell' },
 
-  /*
-   * Oort Cloud: a dynamical visualisation, not an observed 3D catalogue.
-   *
-   * Each marker represents a high-eccentricity comet orbit. Semimajor axes are
-   * sampled log-uniformly across a stated range, mean anomaly is uniform in time,
-   * and the outer-cloud orbital planes are isotropic. Sampling mean anomaly
-   * naturally produces aphelion residence-time enhancement (Kepler's second law).
-   * This is preferable to a uniform random spherical volume, but it is not asserted
-   * to be a measured number-density profile: the Oort Cloud has not been directly imaged.
-   */
-  {
-    name: 'Inner Oort Cloud / Hills reservoir',
-    innerAu: 1000,
-    outerAu: 20000,
-    aMinAu: 1000,
-    aMaxAu: 10000,
-    qMinAu: 80,
-    qMaxAu: 1200,
-    color: '#cfe7ff',
-    count: 10000,
-    shape: 'oort-inner',
-  },
-  {
-    name: 'Outer Oort Cloud',
-    innerAu: 20000,
-    outerAu: 100000,
-    aMinAu: 10000,
-    aMaxAu: 50000,
-    qMinAu: 30,
-    qMaxAu: 2200,
-    color: '#edf7ff',
-    count: 20000,
-    shape: 'oort-outer',
-  },
+  // Visual marker counts only. The Oort Cloud has not been directly imaged or counted.
+  // This uses a seeded, broad spherical distribution rather than a measured density law.
+  { name: 'Inner Oort Cloud / Hills cloud', innerAu: 1000, outerAu: 20000, color: '#dbeafe', count: 3200, spread: 34, shape: 'shell' },
+  { name: 'Outer Oort Cloud', innerAu: 20000, outerAu: 100000, color: '#e0f2fe', count: 6500, spread: 52, shape: 'shell' },
 ];
 
 const SCALE_MARKERS = [
@@ -468,7 +436,7 @@ const SCALE_MARKERS = [
   { name: 'Kuiper belt edge', au: 50, note: 'icy trans-Neptunian belt' },
   { name: 'Heliopause', au: 120, note: 'solar wind boundary' },
   { name: 'Main Oort inner edge', au: 1000, note: 'NASA scale estimate' },
-  { name: 'Hills cloud reservoir', au: 20000, note: 'inner-Oort dynamical context' },
+  { name: 'Hills cloud reservoir', au: 20000, note: 'dense inner Oort model' },
   { name: 'Oort outer edge', au: 100000, note: 'solar-gravity frontier' },
   { name: 'Proxima Centauri', au: 268550, note: 'nearest stellar system' },
 ];
@@ -478,7 +446,7 @@ const VIEW_PRESETS = [
   { key: 'giants', label: 'Giants', camera: [0, 96, 178], target: [0, 0, 0], scaleMode: 'log', note: 'Jupiter to Neptune' },
   { key: 'kuiper', label: 'Kuiper', camera: [0, 132, 245], target: [0, 0, 0], scaleMode: 'log', note: 'TNO belt and Plutoids' },
   { key: 'heliopause', label: 'Heliopause', camera: [0, 170, 330], target: [0, 0, 0], scaleMode: 'log', note: 'Voyager-scale boundary' },
-  { key: 'oort', label: 'Oort', camera: [0, 224, 455], target: [0, 0, 0], scaleMode: 'log', note: 'Dynamical Oort Cloud visualisation' },
+  { key: 'oort', label: 'Oort', camera: [0, 188, 382], target: [0, 0, 0], scaleMode: 'log', note: 'Modelled Oort Cloud projection' },
 ];
 
 function auToScene(au, scaleMode) {
@@ -818,49 +786,46 @@ function Sun({ scale = 1 }) {
 
   return (
     <group scale={scale}>
-      {/*
-        Scene coordinates are logarithmically compressed, so a physical 1/r² point-light
-        fall-off would turn distant atlas planets into black silhouettes. distance={0}
-        removes attenuation while retaining correct light direction from the Sun.
-      */}
-      <pointLight intensity={2.05} distance={0} decay={0} color="#fff3d2" />
+      <pointLight intensity={2.25} distance={240} decay={1.45} color="#fff3d2" />
 
       <mesh ref={ref}>
         <sphereGeometry args={[4.15, 96, 96]} />
         <meshBasicMaterial
           map={observedTexture || fallbackTexture || null}
-          color={observedTexture ? '#ffffff' : '#fff1b0'}
+          color={observedTexture ? '#fff0bd' : '#ffffff'}
+        />
+      </mesh>
+
+      {/* Very small corona only: no large opaque glow shells. */}
+      <mesh scale={1.022}>
+        <sphereGeometry args={[4.15, 72, 72]} />
+        <meshBasicMaterial
+          color="#ffd37d"
+          transparent
+          opacity={0.035}
+          side={THREE.BackSide}
+          depthWrite={false}
         />
       </mesh>
     </group>
   );
 }
-
 
 function SaturnRings({ size, color }) {
   const ringTexture = useOptionalTexture(TEXTURE_URLS.saturnRing, { linear: true, wrap: true });
   return (
     <group rotation={[0.44, 0, 0.08]}>
       <mesh>
-        <ringGeometry args={[size * 1.28, size * 2.35, 160]} />
-        <meshBasicMaterial
-          map={ringTexture || null}
-          alphaMap={ringTexture || null}
-          color={ringTexture ? '#fff8da' : color}
-          transparent
-          opacity={0.66}
-          side={THREE.DoubleSide}
-          depthWrite={false}
-        />
+        <ringGeometry args={[size * 1.28, size * 2.35, 128]} />
+        <meshBasicMaterial map={ringTexture || null} alphaMap={ringTexture || null} color={color} transparent opacity={0.58} side={THREE.DoubleSide} />
       </mesh>
       <mesh>
-        <ringGeometry args={[size * 1.69, size * 1.87, 160]} />
-        <meshBasicMaterial color="#17120a" transparent opacity={0.42} side={THREE.DoubleSide} depthWrite={false} />
+        <ringGeometry args={[size * 1.72, size * 1.84, 128]} />
+        <meshBasicMaterial color="#090912" transparent opacity={0.6} side={THREE.DoubleSide} />
       </mesh>
     </group>
   );
 }
-
 
 function Moon({ parentSize }) {
   const moonTexture = useOptionalTexture(TEXTURE_URLS.moon);
@@ -902,13 +867,10 @@ function EarthSurfaceMaterial({ map, selected }) {
       normalScale={new THREE.Vector2(0.42, 0.42)}
       specular="#8cc8ff"
       shininess={10}
-      color={map ? '#ffffff' : '#4f9cff'}
-      emissive={selected ? '#0b315f' : '#06182f'}
-      emissiveIntensity={selected ? 0.12 : 0.045}
+      color={selected ? '#d7ecff' : '#ffffff'}
     />
   );
 }
-
 
 function EarthCloudLayer({ radius }) {
   const cloudMap = useOptionalTexture(TEXTURE_URLS.earthClouds);
@@ -950,6 +912,105 @@ function AtmosphereShell({ body, radius }) {
         depthWrite={false}
       />
     </mesh>
+  );
+}
+
+function SpecimenBody({ body }) {
+  const specimenRef = useRef();
+  const texture = usePlanetTexture(body);
+  const radius = 1.18;
+  const shapeScale = BODY_SHAPES[body.name] || [1, 1, 1];
+
+  useFrame((_, delta) => {
+    if (specimenRef.current) {
+      const rotationSpeed = body.group.includes('Gas') || body.group.includes('Ice') ? 0.16 : 0.06;
+      specimenRef.current.rotation.y += delta * rotationSpeed;
+    }
+  });
+
+  return (
+    <group rotation={[0.08, -0.48, 0]}>
+      <group scale={shapeScale}>
+        <mesh
+          ref={specimenRef}
+          rotation={[0, 0, -(body.axialTiltDeg || 0) * Math.PI / 180]}
+        >
+          <sphereGeometry args={[radius, 72, 72]} />
+          {body.name === 'Earth' ? (
+            <EarthSurfaceMaterial map={texture} selected />
+          ) : (
+            <meshStandardMaterial
+              color={body.color}
+              map={texture || null}
+              roughness={body.group.includes('Gas') || body.group.includes('Ice') ? 0.58 : 0.9}
+              metalness={0}
+            />
+          )}
+        </mesh>
+        {body.name === 'Earth' && <EarthCloudLayer radius={radius} />}
+        <AtmosphereShell body={body} radius={radius} />
+        {body.rings && <SaturnRings size={radius} color={body.accent} />}
+      </group>
+    </group>
+  );
+}
+
+function BodySpecimen({ body }) {
+  const science = BODY_SCIENCE[body.name] || null;
+
+  return (
+    <section style={{
+      margin: '0.7rem 0 0.85rem',
+      overflow: 'hidden',
+      borderRadius: 14,
+      border: `1px solid ${body.accent}35`,
+      background: 'radial-gradient(circle at 50% 42%, rgba(88,120,180,0.13), transparent 48%), linear-gradient(145deg, #070914, #03030a)',
+    }}>
+      <div style={{
+        height: 188,
+        position: 'relative',
+        borderBottom: '1px solid rgba(255,255,255,0.07)',
+      }}>
+        <Canvas
+          dpr={[1, 1.5]}
+          camera={{ position: [0, 0, 4.6], fov: 34 }}
+          gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
+          style={{ background: 'transparent' }}
+        >
+          <ambientLight intensity={0.22} color="#8ea8d6" />
+          <hemisphereLight intensity={0.32} color="#d8ecff" groundColor="#060710" />
+          <directionalLight position={[-3.5, 2.8, 4.5]} intensity={2.25} color="#fff3d2" />
+          <pointLight position={[3, -1, 2]} intensity={0.42} color={body.accent} />
+          <SpecimenBody body={body} />
+          <OrbitControls
+            enablePan={false}
+            enableZoom={false}
+            enableDamping
+            dampingFactor={0.08}
+            minPolarAngle={0.35}
+            maxPolarAngle={Math.PI - 0.35}
+          />
+        </Canvas>
+        <div style={{
+          position: 'absolute', left: 10, top: 10,
+          color: body.accent, fontSize: 9, fontWeight: 950,
+          letterSpacing: '0.12em', textTransform: 'uppercase',
+          pointerEvents: 'none',
+        }}>
+          Interactive 3D specimen
+        </div>
+        <div style={{
+          position: 'absolute', right: 10, bottom: 9,
+          color: 'rgba(255,255,255,0.46)', fontSize: 9,
+          pointerEvents: 'none',
+        }}>
+          drag to inspect
+        </div>
+      </div>
+      <div style={{ padding: '0.56rem 0.68rem', fontSize: 10, lineHeight: 1.45, color: 'rgba(255,255,255,0.48)' }}>
+        Texture-mapped visual specimen. {science?.visual || 'Visual appearance is a scale-model reference, not a mission-grade shape reconstruction.'}
+      </div>
+    </section>
   );
 }
 
@@ -1021,12 +1082,12 @@ function PlanetBody({ body, scaleMode, speed, showLabels, onSelect, selected, re
             <EarthSurfaceMaterial map={texture} selected={isSelected} />
           ) : (
             <meshStandardMaterial
-              color={texture ? '#ffffff' : body.color}
+              color={body.color}
               map={texture || null}
-              roughness={body.group.includes('Gas') || body.group.includes('Ice') ? 0.58 : 0.88}
+              roughness={body.group.includes('Gas') || body.group.includes('Ice') ? 0.62 : 0.92}
               metalness={0}
-              emissive={isSelected ? body.accent : body.color}
-              emissiveIntensity={isSelected ? 0.12 : 0.042}
+              emissive={isSelected ? body.accent : '#000000'}
+              emissiveIntensity={isSelected ? 0.08 : 0}
             />
           )}
         </mesh>
@@ -1084,91 +1145,6 @@ function makeSoftPointSprite() {
   return texture;
 }
 
-function solveKeplerEquation(meanAnomaly, eccentricity) {
-  let eccentricAnomaly = meanAnomaly;
-  for (let iteration = 0; iteration < 8; iteration += 1) {
-    const f = eccentricAnomaly - (eccentricity * Math.sin(eccentricAnomaly)) - meanAnomaly;
-    const fp = 1 - (eccentricity * Math.cos(eccentricAnomaly));
-    eccentricAnomaly -= f / Math.max(fp, 1e-8);
-  }
-  return eccentricAnomaly;
-}
-
-function sampleLogUniform(random, minimum, maximum) {
-  return minimum * Math.pow(maximum / minimum, random());
-}
-
-function sampleOortScenePosition(region, random, scaleMode) {
-  /*
-   * Orbital-element population model:
-   * - log-uniform semimajor axes in the named reservoir range;
-   * - high eccentricities set by a sampled perihelion distance;
-   * - uniform mean anomaly (uniform time), so objects dwell near aphelion;
-   * - isotropic orientation for the outer cloud, consistent with the usual
-   *   spherical-shell picture. The inner reservoir is not directly mapped, so
-   *   it is rendered with the same conservative isotropic treatment rather than
-   *   claiming a measured flattening.
-   */
-  for (let attempt = 0; attempt < 18; attempt += 1) {
-    const semiMajorAu = sampleLogUniform(random, region.aMinAu, region.aMaxAu);
-    const perihelionAu = Math.min(
-      semiMajorAu * 0.92,
-      region.qMinAu + ((region.qMaxAu - region.qMinAu) * random()),
-    );
-    const eccentricity = Math.min(0.9995, Math.max(0.45, 1 - (perihelionAu / semiMajorAu)));
-    const meanAnomaly = random() * Math.PI * 2;
-    const eccentricAnomaly = solveKeplerEquation(meanAnomaly, eccentricity);
-
-    const xOrbital = semiMajorAu * (Math.cos(eccentricAnomaly) - eccentricity);
-    const yOrbital = semiMajorAu * Math.sqrt(1 - (eccentricity * eccentricity)) * Math.sin(eccentricAnomaly);
-    const radiusAu = Math.hypot(xOrbital, yOrbital);
-
-    // This region renderer is explicitly a shell view: resample an orbit phase
-    // if it lies outside the named radial context at this instant.
-    if (radiusAu < region.innerAu || radiusAu > region.outerAu) continue;
-
-    const node = random() * Math.PI * 2;
-    const argumentOfPerihelion = random() * Math.PI * 2;
-    const cosInclination = (random() * 2) - 1;
-    const inclination = Math.acos(cosInclination);
-
-    const cNode = Math.cos(node);
-    const sNode = Math.sin(node);
-    const cArg = Math.cos(argumentOfPerihelion);
-    const sArg = Math.sin(argumentOfPerihelion);
-    const cInc = Math.cos(inclination);
-    const sInc = Math.sin(inclination);
-
-    const xAu = ((cNode * cArg) - (sNode * sArg * cInc)) * xOrbital
-      + ((-cNode * sArg) - (sNode * cArg * cInc)) * yOrbital;
-    const yAu = ((sNode * cArg) + (cNode * sArg * cInc)) * xOrbital
-      + ((-sNode * sArg) + (cNode * cArg * cInc)) * yOrbital;
-    const zAu = (sArg * sInc * xOrbital) + (cArg * sInc * yOrbital);
-
-    const sceneRadius = auToScene(radiusAu, scaleMode);
-    const invRadius = 1 / Math.max(radiusAu, 1e-6);
-
-    // Three.js scene convention: y is vertical.
-    return [
-      xAu * invRadius * sceneRadius,
-      zAu * invRadius * sceneRadius,
-      yAu * invRadius * sceneRadius,
-    ];
-  }
-
-  // Extremely rare fallback: still isotropic, but clearly inside the named shell.
-  const cosPhi = (random() * 2) - 1;
-  const sinPhi = Math.sqrt(Math.max(0, 1 - (cosPhi * cosPhi)));
-  const theta = random() * Math.PI * 2;
-  const radiusAu = sampleLogUniform(random, region.innerAu, region.outerAu);
-  const radius = auToScene(radiusAu, scaleMode);
-  return [
-    sinPhi * Math.cos(theta) * radius,
-    cosPhi * radius,
-    sinPhi * Math.sin(theta) * radius,
-  ];
-}
-
 function DustRegion({ region, scaleMode, visible, densityMultiplier = 1 }) {
   const particleCount = Math.max(0, Math.floor(region.count * densityMultiplier));
   const softSprite = useMemo(() => makeSoftPointSprite(), []);
@@ -1178,45 +1154,47 @@ function DustRegion({ region, scaleMode, visible, densityMultiplier = 1 }) {
     const colourData = new Float32Array(particleCount * 3);
     const inner = auToScene(region.innerAu, scaleMode);
     const outer = auToScene(region.outerAu || region.innerAu, scaleMode);
-    const random = seededRandom(regionSeed(`${region.name}-${scaleMode}-dynamical-v2`));
+    const random = seededRandom(regionSeed(`${region.name}-${scaleMode}`));
     const base = new THREE.Color(region.color);
-    const isOort = region.shape === 'oort-inner' || region.shape === 'oort-outer';
+    const isOort = region.name.includes('Oort');
+    const isHills = region.name.includes('Hills');
 
     for (let i = 0; i < particleCount; i += 1) {
-      let point;
+      if (region.shape === 'shell') {
+        const theta = random() * Math.PI * 2;
+        const cosPhi = random() * 2 - 1;
+        const sinPhi = Math.sqrt(1 - (cosPhi * cosPhi));
 
-      if (isOort) {
-        point = sampleOortScenePosition(region, random, scaleMode);
+        // A deliberately broad, seeded model distribution.
+        // It is not a fitted Oort-cloud density law because the cloud is not directly mapped.
+        const radialFraction = isHills
+          ? Math.pow(random(), 0.72)
+          : Math.cbrt(random());
+        const radius = inner + ((outer - inner) * radialFraction);
+
+        positionData[i * 3] = sinPhi * Math.cos(theta) * radius;
+        positionData[i * 3 + 1] = cosPhi * radius;
+        positionData[i * 3 + 2] = sinPhi * Math.sin(theta) * radius;
       } else if (region.shape === 'arcs') {
         const l4 = Math.PI / 3;
         const l5 = -Math.PI / 3;
         const centre = random() > 0.5 ? l4 : l5;
         const phase = centre + ((random() - 0.5) * 0.78);
         const radius = inner + (random() * Math.max(0.2, outer - inner));
-        point = [
-          Math.cos(phase) * radius,
-          (random() - 0.5) * region.spread,
-          Math.sin(phase) * radius,
-        ];
+
+        positionData[i * 3] = Math.cos(phase) * radius;
+        positionData[i * 3 + 1] = (random() - 0.5) * region.spread;
+        positionData[i * 3 + 2] = Math.sin(phase) * radius;
       } else {
         const phase = random() * Math.PI * 2;
-        // Mild inner-weighting keeps belt markers visually closer to their
-        // source region without implying a measured object catalogue.
-        const radius = inner + (Math.sqrt(random()) * Math.max(0.2, outer - inner));
-        point = [
-          Math.cos(phase) * radius,
-          (random() - 0.5) * region.spread,
-          Math.sin(phase) * radius,
-        ];
+        const radius = inner + (random() * Math.max(0.2, outer - inner));
+
+        positionData[i * 3] = Math.cos(phase) * radius;
+        positionData[i * 3 + 1] = (random() - 0.5) * region.spread;
+        positionData[i * 3 + 2] = Math.sin(phase) * radius;
       }
 
-      positionData[i * 3] = point[0];
-      positionData[i * 3 + 1] = point[1];
-      positionData[i * 3 + 2] = point[2];
-
-      const brightness = isOort
-        ? 0.42 + (random() * 0.50)
-        : 0.54 + (random() * 0.38);
+      const brightness = isOort ? 0.48 + (random() * 0.46) : 0.56 + (random() * 0.38);
       colourData[i * 3] = base.r * brightness;
       colourData[i * 3 + 1] = base.g * brightness;
       colourData[i * 3 + 2] = base.b * brightness;
@@ -1227,10 +1205,8 @@ function DustRegion({ region, scaleMode, visible, densityMultiplier = 1 }) {
 
   if (!visible || particleCount === 0) return null;
 
-  const isOort = region.shape === 'oort-inner' || region.shape === 'oort-outer';
-
   return (
-    <points frustumCulled={false}>
+    <points>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" count={particleCount} array={positions} itemSize={3} />
         <bufferAttribute attach="attributes-color" count={particleCount} array={colors} itemSize={3} />
@@ -1239,9 +1215,9 @@ function DustRegion({ region, scaleMode, visible, densityMultiplier = 1 }) {
         map={softSprite || null}
         alphaMap={softSprite || null}
         vertexColors
-        size={isOort ? 0.28 : 0.105}
+        size={region.name.includes('Oort') ? 0.19 : 0.095}
         transparent
-        opacity={isOort ? 0.72 : 0.58}
+        opacity={region.name.includes('Oort') ? 0.54 : 0.55}
         alphaTest={0.02}
         sizeAttenuation
         depthWrite={false}
@@ -1250,7 +1226,6 @@ function DustRegion({ region, scaleMode, visible, densityMultiplier = 1 }) {
     </points>
   );
 }
-
 
 function ShellGuide({ radius, color, opacity = 0.2, meridians = true }) {
   const equator = useMemo(() => {
@@ -1341,12 +1316,12 @@ function RegionRing({ region, scaleMode, showLabels }) {
 
   const outerRadius = auToScene(region.outerAu || region.innerAu, scaleMode);
   const innerRadius = auToScene(region.innerAu, scaleMode);
-  const isGuideOnly = region.shape === 'shell' || region.shape === 'oort-inner' || region.shape === 'oort-outer';
+  const isOort = region.name.includes('Oort');
   const isHeliopause = region.name === 'Heliopause';
 
   return (
     <group>
-      {!isGuideOnly && (
+      {region.shape !== 'shell' && (
         <>
           <OrbitRing
             au={region.outerAu || region.innerAu}
@@ -1367,30 +1342,38 @@ function RegionRing({ region, scaleMode, showLabels }) {
         </>
       )}
 
-      {isGuideOnly && (
+      {region.shape === 'shell' && (
         <>
-          {/*
-            Guide lines only. Oort Cloud shells are not rendered as opaque or
-            translucent solid volumes because that would imply a directly observed boundary.
-          */}
+          <mesh>
+            <sphereGeometry args={[Math.max(0.1, outerRadius), 64, 32]} />
+            <meshBasicMaterial
+              color={region.color}
+              transparent
+              opacity={isHeliopause ? 0.03 : isOort ? 0.009 : 0.006}
+              side={THREE.BackSide}
+              depthWrite={false}
+            />
+          </mesh>
+
           <ShellGuide
             radius={outerRadius}
             color={region.color}
-            opacity={isHeliopause ? 0.18 : 0.10}
-            meridians={region.shape === 'oort-outer'}
+            opacity={isHeliopause ? 0.20 : isOort ? 0.16 : 0.12}
+            meridians={region.name.includes('Outer')}
           />
+
           {region.innerAu !== region.outerAu && (
             <ShellGuide
               radius={innerRadius}
               color={region.color}
-              opacity={isHeliopause ? 0.10 : 0.055}
+              opacity={isOort ? 0.10 : 0.08}
               meridians={false}
             />
           )}
         </>
       )}
 
-      {showLabels && isGuideOnly && (
+      {showLabels && region.shape === 'shell' && (
         <Html position={[0, 0.4, -outerRadius]} center distanceFactor={135}>
           <span style={{
             color: region.color,
@@ -1409,40 +1392,53 @@ function RegionRing({ region, scaleMode, showLabels }) {
   );
 }
 
-
 function OortCloudCutaway({ scaleMode, visible, showLabels }) {
   if (!visible) return null;
-
   const heliopause = auToScene(120, scaleMode);
   const innerMain = auToScene(1000, scaleMode);
   const hills = auToScene(20000, scaleMode);
   const outer = auToScene(100000, scaleMode);
   const wedgeStart = -Math.PI * 0.18;
   const wedgeLength = Math.PI * 0.38;
-
-  const arcPoints = (radius) => {
-    const points = [];
-    for (let i = 0; i <= 96; i += 1) {
-      const theta = wedgeStart + ((i / 96) * wedgeLength);
-      points.push([Math.cos(theta) * radius, Math.sin(theta) * radius, 0]);
-    }
-    return points;
-  };
+  const rimMaterial = (color, opacity) => (
+    <meshBasicMaterial color={color} transparent opacity={opacity} side={THREE.DoubleSide} depthWrite={false} />
+  );
 
   return (
     <group rotation={[0.04, -0.32, 0]}>
-      {/*
-        This optional guide is deliberately wireframe-like: radial reference lines
-        and shell arcs communicate the range without drawing a solid glass bubble.
-      */}
-      <Line points={arcPoints(heliopause)} color="#22d3ee" transparent opacity={0.32} lineWidth={0.6} />
-      <Line points={arcPoints(innerMain)} color="#bfdbfe" transparent opacity={0.30} lineWidth={0.7} />
-      <Line points={arcPoints(hills)} color="#dbeafe" transparent opacity={0.22} lineWidth={0.6} />
-      <Line points={arcPoints(outer)} color="#edf7ff" transparent opacity={0.28} lineWidth={0.7} />
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[outer, 0.035, 8, 256]} />
+        {rimMaterial('#e0f2fe', 0.26)}
+      </mesh>
+      <mesh rotation={[0, Math.PI / 2, 0]}>
+        <torusGeometry args={[outer, 0.026, 8, 220]} />
+        {rimMaterial('#93c5fd', 0.15)}
+      </mesh>
+      <mesh>
+        <torusGeometry args={[outer, 0.026, 8, 220]} />
+        {rimMaterial('#c4b5fd', 0.13)}
+      </mesh>
 
-      <Line points={[[0, 0, 0], [Math.cos(wedgeStart) * outer, Math.sin(wedgeStart) * outer, 0]]} color="#e0f2fe" transparent opacity={0.16} lineWidth={0.5} />
-      <Line points={[[0, 0, 0], [Math.cos(wedgeStart + wedgeLength) * outer, Math.sin(wedgeStart + wedgeLength) * outer, 0]]} color="#e0f2fe" transparent opacity={0.16} lineWidth={0.5} />
-      <Line points={[[0, 0, 0], [innerMain, 0, 0]]} color="#67e8f9" transparent opacity={0.46} lineWidth={0.8} />
+      <mesh rotation={[0, 0, 0.02]}>
+        <circleGeometry args={[outer, 160, wedgeStart, wedgeLength]} />
+        <meshBasicMaterial color="#7dd3fc" transparent opacity={0.018} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <mesh rotation={[0, 0, 0.02]}>
+        <circleGeometry args={[hills, 120, wedgeStart, wedgeLength]} />
+        <meshBasicMaterial color="#f0f9ff" transparent opacity={0.026} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+
+      <Line points={[[0, 0, 0], [Math.cos(wedgeStart) * outer, Math.sin(wedgeStart) * outer, 0]]} color="#e0f2fe" transparent opacity={0.2} lineWidth={0.5} />
+      <Line points={[[0, 0, 0], [Math.cos(wedgeStart + wedgeLength) * outer, Math.sin(wedgeStart + wedgeLength) * outer, 0]]} color="#e0f2fe" transparent opacity={0.2} lineWidth={0.5} />
+
+      <Line points={[[0, 0, 0], [innerMain, 0, 0]]} color="#67e8f9" transparent opacity={0.44} lineWidth={0.8} />
+
+      {[heliopause, innerMain, hills, outer].map((radius, index) => (
+        <mesh key={radius} rotation={[0, 0, 0.02]}>
+          <ringGeometry args={[Math.max(0.01, radius - 0.035), radius + 0.035, 160, 1, wedgeStart, wedgeLength]} />
+          <meshBasicMaterial color={['#22d3ee', '#bfdbfe', '#f0f9ff', '#e0f2fe'][index]} transparent opacity={[0.36, 0.28, 0.24, 0.3][index]} side={THREE.DoubleSide} depthWrite={false} />
+        </mesh>
+      ))}
 
       {showLabels && (
         <>
@@ -1466,7 +1462,7 @@ function OortCloudCutaway({ scaleMode, visible, showLabels }) {
               fontWeight: 900,
               whiteSpace: 'nowrap',
               pointerEvents: 'none',
-            }}>1,000 AU · main Oort-cloud inner-edge estimate</span>
+            }}>1,000 AU · inner Oort boundary</span>
           </Html>
           <Html position={[outer * 0.18, outer * 0.96, 0]} center distanceFactor={160}>
             <span style={{
@@ -1479,7 +1475,7 @@ function OortCloudCutaway({ scaleMode, visible, showLabels }) {
               fontWeight: 950,
               whiteSpace: 'nowrap',
               pointerEvents: 'none',
-            }}>outer Oort-scale reference · 100,000 AU</span>
+            }}>outer Oort Cloud - 100,000 AU</span>
           </Html>
           <Html position={[hills * 0.58, hills * 0.62, 0]} center distanceFactor={145}>
             <span style={{
@@ -1492,7 +1488,7 @@ function OortCloudCutaway({ scaleMode, visible, showLabels }) {
               fontWeight: 900,
               whiteSpace: 'nowrap',
               pointerEvents: 'none',
-            }}>inner reservoir · dynamical context</span>
+            }}>Hills cloud / inner reservoir</span>
           </Html>
         </>
       )}
@@ -1500,38 +1496,27 @@ function OortCloudCutaway({ scaleMode, visible, showLabels }) {
   );
 }
 
-
 function ScaleGrid({ scaleMode, showLabels, showRegions, showShellGuides, densityMultiplier }) {
   return (
     <>
       {REGIONS.map((region) => {
-        const isGuideOnly = region.shape === 'shell'
-          || region.shape === 'oort-inner'
-          || region.shape === 'oort-outer';
-
+        const isShell = region.shape === 'shell';
         return (
-          <React.Fragment key={region.name}>
-            {showRegions && (!isGuideOnly || showShellGuides) && (
-              <RegionRing region={region} scaleMode={scaleMode} showLabels={showLabels} />
-            )}
-            <DustRegion
-              region={region}
-              scaleMode={scaleMode}
-              visible={showRegions && region.count > 0}
-              densityMultiplier={densityMultiplier}
-            />
-          </React.Fragment>
+        <React.Fragment key={region.name}>
+          {showRegions && (!isShell || showShellGuides) && <RegionRing region={region} scaleMode={scaleMode} showLabels={showLabels} />}
+          <DustRegion
+            region={region}
+            scaleMode={scaleMode}
+            visible={showRegions && region.count > 0}
+            densityMultiplier={densityMultiplier}
+/>
+        </React.Fragment>
         );
       })}
-      <OortCloudCutaway
-        scaleMode={scaleMode}
-        visible={showRegions && showShellGuides}
-        showLabels={showLabels}
-      />
+      <OortCloudCutaway scaleMode={scaleMode} visible={showRegions && showShellGuides} showLabels={showLabels} />
     </>
   );
 }
-
 
 function CameraDirector({ presetKey, trigger, cancelTrigger }) {
   const { camera, controls } = useThree();
@@ -1607,8 +1592,8 @@ function Scene({
     <>
       <color attach="background" args={[palette.bg]} />
       <Stars radius={460} depth={90} count={6500} factor={2.0} saturation={0.18} fade speed={0.10} />
-      <ambientLight intensity={0.18} color="#1a2948" />
-      <hemisphereLight intensity={0.28} color="#8eb9e8" groundColor="#070812" />
+      <ambientLight intensity={0.075} color="#1a2948" />
+      <hemisphereLight intensity={0.10} color="#7898c6" groundColor="#03030a" />
       <CameraDirector presetKey={viewPreset} trigger={guidedCameraTick} cancelTrigger={manualCameraTick} />
       <Sun scale={viewPreset === 'oort' ? 1.18 : 1} />
       <ScaleGrid
@@ -1702,6 +1687,8 @@ function InfoPanel({ selected, onClose, moonMeta }) {
         {selected.fact}
       </p>
 
+      <BodySpecimen body={selected} />
+
       {science && (
         <div style={{
           marginBottom: 12,
@@ -1762,7 +1749,7 @@ function InfoPanel({ selected, onClose, moonMeta }) {
       }}>
         Moon-count snapshot: {moonMeta?.asOf || MOON_COUNT_SNAPSHOT.asOf}.<br />
         Source: {moonMeta?.source || MOON_COUNT_SNAPSHOT.source}.<br />
-        Reloading checks the newest deployed snapshot. It is not a direct live IAU feed; update the snapshot only after a verified IAU/MPC or NASA announcement.
+        Reloading the page requests the newest deployed snapshot; counts can change as small irregular satellites are confirmed.
       </div>
     </aside>
   );
@@ -1854,7 +1841,7 @@ function OortResearchPanel({ activePreset }) {
   const oortActive = activePreset === 'oort' || activePreset === 'heliopause';
 
   const description = oortActive
-    ? 'The Oort Cloud has not been directly imaged. Markers are sampled from high-eccentricity comet orbits with uniform time sampling, producing aphelion residence-time concentration and isotropic outer-cloud orientations. This is a dynamical visualisation, not a survey-derived density map.'
+    ? 'The Oort Cloud has not been directly imaged. This is a physically motivated scale model using seeded, unresolved comet-nucleus markers, reference shells, and an optional cutaway — not a measured density map.'
     : 'Choose a scale preset to change the atlas context. The camera remains under manual control until Guided flyby is selected.';
 
   return (
@@ -2104,7 +2091,7 @@ export default function SolarSystem() {
         letterSpacing: '0.08em',
         textTransform: 'uppercase',
       }}>
-        NASA/JPL data · atlas textures are scientific visual references, not live imagery
+        NASA/JPL data - texture maps: Solar System Scope / Wikimedia Commons where available
       </div>
     </div>
   );
