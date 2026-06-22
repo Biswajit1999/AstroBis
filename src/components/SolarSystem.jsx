@@ -184,6 +184,7 @@ const SYSTEM_OBJECTS = [
   {
     name: 'Earth',
     group: 'Terrestrial planet',
+    panelKicker: 'Our home world',
     au: 1,
     radiusKm: 6371,
     moons: 1,
@@ -200,7 +201,7 @@ const SYSTEM_OBJECTS = [
     atmosphere: true,
     size: 1,
     speed: 1,
-    fact: 'Only known inhabited world, with liquid oceans, plate tectonics, and a large stabilizing Moon.',
+    fact: 'A temperate rocky planet with persistent surface oceans, active plate tectonics, and a nitrogen–oxygen atmosphere.',
     reference: 'NASA Solar System Exploration - Earth',
   },
   {
@@ -421,10 +422,36 @@ const REGIONS = [
   { name: 'Scattered disk', innerAu: 50, outerAu: 120, color: '#c4b5fd', count: 1000, spread: 2.8, shape: 'disk' },
   { name: 'Heliopause', innerAu: 120, outerAu: 120, color: '#22d3ee', count: 0, spread: 0, shape: 'shell' },
 
-  // Visual marker counts only. The Oort Cloud has not been directly imaged or counted.
-  // This uses a seeded, broad spherical distribution rather than a measured density law.
-  { name: 'Inner Oort Cloud / Hills cloud', innerAu: 1000, outerAu: 20000, color: '#dbeafe', count: 3200, spread: 34, shape: 'shell' },
-  { name: 'Outer Oort Cloud', innerAu: 20000, outerAu: 100000, color: '#e0f2fe', count: 6500, spread: 52, shape: 'shell' },
+  /*
+   * The two Oort populations below are phase-space visualisations, not an
+   * observed comet catalogue or a fitted density law.  Markers are sampled
+   * from high-eccentricity Keplerian orbits at uniform mean anomaly (uniform
+   * time), which naturally produces aphelion residence-time concentration.
+   *
+   * The inner component is deliberately model-dependent and mildly flattened;
+   * the outer component uses isotropic orbital poles.  Reference ranges are
+   * expressed as semimajor-axis context, not hard observed radial edges.
+   */
+  {
+    name: 'Inner Oort / Hills reference',
+    innerAu: 2000,
+    outerAu: 20000,
+    color: '#6f9fc6',
+    count: 4200,
+    spread: 34,
+    shape: 'shell',
+    oortModel: 'inner',
+  },
+  {
+    name: 'Outer Oort Cloud reference',
+    innerAu: 20000,
+    outerAu: 100000,
+    color: '#9bc8e8',
+    count: 7800,
+    spread: 52,
+    shape: 'shell',
+    oortModel: 'outer',
+  },
 ];
 
 const SCALE_MARKERS = [
@@ -435,8 +462,8 @@ const SCALE_MARKERS = [
   { name: 'Neptune', au: 30.07, note: 'last major planet' },
   { name: 'Kuiper belt edge', au: 50, note: 'icy trans-Neptunian belt' },
   { name: 'Heliopause', au: 120, note: 'solar wind boundary' },
-  { name: 'Main Oort inner edge', au: 1000, note: 'NASA scale estimate' },
-  { name: 'Hills cloud reservoir', au: 20000, note: 'dense inner Oort model' },
+  { name: 'Inner Oort reference', au: 2000, note: 'model reference; not a hard observed edge' },
+  { name: 'Outer Oort reference', au: 20000, note: 'transition to near-isotropic outer model' },
   { name: 'Oort outer edge', au: 100000, note: 'solar-gravity frontier' },
   { name: 'Proxima Centauri', au: 268550, note: 'nearest stellar system' },
 ];
@@ -495,6 +522,130 @@ function seededRandom(seed) {
 
 function regionSeed(name) {
   return String(name).split('').reduce((hash, char) => ((hash * 31) + char.charCodeAt(0)) % 2147483647, 17);
+}
+
+/*
+ * Oort-cloud markers are phase-space samples rather than a spatially uniform
+ * shell.  Mean anomaly is uniform in time; for eccentric orbits this creates
+ * the physically expected residence-time concentration close to aphelion.
+ */
+function sampleLogUniform(random, lower, upper) {
+  return lower * Math.pow(upper / lower, random());
+}
+
+function solveKeplerEquation(meanAnomaly, eccentricity) {
+  let eccentricAnomaly = meanAnomaly;
+  for (let iteration = 0; iteration < 9; iteration += 1) {
+    const numerator = eccentricAnomaly - (eccentricity * Math.sin(eccentricAnomaly)) - meanAnomaly;
+    const denominator = 1 - (eccentricity * Math.cos(eccentricAnomaly));
+    eccentricAnomaly -= numerator / Math.max(denominator, 1e-7);
+  }
+  return eccentricAnomaly;
+}
+
+function gaussianSample(random) {
+  const u = Math.max(random(), 1e-8);
+  const v = random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(Math.PI * 2 * v);
+}
+
+function rotateOrbitalVector(x, y, inclination, node, argumentOfPerihelion) {
+  const cosW = Math.cos(argumentOfPerihelion);
+  const sinW = Math.sin(argumentOfPerihelion);
+  const cosI = Math.cos(inclination);
+  const sinI = Math.sin(inclination);
+  const cosN = Math.cos(node);
+  const sinN = Math.sin(node);
+
+  const x1 = (cosW * x) - (sinW * y);
+  const y1 = (sinW * x) + (cosW * y);
+
+  const x2 = x1;
+  const y2 = cosI * y1;
+  const z2 = sinI * y1;
+
+  return [
+    (cosN * x2) - (sinN * y2),
+    (sinN * x2) + (cosN * y2),
+    z2,
+  ];
+}
+
+function sampleOortPhaseSpace(random, model) {
+  const isOuter = model === 'outer';
+
+  // Reference semimajor-axis ranges.  The inner population is intentionally
+  // model-dependent; the outer population is displayed with isotropic poles.
+  const semiMajorAxis = sampleLogUniform(
+    random,
+    isOuter ? 20000 : 2000,
+    isOuter ? 100000 : 20000,
+  );
+
+  // High eccentricities retain the dynamical character of comet reservoirs.
+  // Perihelion sampling prevents a false, over-dense visual pile-up around the
+  // planetary system while keeping the orbit ensemble physically eccentric.
+  const perihelionFloor = isOuter ? 1800 : 250;
+  const perihelionCeiling = Math.max(
+    perihelionFloor * 1.2,
+    semiMajorAxis * (isOuter ? 0.24 : 0.46),
+  );
+  const perihelion = perihelionFloor + ((perihelionCeiling - perihelionFloor) * random());
+  const eccentricity = THREE.MathUtils.clamp(
+    1 - (perihelion / semiMajorAxis),
+    isOuter ? 0.78 : 0.54,
+    0.995,
+  );
+
+  // Uniform mean anomaly is the time-uniform phase variable.
+  const meanAnomaly = random() * Math.PI * 2;
+  const eccentricAnomaly = solveKeplerEquation(meanAnomaly, eccentricity);
+  const radiusAu = semiMajorAxis * (1 - (eccentricity * Math.cos(eccentricAnomaly)));
+  const trueAnomaly = Math.atan2(
+    Math.sqrt(1 - (eccentricity * eccentricity)) * Math.sin(eccentricAnomaly),
+    Math.cos(eccentricAnomaly) - eccentricity,
+  );
+
+  let inclination;
+  if (isOuter) {
+    // Isotropic orbital poles: cos(i) uniform in [-1, 1].
+    inclination = Math.acos(1 - (2 * random()));
+  } else if (random() < 0.72) {
+    // Mild ecliptic memory for a model-dependent inner/Hills component.
+    inclination = THREE.MathUtils.clamp(
+      Math.abs(gaussianSample(random)) * (24 * Math.PI / 180),
+      0,
+      Math.PI,
+    );
+  } else {
+    inclination = Math.acos(1 - (2 * random()));
+  }
+
+  const node = random() * Math.PI * 2;
+  const argumentOfPerihelion = random() * Math.PI * 2;
+  const orbitalX = radiusAu * Math.cos(trueAnomaly);
+  const orbitalY = radiusAu * Math.sin(trueAnomaly);
+
+  return rotateOrbitalVector(
+    orbitalX,
+    orbitalY,
+    inclination,
+    node,
+    argumentOfPerihelion,
+  );
+}
+
+function compressAuVectorToScene(vectorAu, scaleMode) {
+  const radiusAu = Math.hypot(vectorAu[0], vectorAu[1], vectorAu[2]);
+  if (radiusAu < 1e-8) return [0, 0, 0];
+
+  const sceneRadius = auToScene(radiusAu, scaleMode);
+  const factor = sceneRadius / radiusAu;
+  return [
+    vectorAu[0] * factor,
+    vectorAu[1] * factor,
+    vectorAu[2] * factor,
+  ];
 }
 
 function getInitialViewPreset() {
@@ -1156,25 +1307,16 @@ function DustRegion({ region, scaleMode, visible, densityMultiplier = 1 }) {
     const outer = auToScene(region.outerAu || region.innerAu, scaleMode);
     const random = seededRandom(regionSeed(`${region.name}-${scaleMode}`));
     const base = new THREE.Color(region.color);
-    const isOort = region.name.includes('Oort');
-    const isHills = region.name.includes('Hills');
+    const isOort = Boolean(region.oortModel);
 
     for (let i = 0; i < particleCount; i += 1) {
-      if (region.shape === 'shell') {
-        const theta = random() * Math.PI * 2;
-        const cosPhi = random() * 2 - 1;
-        const sinPhi = Math.sqrt(1 - (cosPhi * cosPhi));
+      if (isOort) {
+        const phaseSpaceVector = sampleOortPhaseSpace(random, region.oortModel);
+        const compressed = compressAuVectorToScene(phaseSpaceVector, scaleMode);
 
-        // A deliberately broad, seeded model distribution.
-        // It is not a fitted Oort-cloud density law because the cloud is not directly mapped.
-        const radialFraction = isHills
-          ? Math.pow(random(), 0.72)
-          : Math.cbrt(random());
-        const radius = inner + ((outer - inner) * radialFraction);
-
-        positionData[i * 3] = sinPhi * Math.cos(theta) * radius;
-        positionData[i * 3 + 1] = cosPhi * radius;
-        positionData[i * 3 + 2] = sinPhi * Math.sin(theta) * radius;
+        positionData[i * 3] = compressed[0];
+        positionData[i * 3 + 1] = compressed[1];
+        positionData[i * 3 + 2] = compressed[2];
       } else if (region.shape === 'arcs') {
         const l4 = Math.PI / 3;
         const l5 = -Math.PI / 3;
@@ -1185,6 +1327,15 @@ function DustRegion({ region, scaleMode, visible, densityMultiplier = 1 }) {
         positionData[i * 3] = Math.cos(phase) * radius;
         positionData[i * 3 + 1] = (random() - 0.5) * region.spread;
         positionData[i * 3 + 2] = Math.sin(phase) * radius;
+      } else if (region.shape === 'shell') {
+        const theta = random() * Math.PI * 2;
+        const cosPhi = random() * 2 - 1;
+        const sinPhi = Math.sqrt(1 - (cosPhi * cosPhi));
+        const radius = inner + ((outer - inner) * Math.cbrt(random()));
+
+        positionData[i * 3] = sinPhi * Math.cos(theta) * radius;
+        positionData[i * 3 + 1] = cosPhi * radius;
+        positionData[i * 3 + 2] = sinPhi * Math.sin(theta) * radius;
       } else {
         const phase = random() * Math.PI * 2;
         const radius = inner + (random() * Math.max(0.2, outer - inner));
@@ -1194,7 +1345,11 @@ function DustRegion({ region, scaleMode, visible, densityMultiplier = 1 }) {
         positionData[i * 3 + 2] = Math.sin(phase) * radius;
       }
 
-      const brightness = isOort ? 0.48 + (random() * 0.46) : 0.56 + (random() * 0.38);
+      // Blue-grey Oort markers intentionally differ from the white star field.
+      const brightness = isOort
+        ? (region.oortModel === 'outer' ? 0.34 + (random() * 0.30) : 0.28 + (random() * 0.26))
+        : 0.56 + (random() * 0.38);
+
       colourData[i * 3] = base.r * brightness;
       colourData[i * 3 + 1] = base.g * brightness;
       colourData[i * 3 + 2] = base.b * brightness;
@@ -1204,6 +1359,8 @@ function DustRegion({ region, scaleMode, visible, densityMultiplier = 1 }) {
   }, [particleCount, region, scaleMode]);
 
   if (!visible || particleCount === 0) return null;
+
+  const isOort = Boolean(region.oortModel);
 
   return (
     <points>
@@ -1215,9 +1372,9 @@ function DustRegion({ region, scaleMode, visible, densityMultiplier = 1 }) {
         map={softSprite || null}
         alphaMap={softSprite || null}
         vertexColors
-        size={region.name.includes('Oort') ? 0.19 : 0.095}
+        size={isOort ? (region.oortModel === 'outer' ? 0.135 : 0.115) : 0.095}
         transparent
-        opacity={region.name.includes('Oort') ? 0.54 : 0.55}
+        opacity={isOort ? (region.oortModel === 'outer' ? 0.38 : 0.30) : 0.55}
         alphaTest={0.02}
         sizeAttenuation
         depthWrite={false}
@@ -1395,7 +1552,7 @@ function RegionRing({ region, scaleMode, showLabels }) {
 function OortCloudCutaway({ scaleMode, visible, showLabels }) {
   if (!visible) return null;
   const heliopause = auToScene(120, scaleMode);
-  const innerMain = auToScene(1000, scaleMode);
+  const innerMain = auToScene(2000, scaleMode);
   const hills = auToScene(20000, scaleMode);
   const outer = auToScene(100000, scaleMode);
   const wedgeStart = -Math.PI * 0.18;
@@ -1462,7 +1619,7 @@ function OortCloudCutaway({ scaleMode, visible, showLabels }) {
               fontWeight: 900,
               whiteSpace: 'nowrap',
               pointerEvents: 'none',
-            }}>1,000 AU · inner Oort boundary</span>
+            }}>2,000 AU · inner-cloud reference</span>
           </Html>
           <Html position={[outer * 0.18, outer * 0.96, 0]} center distanceFactor={160}>
             <span style={{
@@ -1475,7 +1632,7 @@ function OortCloudCutaway({ scaleMode, visible, showLabels }) {
               fontWeight: 950,
               whiteSpace: 'nowrap',
               pointerEvents: 'none',
-            }}>outer Oort Cloud - 100,000 AU</span>
+            }}>outer Oort reference · 100,000 AU</span>
           </Html>
           <Html position={[hills * 0.58, hills * 0.62, 0]} center distanceFactor={145}>
             <span style={{
@@ -1488,7 +1645,7 @@ function OortCloudCutaway({ scaleMode, visible, showLabels }) {
               fontWeight: 900,
               whiteSpace: 'nowrap',
               pointerEvents: 'none',
-            }}>Hills cloud / inner reservoir</span>
+            }}>inner / Hills reference zone</span>
           </Html>
         </>
       )}
@@ -1496,29 +1653,40 @@ function OortCloudCutaway({ scaleMode, visible, showLabels }) {
   );
 }
 
-function ScaleGrid({ scaleMode, showLabels, showRegions, showShellGuides, densityMultiplier }) {
+function ScaleGrid({ scaleMode, showLabels, showRegions, showShellGuides, densityMultiplier, viewPreset }) {
+  const oortContextActive = viewPreset === 'oort' || viewPreset === 'heliopause';
+
   return (
     <>
       {REGIONS.map((region) => {
         const isShell = region.shape === 'shell';
+        const isOort = Boolean(region.oortModel);
+        const regionVisible = showRegions && region.count > 0 && (!isOort || oortContextActive);
+
         return (
-        <React.Fragment key={region.name}>
-          {showRegions && (!isShell || showShellGuides) && <RegionRing region={region} scaleMode={scaleMode} showLabels={showLabels} />}
-          <DustRegion
-            region={region}
-            scaleMode={scaleMode}
-            visible={showRegions && region.count > 0}
-            densityMultiplier={densityMultiplier}
-/>
-        </React.Fragment>
+          <React.Fragment key={region.name}>
+            {showRegions && (!isShell || showShellGuides) && (
+              <RegionRing region={region} scaleMode={scaleMode} showLabels={showLabels} />
+            )}
+            <DustRegion
+              region={region}
+              scaleMode={scaleMode}
+              visible={regionVisible}
+              densityMultiplier={densityMultiplier}
+            />
+          </React.Fragment>
         );
       })}
-      <OortCloudCutaway scaleMode={scaleMode} visible={showRegions && showShellGuides} showLabels={showLabels} />
+      <OortCloudCutaway
+        scaleMode={scaleMode}
+        visible={showRegions && showShellGuides && oortContextActive}
+        showLabels={showLabels}
+      />
     </>
   );
 }
 
-function CameraDirector({ presetKey, trigger, cancelTrigger }) {
+function CameraDirector({ presetKey, trigger, cancelTrigger, onFlybyStateChange }) {
   const { camera, controls } = useThree();
   const animation = useRef(null);
 
@@ -1526,7 +1694,10 @@ function CameraDirector({ presetKey, trigger, cancelTrigger }) {
     if (!trigger) return undefined;
 
     const preset = VIEW_PRESETS.find((item) => item.key === presetKey);
-    if (!preset) return undefined;
+    if (!preset) {
+      onFlybyStateChange?.(false);
+      return undefined;
+    }
 
     animation.current = {
       startedAt: performance.now(),
@@ -1536,13 +1707,19 @@ function CameraDirector({ presetKey, trigger, cancelTrigger }) {
       fromTarget: controls?.target?.clone?.() || new THREE.Vector3(0, 0, 0),
       toTarget: new THREE.Vector3(...preset.target),
     };
+    onFlybyStateChange?.(true);
 
     return undefined;
-  }, [camera, controls, presetKey, trigger]);
+  }, [camera, controls, onFlybyStateChange, presetKey, trigger]);
 
   useEffect(() => {
-    if (cancelTrigger) animation.current = null;
-  }, [cancelTrigger]);
+    if (cancelTrigger && animation.current) {
+      animation.current = null;
+      onFlybyStateChange?.(false);
+    }
+  }, [cancelTrigger, onFlybyStateChange]);
+
+  useEffect(() => () => onFlybyStateChange?.(false), [onFlybyStateChange]);
 
   useFrame(() => {
     if (!animation.current) return;
@@ -1566,7 +1743,10 @@ function CameraDirector({ presetKey, trigger, cancelTrigger }) {
       controls.update?.();
     }
 
-    if (t >= 1) animation.current = null;
+    if (t >= 1) {
+      animation.current = null;
+      onFlybyStateChange?.(false);
+    }
   });
 
   return null;
@@ -1587,21 +1767,32 @@ function Scene({
   manualCameraTick,
   particleDensity,
   onManualCameraStart,
+  onFlybyStateChange,
 }) {
+  // When a detail panel is open, only the selected body's label remains.
+  // This prevents UI text from visually crossing the object information panel.
+  const contextualLabels = showLabels && !selected && viewPreset !== 'oort';
+
   return (
     <>
       <color attach="background" args={[palette.bg]} />
       <Stars radius={460} depth={90} count={6500} factor={2.0} saturation={0.18} fade speed={0.10} />
       <ambientLight intensity={0.075} color="#1a2948" />
       <hemisphereLight intensity={0.10} color="#7898c6" groundColor="#03030a" />
-      <CameraDirector presetKey={viewPreset} trigger={guidedCameraTick} cancelTrigger={manualCameraTick} />
+      <CameraDirector
+        presetKey={viewPreset}
+        trigger={guidedCameraTick}
+        cancelTrigger={manualCameraTick}
+        onFlybyStateChange={onFlybyStateChange}
+      />
       <Sun scale={viewPreset === 'oort' ? 1.18 : 1} />
       <ScaleGrid
         scaleMode={scaleMode}
-        showLabels={showLabels}
+        showLabels={contextualLabels}
         showRegions={showRegions}
         showShellGuides={showShellGuides}
         densityMultiplier={particleDensity}
+        viewPreset={viewPreset}
       />
       {SYSTEM_OBJECTS.map((body) => (
         <PlanetBody
@@ -1609,7 +1800,7 @@ function Scene({
           body={body}
           scaleMode={scaleMode}
           speed={speed}
-          showLabels={showLabels}
+          showLabels={contextualLabels}
           selected={selected}
           onSelect={onSelect}
           realOrbits={realOrbits}
@@ -1664,7 +1855,7 @@ function InfoPanel({ selected, onClose, moonMeta }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
         <div>
           <div style={{ color: selected.accent, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.13em', fontWeight: 800 }}>
-            {selected.group}
+            {selected.panelKicker || selected.group}
           </div>
           <h2 style={{ fontFamily: 'Space Grotesk, Inter, sans-serif', fontSize: '1.65rem', lineHeight: 1, marginTop: 4 }}>
             {selected.name}
@@ -1841,7 +2032,7 @@ function OortResearchPanel({ activePreset }) {
   const oortActive = activePreset === 'oort' || activePreset === 'heliopause';
 
   const description = oortActive
-    ? 'The Oort Cloud has not been directly imaged. This is a physically motivated scale model using seeded, unresolved comet-nucleus markers, reference shells, and an optional cutaway — not a measured density map.'
+    ? 'Markers are simulated phase-space samples: high-eccentricity Keplerian orbits, uniform mean-anomaly sampling, and logarithmic display compression. Their brightness reflects orbital residence time, not a measured comet-density map.'
     : 'Choose a scale preset to change the atlas context. The camera remains under manual control until Guided flyby is selected.';
 
   return (
@@ -1851,11 +2042,11 @@ function OortResearchPanel({ activePreset }) {
       left: oortActive ? 24 : '50%',
       transform: oortActive ? 'none' : 'translateX(-50%)',
       zIndex: 24,
-      width: oortActive ? 'min(410px, calc(100vw - 48px))' : 'min(520px, calc(100vw - 40px))',
+      width: oortActive ? 'min(430px, calc(100vw - 48px))' : 'min(520px, calc(100vw - 40px))',
       pointerEvents: 'none',
       color: '#fff',
       border: `1px solid ${oortActive ? 'rgba(224,242,254,0.26)' : 'rgba(255,255,255,0.08)'}`,
-      background: oortActive ? 'rgba(5,10,22,0.56)' : 'rgba(5,8,18,0.54)',
+      background: oortActive ? 'rgba(5,10,22,0.58)' : 'rgba(5,8,18,0.54)',
       borderRadius: 18,
       padding: '0.85rem 1rem',
       backdropFilter: 'blur(18px)',
@@ -1872,19 +2063,61 @@ function OortResearchPanel({ activePreset }) {
         </div>
         {oortActive && (
           <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 11, textAlign: 'right' }}>
-            NASA scale context<br />1,000–100,000 AU
+            reference context<br />2,000–100,000 AU
           </div>
         )}
       </div>
 
-      <p style={{ marginTop: 9, color: 'rgba(255,255,255,0.58)', fontSize: 12, lineHeight: 1.55 }}>
+      <p style={{ marginTop: 9, color: 'rgba(255,255,255,0.62)', fontSize: 12, lineHeight: 1.55 }}>
         {description}
       </p>
+
+      {oortActive && (
+        <div style={{
+          marginTop: 9,
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 7,
+          color: 'rgba(255,255,255,0.50)',
+          fontSize: 10,
+          lineHeight: 1.38,
+        }}>
+          <div style={{ padding: '0.5rem', border: '1px solid rgba(191,219,254,0.14)', borderRadius: 10 }}>
+            <strong style={{ display: 'block', color: '#bfdbfe', marginBottom: 2 }}>Inner / Hills reference</strong>
+            a = 2,000–20,000 AU; structured and model-dependent.
+          </div>
+          <div style={{ padding: '0.5rem', border: '1px solid rgba(224,242,254,0.14)', borderRadius: 10 }}>
+            <strong style={{ display: 'block', color: '#e0f2fe', marginBottom: 2 }}>Outer reference</strong>
+            a = 20,000–100,000 AU; near-isotropic pole model.
+          </div>
+        </div>
+      )}
     </aside>
   );
 }
 
-function ControlBar({ speed, setSpeed, scaleMode, setScaleMode, showLabels, setShowLabels, showRegions, setShowRegions, showShellGuides, setShowShellGuides, realOrbits, setRealOrbits, sizeBoost, setSizeBoost, showRuler, setShowRuler, viewPreset, setViewPreset, startGuidedFlyby }) {
+function ControlBar({
+  speed,
+  setSpeed,
+  scaleMode,
+  setScaleMode,
+  showLabels,
+  setShowLabels,
+  showRegions,
+  setShowRegions,
+  showShellGuides,
+  setShowShellGuides,
+  realOrbits,
+  setRealOrbits,
+  sizeBoost,
+  setSizeBoost,
+  showRuler,
+  setShowRuler,
+  viewPreset,
+  setViewPreset,
+  startGuidedFlyby,
+  guidedFlybyActive,
+}) {
   const controlStyle = {
     background: 'rgba(255,255,255,0.06)',
     border: '1px solid rgba(255,255,255,0.14)',
@@ -1894,6 +2127,9 @@ function ControlBar({ speed, setSpeed, scaleMode, setScaleMode, showLabels, setS
     fontSize: 12,
     fontWeight: 800,
   };
+
+  const flybyColour = guidedFlybyActive ? '#4ade80' : '#fb7185';
+
   return (
     <div className="solar-control-bar" style={{
       position: 'absolute',
@@ -1917,6 +2153,7 @@ function ControlBar({ speed, setSpeed, scaleMode, setScaleMode, showLabels, setS
       <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, letterSpacing: '0.12em', fontWeight: 900 }}>TIME WARP</span>
       <input aria-label="Simulation speed" type="range" min="0" max="8" step="0.1" value={speed} onChange={(event) => setSpeed(Number(event.target.value))} style={{ width: 120 }} />
       <strong style={{ color: palette.violet, minWidth: 42 }}>{speed.toFixed(1)}x</strong>
+
       <div style={{ display: 'flex', gap: 5, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 999, padding: 4, background: 'rgba(255,255,255,0.035)' }}>
         {VIEW_PRESETS.map((preset) => (
           <button
@@ -1946,35 +2183,57 @@ function ControlBar({ speed, setSpeed, scaleMode, setScaleMode, showLabels, setS
           </button>
         ))}
       </div>
+
       <button
         type="button"
         onClick={startGuidedFlyby}
-        title="Move once to the selected scale view. Manual camera control remains active afterwards."
+        title={guidedFlybyActive
+          ? 'Guided flyby is active. Dragging the camera returns control to manual navigation.'
+          : 'Start one guided move to the selected scale view.'}
         style={{
           ...controlStyle,
-          color: '#020617',
-          background: palette.cyan,
-          borderColor: 'rgba(103,232,249,0.78)',
-          boxShadow: '0 0 18px rgba(103,232,249,0.18)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 7,
+          color: guidedFlybyActive ? '#d1fae5' : '#fecdd3',
+          background: guidedFlybyActive ? 'rgba(34,197,94,0.14)' : 'rgba(244,63,94,0.10)',
+          borderColor: guidedFlybyActive ? 'rgba(74,222,128,0.68)' : 'rgba(251,113,133,0.46)',
+          boxShadow: guidedFlybyActive ? '0 0 20px rgba(74,222,128,0.34)' : 'none',
         }}
       >
-        Guided flyby
+        <span aria-hidden="true" style={{
+          width: 9,
+          height: 9,
+          borderRadius: '50%',
+          display: 'inline-block',
+          background: flybyColour,
+          boxShadow: guidedFlybyActive ? `0 0 12px ${flybyColour}, 0 0 24px ${flybyColour}` : 'none',
+        }} />
+        {guidedFlybyActive ? 'GUIDED FLYBY · ACTIVE' : 'GUIDED FLYBY · READY'}
       </button>
+
       <select className="astro-select" aria-label="Distance scale" value={scaleMode} onChange={(event) => setScaleMode(event.target.value)} style={controlStyle}>
         <option value="log">Log AU scale</option>
         <option value="inner">Inner-system zoom</option>
       </select>
+
       <select className="astro-select" aria-label="Planet size scale" value={sizeBoost} onChange={(event) => setSizeBoost(Number(event.target.value))} style={controlStyle}>
         <option value={0.75}>Survey sizes</option>
         <option value={1}>Atlas sizes</option>
         <option value={1.35}>Enhanced sizes</option>
       </select>
+
       <button type="button" onClick={() => setRealOrbits((value) => !value)} style={{ ...controlStyle, color: realOrbits ? palette.amber : 'rgba(255,255,255,0.58)' }}>Eccentric orbits</button>
       <button type="button" onClick={() => setShowLabels((value) => !value)} style={{ ...controlStyle, color: showLabels ? palette.cyan : 'rgba(255,255,255,0.58)' }}>Labels</button>
       <button type="button" onClick={() => setShowRegions((value) => !value)} style={{ ...controlStyle, color: showRegions ? palette.green : 'rgba(255,255,255,0.58)' }}>Belts + Oort</button>
       <button type="button" onClick={() => setShowShellGuides((value) => !value)} style={{ ...controlStyle, color: showShellGuides ? '#e0f2fe' : 'rgba(255,255,255,0.58)' }}>Shell guide</button>
-      <button type="button" onClick={() => setShowRuler((value) => !value)} style={{ ...controlStyle, color: showRuler ? '#93c5fd' : 'rgba(255,255,255,0.58)' }}>AU ruler</button>
-      <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>Manual camera is default. Choose a scale, then run Guided flyby only when wanted.</span>
+      <button type="button" onClick={() => setShowRuler((value) => !value)} style={{ ...controlStyle, color: showRuler ? '#93c5fd' : 'rgba(255,255,255,0.58)' }}>
+        {showRuler ? 'AU ruler · ON' : 'AU ruler · OFF'}
+      </button>
+
+      <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>
+        Manual camera is default. Choose a scale, then run Guided flyby only when wanted.
+      </span>
     </div>
   );
 }
@@ -1986,12 +2245,13 @@ export default function SolarSystem() {
   const [showLabels, setShowLabels] = useState(true);
   const [showRegions, setShowRegions] = useState(true);
   const [showShellGuides, setShowShellGuides] = useState(false);
-  const [showRuler, setShowRuler] = useState(true);
+  const [showRuler, setShowRuler] = useState(false);
   const [realOrbits, setRealOrbits] = useState(true);
   const [sizeBoost, setSizeBoost] = useState(1);
   const [viewPreset, setViewPreset] = useState(getInitialViewPreset);
   const [guidedCameraTick, setGuidedCameraTick] = useState(0);
   const [manualCameraTick, setManualCameraTick] = useState(0);
+  const [guidedFlybyActive, setGuidedFlybyActive] = useState(false);
 
   const compactViewport = useCompactViewport();
   const { moonCounts, moonMeta } = useMoonCounts();
@@ -2005,10 +2265,12 @@ export default function SolarSystem() {
   }, [moonCounts, selected]);
 
   const startGuidedFlyby = () => {
+    setGuidedFlybyActive(true);
     setGuidedCameraTick((value) => value + 1);
   };
 
   const cancelGuidedFlybyForManualControl = () => {
+    setGuidedFlybyActive(false);
     setManualCameraTick((value) => value + 1);
   };
 
@@ -2018,6 +2280,7 @@ export default function SolarSystem() {
       setShowLabels(false);
       setShowRuler(false);
       setShowShellGuides(false);
+      setGuidedFlybyActive(false);
     }
   }, [viewPreset]);
 
@@ -2040,6 +2303,7 @@ export default function SolarSystem() {
             manualCameraTick={manualCameraTick}
             particleDensity={compactViewport ? 0.46 : 1}
             onManualCameraStart={cancelGuidedFlybyForManualControl}
+            onFlybyStateChange={setGuidedFlybyActive}
           />
         </Suspense>
       </Canvas>
@@ -2080,6 +2344,7 @@ export default function SolarSystem() {
         viewPreset={viewPreset}
         setViewPreset={setViewPreset}
         startGuidedFlyby={startGuidedFlyby}
+        guidedFlybyActive={guidedFlybyActive}
       />
       <div style={{
         position: 'absolute',
