@@ -666,6 +666,66 @@ function makeTexture(name, colorA, colorB, colorC) {
 }
 
 
+function usePlanetTexture(body) {
+  const remoteTexture = useOptionalTexture(TEXTURE_URLS[body.texture]);
+
+  return useMemo(() => {
+    if (remoteTexture) return remoteTexture;
+
+    const colors = {
+      Mercury: ['#8b8580', '#c7c0b8', 'rgba(255,255,255,0.7)'],
+      Venus: ['#8b5e2c', '#e7c27c', 'rgba(255,236,189,0.9)'],
+      Mars: ['#5b2318', '#bd5d33', 'rgba(255,156,96,0.8)'],
+      Jupiter: ['#a7612d', '#e8bd78', 'rgba(255,220,160,0.9)'],
+      Saturn: ['#b99b62', '#f3dea5', 'rgba(255,245,210,0.8)'],
+      Uranus: ['#377c83', '#8ce9e7', 'rgba(220,255,255,0.7)'],
+      Neptune: ['#0b1d6d', '#4169e1', 'rgba(120,170,255,0.8)'],
+      Earth: ['#173f75', '#4f9cff', 'rgba(220,245,255,0.4)'],
+      Pluto: ['#75604d', '#d8c0a7', 'rgba(255,255,255,0.5)'],
+    }[body.name] || [body.color, body.accent, 'rgba(255,255,255,0.4)'];
+
+    return makeTexture(body.name, colors[0], colors[1], colors[2]);
+  }, [body.name, body.color, body.accent, remoteTexture]);
+}
+
+function OrbitRing({
+  au,
+  color = 'rgba(255,255,255,0.18)',
+  scaleMode,
+  label,
+  showLabel,
+  eccentricity = 0,
+  inclinationDeg = 0,
+  realOrbits = false,
+}) {
+  const radius = auToScene(au, scaleMode);
+  const points = useMemo(() => {
+    const output = [];
+    for (let i = 0; i <= 256; i += 1) {
+      const t = (i / 256) * Math.PI * 2;
+      output.push(orbitVector(au, eccentricity, inclinationDeg, t, scaleMode, realOrbits));
+    }
+    return output;
+  }, [au, eccentricity, inclinationDeg, realOrbits, scaleMode]);
+
+  return (
+    <group>
+      <Line points={points} color={color} transparent opacity={0.32} lineWidth={0.6} />
+      {showLabel && (
+        <Html position={[radius, 0.15, 0]} center distanceFactor={110}>
+          <span style={{
+            color: 'rgba(255,255,255,0.52)',
+            fontFamily: 'Space Grotesk, Inter, sans-serif',
+            fontSize: 10,
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+          }}>{label}</span>
+        </Html>
+      )}
+    </group>
+  );
+}
+
 function makeSolarFallbackTexture() {
   if (typeof document === 'undefined') return null;
 
