@@ -5,6 +5,20 @@ const outputDir = path.join(process.cwd(), 'public', 'data');
 const generatedAt = new Date().toISOString();
 const EXOPLANET_QUERY_LIMIT = 7000;
 
+const HOME_STATS_FALLBACK = {
+  schemaVersion: 1,
+  generatedAt: '2026-06-21T21:10:28.916Z',
+  source: 'Bundled AstroBis reference snapshot',
+  exoplanetQuery: 'select count(pl_name) from ps where default_flag = 1',
+  stats: {
+    confirmedExoplanets: 6298,
+    oortInnerAu: 1000,
+    oortOuterAu: 100000,
+    universeAgeGyr: 13.8,
+    solarSystemPlanets: 8,
+  },
+};
+
 function todayISO() {
   const date = new Date();
   const pad = (value) => String(value).padStart(2, '0');
@@ -44,8 +58,38 @@ async function keepExistingOrWriteFallback(filename, fallbackPayload, error) {
   }
 }
 
+async function writeHomeStats(confirmedExoplanets, sourceGeneratedAt = generatedAt) {
+  const safeCount = Number.isFinite(Number(confirmedExoplanets)) && Number(confirmedExoplanets) > 0
+    ? Number(confirmedExoplanets)
+    : HOME_STATS_FALLBACK.stats.confirmedExoplanets;
+
+  await writeSnapshot('home-stats.json', {
+    schemaVersion: 1,
+    generatedAt,
+    sourceGeneratedAt,
+    source: 'NASA Exoplanet Archive TAP confirmed-planet count plus AstroBis labelled scale references',
+    exoplanetQuery: 'select count(pl_name) from ps where default_flag = 1',
+    stats: {
+      confirmedExoplanets: safeCount,
+      oortInnerAu: 1000,
+      oortOuterAu: 100000,
+      universeAgeGyr: 13.8,
+      solarSystemPlanets: 8,
+    },
+    notes: {
+      exoplanets: 'Build-time NASA Exoplanet Archive count. The client displays the most recent deployed snapshot, not a live browser query.',
+      oortCloud: '1,000 AU and 100,000 AU are NASA scale estimates. The Oort Cloud has not been directly imaged.',
+      universeAge: '13.8 billion years is a standard cosmological reference value.',
+    },
+  });
+}
+
 async function fetchExoplanets() {
-  const countQuery = 'select count(*) as confirmed_planets, count(distinct hostname) as planetary_systems from pscomppars';
+  // The confirmed-planet count is deliberately drawn from ps/default_flag,
+  // matching the Archive's documented confirmed-planet query rather than
+  // treating PSCompPars row count as the authoritative total.
+  const confirmedCountQuery = 'select count(pl_name) as confirmed_planets from ps where default_flag = 1';
+  const systemCountQuery = 'select count(distinct hostname) as planetary_systems from pscomppars';
   const query = [
     `select top ${EXOPLANET_QUERY_LIMIT}`,
     'pl_name,hostname,discoverymethod,disc_facility,disc_year,pl_orbper,pl_rade,pl_bmasse,pl_eqt,pl_insol,pl_orbsmax,pl_orbeccen,pl_orbincl,sy_dist,st_teff,st_rad,st_mass,st_spectype',
@@ -53,36 +97,58 @@ async function fetchExoplanets() {
     'where pl_name is not null and hostname is not null',
     'order by sy_dist asc',
   ].join(' ');
+
   const url = `https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=${encodeURIComponent(query)}&format=json`;
-  const countUrl = `https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=${encodeURIComponent(countQuery)}&format=json`;
+  const confirmedCountUrl = `https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=${encodeURIComponent(confirmedCountQuery)}&format=json`;
+  const systemCountUrl = `https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=${encodeURIComponent(systemCountQuery)}&format=json`;
+
   try {
-    const [data, countData] = await Promise.all([
-      fetchJson(url, 'NASA Exoplanet Archive'),
-      fetchJson(countUrl, 'NASA Exoplanet Archive count'),
+    const [data, confirmedCountData, systemCountData] = await Promise.all([
+      fetchJson(url, 'NASA Exoplanet Archive PSCompPars'),
+      fetchJson(confirmedCountUrl, 'NASA Exoplanet Archive confirmed-planet count'),
+      fetchJson(systemCountUrl, 'NASA Exoplanet Archive system count'),
     ]);
-    const countRow = Array.isArray(countData) ? countData[0] : null;
+
+    const confirmedRow = Array.isArray(confirmedCountData) ? confirmedCountData[0] : null;
+    const systemRow = Array.isArray(systemCountData) ? systemCountData[0] : null;
+    const confirmedPlanets = Number(confirmedRow?.confirmed_planets || 0);
+    const planetarySystems = Number(systemRow?.planetary_systems || 0);
+
     await writeSnapshot('exoplanets.json', {
       generatedAt,
-      source: 'NASA Exoplanet Archive TAP pscomppars',
+      source: 'NASA Exoplanet Archive TAP PSCompPars working catalogue',
       query,
-      countQuery,
+      countQueries: {
+        confirmedCountQuery,
+        systemCountQuery,
+      },
       count: Array.isArray(data) ? data.length : 0,
       meta: {
-        confirmedPlanets: Number(countRow?.confirmed_planets || 0),
-        planetarySystems: Number(countRow?.planetary_systems || 0),
+        confirmedPlanets: confirmedPlanets || HOME_STATS_FALLBACK.stats.confirmedExoplanets,
+        planetarySystems: planetarySystems || null,
         queryLimit: EXOPLANET_QUERY_LIMIT,
         archiveTable: 'pscomppars',
       },
       data,
     });
+
+    await writeHomeStats(confirmedPlanets);
   } catch (error) {
     await keepExistingOrWriteFallback('exoplanets.json', {
       generatedAt,
       source: 'offline fallback',
       query,
       count: 0,
+      meta: {
+        confirmedPlanets: HOME_STATS_FALLBACK.stats.confirmedExoplanets,
+        planetarySystems: null,
+        queryLimit: EXOPLANET_QUERY_LIMIT,
+        archiveTable: 'pscomppars',
+      },
       data: [],
     }, error);
+
+    await keepExistingOrWriteFallback('home-stats.json', HOME_STATS_FALLBACK, error);
   }
 }
 
