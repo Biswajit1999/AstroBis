@@ -1,85 +1,156 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
-const useCountUp = (target, duration = 2000, started) => {
-  const [val, setVal] = useState(0);
-  useEffect(() => {
-    if (!started) return;
-    let start = null;
-    const step = (ts) => {
-      if (!start) start = ts;
-      const p = Math.min((ts - start) / duration, 1);
-      // Ease-out cubic
-      const eased = 1 - Math.pow(1 - p, 3);
-      setVal(Math.floor(eased * target));
-      if (p < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }, [started, target, duration]);
-  return val;
+const FALLBACK_STATS = {
+  schemaVersion: 1,
+  generatedAt: '2026-06-21T21:10:28.916Z',
+  source: 'Bundled AstroBis reference snapshot',
+  exoplanetQuery: 'NASA Exoplanet Archive ps table: default_flag = 1',
+  stats: {
+    confirmedExoplanets: 6298,
+    oortInnerAu: 1000,
+    oortOuterAu: 100000,
+    universeAgeGyr: 13.8,
+    solarSystemPlanets: 8,
+  },
 };
 
-const Stat = ({ value, suffix, label, description, icon, delay, started }) => {
-  const n = useCountUp(value, 2200, started);
+function dataUrl(filename) {
+  const base = typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL
+    ? import.meta.env.BASE_URL
+    : '/';
+  return `${base.endsWith('/') ? base : `${base}/`}data/${filename}`;
+}
+
+function number(value) {
+  return new Intl.NumberFormat('en-US').format(Number(value) || 0);
+}
+
+function StatCard({ icon, value, label, description, accent = '#c084fc' }) {
   return (
-    <div
+    <article
       className="card"
       style={{
-        textAlign:'center', padding:'2rem 1.5rem',
-        animationDelay:`${delay}ms`,
-        opacity: started ? 1 : 0,
-        transform: started ? 'translateY(0)' : 'translateY(20px)',
-        transition: `opacity 0.6s ease ${delay}ms, transform 0.6s ease ${delay}ms`,
+        textAlign: 'center',
+        padding: '1.9rem 1.25rem',
+        minHeight: 208,
+        display: 'grid',
+        alignContent: 'center',
+        gap: 7,
       }}
     >
-      <div style={{fontSize:'2.5rem',marginBottom:'0.5rem',lineHeight:1}}>{icon}</div>
+      <div style={{ fontSize: '2.25rem', lineHeight: 1 }} aria-hidden="true">{icon}</div>
       <div style={{
-        fontSize:'3.2rem', fontWeight:900,
-        fontFamily:'Space Grotesk,sans-serif',
-        lineHeight:1, marginBottom:'0.4rem',
-        background:'linear-gradient(135deg,#a78bfa,#ec4899)',
-        WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
-        backgroundClip:'text',
+        fontSize: 'clamp(2rem, 4vw, 3rem)',
+        fontWeight: 900,
+        fontFamily: 'Space Grotesk, sans-serif',
+        lineHeight: 1.04,
+        letterSpacing: '-0.04em',
+        color: accent,
+        textShadow: `0 0 24px ${accent}26`,
       }}>
-        {n.toLocaleString()}{suffix}
+        {value}
       </div>
-      <div style={{fontWeight:700,fontSize:'0.95rem',marginBottom:'0.3rem',color:'#e2e8f0'}}>
+      <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#e2e8f0' }}>
         {label}
       </div>
-      <div style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.4)',lineHeight:1.5}}>
+      <div style={{ fontSize: '0.77rem', color: 'rgba(255,255,255,0.48)', lineHeight: 1.5 }}>
         {description}
       </div>
-    </div>
+    </article>
   );
-};
+}
 
-const stats = [
-  { value:5700,  suffix:'+', label:'Exoplanets Confirmed', description:'Worlds orbiting other stars — and counting', icon:'🌍', delay:0 },
-  { value:200,   suffix:'B', label:'Galaxies Observable',  description:'In the observable universe alone',             icon:'🌌', delay:150 },
-  { value:13800, suffix:'M', label:'Years — Universe Age', description:'Years since the Big Bang',                    icon:'⏳', delay:300 },
-  { value:8,     suffix:'',  label:'Planets in our System',description:'Each unique — from tiny Mercury to vast Jupiter', icon:'☀️', delay:450 },
-];
-
-const StatsCounter = () => {
-  const ref     = useRef(null);
-  const [go, setGo] = useState(false);
+export default function StatsCounter() {
+  const [snapshot, setSnapshot] = useState(FALLBACK_STATS);
 
   useEffect(() => {
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setGo(true); obs.disconnect(); } },
-      { threshold: 0.2 }
-    );
-    if (ref.current) obs.observe(ref.current);
-    return () => obs.disconnect();
+    const controller = new AbortController();
+
+    fetch(`${dataUrl('home-stats.json')}?ts=${Date.now()}`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error(`home-stats.json returned ${response.status}`);
+        return response.json();
+      })
+      .then((payload) => {
+        if (payload?.stats?.confirmedExoplanets) setSnapshot(payload);
+      })
+      .catch(() => {
+        // The visible fallback is intentional: avoid zero-value cards during
+        // hydration or when an upstream build-time request is unavailable.
+      });
+
+    return () => controller.abort();
   }, []);
 
+  const stats = snapshot?.stats || FALLBACK_STATS.stats;
+
+  const cards = useMemo(() => [
+    {
+      icon: '◌',
+      value: `${number(stats.confirmedExoplanets)}+`,
+      label: 'Confirmed exoplanets',
+      description: 'NASA Archive count; refreshed by the site data workflow.',
+      accent: '#c084fc',
+    },
+    {
+      icon: '◒',
+      value: `${number(stats.oortOuterAu)} AU`,
+      label: 'Oort-cloud outer scale',
+      description: 'A scale reference, not a detected outer boundary.',
+      accent: '#67e8f9',
+    },
+    {
+      icon: '◷',
+      value: `${Number(stats.universeAgeGyr).toFixed(1)} billion yr`,
+      label: 'Age of the Universe',
+      description: 'Standard cosmological reference value.',
+      accent: '#a78bfa',
+    },
+    {
+      icon: '☉',
+      value: number(stats.solarSystemPlanets),
+      label: 'Planets in the Solar System',
+      description: 'Mercury through Neptune.',
+      accent: '#fbbf24',
+    },
+  ], [stats]);
+
+  const generatedLabel = snapshot?.generatedAt
+    ? new Date(snapshot.generatedAt).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    })
+    : 'bundled snapshot';
+
   return (
-    <div ref={ref} style={{
-      display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',
-      gap:'1.25rem', maxWidth:1100, margin:'0 auto', padding:'0 1rem',
-    }}>
-      {stats.map(s => <Stat key={s.label} {...s} started={go} />)}
+    <div>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+        gap: '1.25rem',
+        maxWidth: 1100,
+        margin: '0 auto',
+        padding: '0 1rem',
+      }}>
+        {cards.map((card) => <StatCard key={card.label} {...card} />)}
+      </div>
+
+      <p style={{
+        maxWidth: 850,
+        margin: '1rem auto 0',
+        padding: '0 1rem',
+        textAlign: 'center',
+        color: 'rgba(255,255,255,0.38)',
+        fontSize: '0.74rem',
+        lineHeight: 1.55,
+      }}>
+        Snapshot: {generatedLabel}. Catalogue figures are build-time values; the Oort Cloud number is a scale reference because the cloud has not been directly imaged.
+      </p>
     </div>
   );
-};
-
-export default StatsCounter;
+}
