@@ -19,8 +19,8 @@ const missionTiles = [
   {
     index: '02',
     label: 'Exoplanets',
-    value: '4,000 rows',
-    detail: 'NASA Archive snapshot with source links, mission plots, and distribution charts.',
+    value: 'NASA snapshot',
+    detail: 'Build-time Archive catalogue with source links, mission plots, and distribution charts.',
     href: withBase('/exoplanets'),
   },
   {
@@ -148,13 +148,13 @@ const featureModules = [
 
   <section class="home-section">
     <div class="section-intro">
-      <p class="section-kicker">Reference scale</p>
-      <h2 class="section-heading gradient-text-cool">The Universe by the Numbers</h2>
+      <p class="section-kicker">Reference values</p>
+      <h2 class="section-heading gradient-text-cool">Catalogues and Cosmic Scale</h2>
       <p class="section-copy">
-        AstroBis keeps the large-scale science readable while preserving the sense of distance.
+        Live-facing pages use build-time public-data snapshots where possible. Scale references are labelled separately from observed catalogues.
       </p>
     </div>
-    <StatsCounter client:visible />
+    <StatsCounter client:load />
   </section>
 
   <div class="section-divider"></div>
