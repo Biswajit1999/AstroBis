@@ -1,0 +1,153 @@
+/* ===== ASTROBIS MOBILE RESPONSIVENESS OVERRIDES =====
+   Purpose: keep the desktop experience intact while making dense dashboards,
+   radar panels, cards, forms, SVGs and navigation readable on phones. */
+
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+img,
+svg,
+canvas,
+video {
+  max-width: 100%;
+}
+
+main,
+section,
+article,
+aside,
+.card,
+.glass,
+.glass-strong {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  #navbar {
+    position: sticky !important;
+    top: 0 !important;
+    padding: 0.65rem 0.85rem !important;
+    align-items: flex-start !important;
+    gap: 0.7rem !important;
+  }
+
+  .brand-word {
+    font-size: 1rem !important;
+  }
+
+  .site-nav {
+    flex: 1 1 100% !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    padding-bottom: 0.25rem !important;
+    scrollbar-width: none;
+  }
+
+  .site-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .site-nav a,
+  .nav-external {
+    white-space: nowrap !important;
+    flex: 0 0 auto !important;
+  }
+
+  .nav-divider {
+    display: none !important;
+  }
+
+  .hero-section {
+    min-height: auto;
+    padding: 5.5rem 1rem 3rem;
+  }
+
+  .hero-title {
+    font-size: clamp(2.45rem, 14vw, 4.4rem);
+    line-height: 1.02;
+    overflow-wrap: anywhere;
+  }
+
+  .card,
+  .glass,
+  .glass-strong {
+    border-radius: 14px;
+  }
+
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  input,
+  select,
+  textarea,
+  button,
+  .astro-select {
+    max-width: 100%;
+  }
+
+  /* Fix desktop sticky panels, including NEO approach radar, on phone layouts. */
+  aside {
+    position: relative !important;
+    top: auto !important;
+    z-index: auto !important;
+  }
+
+  /* Remove nested desktop scroll areas so mobile reads as one natural page. */
+  section > div[style*="max-height"],
+  div[style*="maxHeight"],
+  div[style*="overflowY"] {
+    max-height: none !important;
+    overflow-y: visible !important;
+    padding-right: 0 !important;
+  }
+
+  input[placeholder*="Search"],
+  .astro-select,
+  button[type="button"] {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+  }
+
+  svg[viewBox="0 0 390 390"] {
+    max-height: min(72vw, 330px);
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    font-size: 15px;
+  }
+
+  .nebula-bg::before,
+  .nebula-bg::after {
+    width: 280px;
+    height: 280px;
+    filter: blur(8px);
+  }
+
+  .card {
+    padding: 1rem;
+  }
+
+  h1,
+  h2,
+  h3,
+  p,
+  span,
+  strong,
+  a {
+    overflow-wrap: anywhere;
+  }
+}
