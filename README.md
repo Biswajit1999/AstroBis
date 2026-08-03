@@ -24,7 +24,7 @@ AstroBis currently contains eight major modules:
 | Module | Description |
 | --- | --- |
 | Solar System Atlas | Interactive planets, dwarf planets, Kuiper Belt, heliopause, and Oort Cloud scale exploration |
-| Mars 3D Map | Real-texture Mars globe with areographic features, landing sites, coordinate picking, and moon context |
+| Mars 3D Map | Real-texture Mars globe with MOLA-derived 3D terrain, areographic features, landing sites, coordinate picking, and moon context |
 | EarthOps World Map | Space-first world map with satellites, debris, launches, natural events, disasters, earthquakes, space news, and public media |
 | Exoplanet Explorer | NASA Exoplanet Archive catalogue browsing, filtering, and visual analytics |
 | ISS Mission Control | ISS tracking using CelesTrak orbital elements and SGP4 propagation |
@@ -58,14 +58,16 @@ The Mars Map page is a dedicated areography console for inspecting Mars as a rea
 Features include:
 
 * Same-origin Mars surface texture cached for reliable GitHub Pages deployment
+* NASA PDS Mars Global Surveyor MOLA topography converted into a compact heightmap for real 3D terrain displacement
+* MOLA hillshade overlay plus a vertical-exaggeration control so planetary-scale relief remains readable
 * Named surface features including Olympus Mons, Valles Marineris, Hellas Planitia, Gale Crater, Jezero Crater, Tharsis, Elysium, polar layered deposits, and other major regions
 * Landing-site markers for Viking, Pathfinder, Spirit, Opportunity, Phoenix, Curiosity, InSight, Perseverance, and Zhurong
 * Coordinate readout and manual coordinate picking
-* Layer controls for relief shading, graticule, labels, missions, Phobos and Deimos, polar caps, and atmospheric haze
+* Layer controls for 3D terrain, relief shading, graticule, labels, missions, Phobos and Deimos, polar caps, and atmospheric haze
 * 2D mini-map and landing-site chronology rail
-* Source notes from NASA Mars facts, NASA Mars Trek, IAU/USGS planetary nomenclature, and public Mars texture references
+* Source notes from NASA Mars facts, NASA Mars Trek, NASA PDS MOLA MEGDR, IAU/USGS planetary nomenclature, and public Mars texture references
 
-The Mars page is a scientific WebGL atlas, not a meter-scale GIS terrain renderer. Relief and haze are labelled visual layers.
+The Mars page is a scientific WebGL atlas. Its terrain is a real global MOLA elevation layer resampled for the browser and vertically exaggerated for whole-planet readability; it is not a rover-scale GIS terrain renderer.
 
 ## EarthOps World Map
 
@@ -135,7 +137,7 @@ AstroBis integrates public astronomical and Earth-facing datasets from:
 * NASA Astronomy Picture of the Day
 * NASA EONET v3
 * NASA Live and NASA Earthdata Worldview
-* NASA Mars facts and NASA Mars Trek
+* NASA Mars facts, NASA Mars Trek, and NASA PDS MOLA MEGDR
 * IAU / USGS planetary nomenclature
 * USGS Earthquake GeoJSON feeds
 * GDACS current disaster feed
@@ -201,7 +203,7 @@ AstroBis intentionally separates archive values, derived quantities, and illustr
 Examples:
 
 * Oort Cloud particles are visual representations, not observed objects.
-* Mars relief/haze layers are visual overlays on a real global texture, not rover-scale terrain reconstruction.
+* Mars terrain uses a real NASA PDS MOLA global heightmap, but it is resampled and vertically exaggerated for real-time WebGL rather than rover-scale terrain reconstruction.
 * Exoplanet renders are artistic interpretations, not telescope images.
 * ISS positions depend on the age of the available orbital elements.
 * EarthOps disaster and news layers are public feed snapshots, not official impact assessments.

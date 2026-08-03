@@ -18,6 +18,19 @@ import * as THREE from 'three';
 const BASE_PATH = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
 const MARS_DATA_URL = `${BASE_PATH}data/mars-map.json`;
 const MARS_TEXTURE_URL = `${BASE_PATH}assets/mars-texture.jpg`;
+const MARS_HEIGHTMAP_URL = `${BASE_PATH}assets/mars-mola-heightmap.png`;
+const MARS_HILLSHADE_URL = `${BASE_PATH}assets/mars-mola-hillshade.jpg`;
+const MOLA_TERRAIN = {
+  minMeters: -8177,
+  maxMeters: 21171,
+  marsRadiusMeters: 3389500,
+  get elevationSpanScale() {
+    return (this.maxMeters - this.minMeters) / this.marsRadiusMeters;
+  },
+  get zeroDatumNorm() {
+    return (0 - this.minMeters) / (this.maxMeters - this.minMeters);
+  },
+};
 const MARS_BASE_ROTATION = {
   x: THREE.MathUtils.degToRad(-2),
   y: THREE.MathUtils.degToRad(-30),
@@ -45,8 +58,12 @@ const FALLBACK_MARS_DATA = {
   },
   textures: {
     localSurfaceUrl: 'assets/mars-texture.jpg',
+    localHeightmapUrl: 'assets/mars-mola-heightmap.png',
+    localHillshadeUrl: 'assets/mars-mola-hillshade.jpg',
     surfaceCredit: 'Solar System Scope / Wikimedia Commons Mars texture map',
-    textureNote: 'Relief and haze are visualization layers, not meter-scale terrain rendering.',
+    heightmapCredit: 'NASA PDS Mars Global Surveyor MOLA MEGDR median topography',
+    elevationRangeMeters: { min: -8177, max: 21171 },
+    textureNote: 'Surface color is a public global texture; 3D terrain and relief shading are derived from NASA PDS MOLA topography and vertically exaggerated for readability.',
   },
   features: [
     { id: 'olympus-mons', name: 'Olympus Mons', type: 'volcano', lat: 18.65, lon: -133.8, scale: 'about 600 km wide', priority: 'major', summary: 'Largest known volcano in the Solar System.', source: 'NASA / USGS Mars reference' },
@@ -64,7 +81,7 @@ const FALLBACK_MARS_DATA = {
   sources: [],
   notes: {
     coordinates: 'Approximate feature center points normalized to -180 to +180 longitude.',
-    visualization: 'A real-data WebGL atlas, not a high-resolution GIS terrain engine.',
+    visualization: 'A real-data WebGL atlas with MOLA-derived terrain, not a rover-scale GIS terrain engine.',
   },
 };
 
@@ -330,16 +347,29 @@ function CameraFocus({ selected, focusTick }) {
   return <OrbitControls ref={controls} enableDamping dampingFactor={0.06} minDistance={1.35} maxDistance={6.4} />;
 }
 
-function MarsGlobe({ data, selected, onSelect, onCoordinate, layers, focusTick }) {
-  const texture = useLoader(THREE.TextureLoader, MARS_TEXTURE_URL);
+function MarsGlobe({ data, selected, onSelect, onCoordinate, layers, focusTick, terrainBoost }) {
+  const [texture, heightTexture, hillshadeTexture] = useLoader(THREE.TextureLoader, [
+    MARS_TEXTURE_URL,
+    MARS_HEIGHTMAP_URL,
+    MARS_HILLSHADE_URL,
+  ]);
 
   useMemo(() => {
     texture.colorSpace = THREE.SRGBColorSpace;
+    hillshadeTexture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 8;
-  }, [texture]);
+    heightTexture.anisotropy = 8;
+    hillshadeTexture.anisotropy = 8;
+    heightTexture.wrapS = THREE.ClampToEdgeWrapping;
+    heightTexture.wrapT = THREE.ClampToEdgeWrapping;
+    hillshadeTexture.wrapS = THREE.ClampToEdgeWrapping;
+    hillshadeTexture.wrapT = THREE.ClampToEdgeWrapping;
+  }, [texture, heightTexture, hillshadeTexture]);
 
   const features = data.features || [];
   const landingSites = data.landingSites || [];
+  const terrainScale = layers.terrain ? MOLA_TERRAIN.elevationSpanScale * terrainBoost : 0;
+  const terrainBias = layers.terrain ? -MOLA_TERRAIN.zeroDatumNorm * terrainScale : 0;
 
   return (
     <>
@@ -361,16 +391,36 @@ function MarsGlobe({ data, selected, onSelect, onCoordinate, layers, focusTick }
             if (event.uv) onSelect({ ...uvToCoordinate(event.uv), id: 'coordinate-pick', name: 'Selected coordinate', kind: 'coordinate', type: 'surface point', summary: 'Manual coordinate selected on the Mars texture.' });
           }}
         >
-          <sphereGeometry args={[1, 160, 160]} />
+          <sphereGeometry args={[1, 256, 256]} />
           <meshStandardMaterial
             map={texture}
-            bumpMap={layers.relief ? texture : null}
-            bumpScale={layers.relief ? 0.035 : 0}
+            bumpMap={layers.relief || layers.terrain ? heightTexture : null}
+            bumpScale={layers.relief ? 0.055 : 0.022}
+            displacementMap={layers.terrain ? heightTexture : null}
+            displacementScale={terrainScale}
+            displacementBias={terrainBias}
             roughness={0.93}
             metalness={0}
             color="#ffffff"
           />
         </mesh>
+        {layers.relief && (
+          <mesh>
+            <sphereGeometry args={[1.002, 256, 256]} />
+            <meshStandardMaterial
+              map={hillshadeTexture}
+              displacementMap={layers.terrain ? heightTexture : null}
+              displacementScale={terrainScale}
+              displacementBias={terrainBias}
+              transparent
+              opacity={0.28}
+              blending={THREE.MultiplyBlending}
+              depthWrite={false}
+              roughness={1}
+              metalness={0}
+            />
+          </mesh>
+        )}
         <PolarCaps visible={layers.polarCaps} />
         <Graticule visible={layers.graticule} />
         {layers.features && features.map((feature) => (
@@ -422,7 +472,20 @@ function LayerButton({ icon: Icon, label, active, onClick }) {
   );
 }
 
-function MarsCommandPanel({ data, query, setQuery, filter, setFilter, layers, toggleLayer, selected, setSelected, setFocusTick }) {
+function MarsCommandPanel({
+  data,
+  query,
+  setQuery,
+  filter,
+  setFilter,
+  layers,
+  toggleLayer,
+  selected,
+  setSelected,
+  setFocusTick,
+  terrainBoost,
+  setTerrainBoost,
+}) {
   const features = data.features || [];
   const landingSites = data.landingSites || [];
   const featureTypes = useMemo(() => ['all', ...Array.from(new Set(features.map((item) => item.type))).sort()], [features]);
@@ -436,8 +499,8 @@ function MarsCommandPanel({ data, query, setQuery, filter, setFilter, layers, to
       <div className="mars-kicker">AstroBis Mars map</div>
       <h1>Real 3D surface atlas</h1>
       <p>
-        A WebGL Mars globe with a real texture map, named surface features, landing-site markers, moon orbits,
-        coordinate picking, and labelled scientific caveats.
+        A WebGL Mars globe with a real texture map, NASA PDS MOLA terrain displacement, named surface features,
+        landing-site markers, moon orbits, coordinate picking, and labelled scientific caveats.
       </p>
 
       <div className="mars-search">
@@ -473,7 +536,28 @@ function MarsCommandPanel({ data, query, setQuery, filter, setFilter, layers, to
         <div><span>Moons</span><strong>{data.body?.knownMoons}</strong></div>
       </div>
 
+      <div className="mars-terrain-control">
+        <div>
+          <span>MOLA terrain</span>
+          <strong>{layers.terrain ? `${terrainBoost.toFixed(0)}x vertical` : 'off'}</strong>
+        </div>
+        <input
+          type="range"
+          min="1"
+          max="18"
+          step="1"
+          value={terrainBoost}
+          disabled={!layers.terrain}
+          onChange={(event) => setTerrainBoost(Number(event.target.value))}
+          aria-label="MOLA terrain vertical exaggeration"
+        />
+        <small>
+          1x is closest to planetary scale; higher values make volcanoes, basins, and canyon systems legible on a whole-planet globe.
+        </small>
+      </div>
+
       <div className="mars-layer-grid">
+        <LayerButton icon={Mountain} label="3D terrain" active={layers.terrain} onClick={() => toggleLayer('terrain')} />
         <LayerButton icon={Layers} label="Relief" active={layers.relief} onClick={() => toggleLayer('relief')} />
         <LayerButton icon={Map} label="Grid" active={layers.graticule} onClick={() => toggleLayer('graticule')} />
         <LayerButton icon={Mountain} label="Features" active={layers.features} onClick={() => toggleLayer('features')} />
@@ -486,7 +570,7 @@ function MarsCommandPanel({ data, query, setQuery, filter, setFilter, layers, to
       </div>
 
       <div className="mars-note">
-        {data.textures?.textureNote || 'Relief and haze are visualization layers.'}
+        {data.textures?.textureNote || 'MOLA terrain is vertically exaggerated for whole-planet readability.'}
       </div>
 
       {selected?.kind === 'coordinate' && (
@@ -548,7 +632,7 @@ function MarsInfoPanel({ data, selected, hoverCoordinate, setSelected }) {
   );
 }
 
-function MarsMiniMap({ data, selected, setSelected, visible, query, filter }) {
+function MarsMiniMap({ data, selected, setSelected, visible, query, filter, layers }) {
   if (!visible) return null;
   const lower = query.trim().toLowerCase();
   const features = (data.features || []).filter((feature) => {
@@ -560,6 +644,7 @@ function MarsMiniMap({ data, selected, setSelected, visible, query, filter }) {
   return (
     <div className="mars-mini-map">
       <div className="mars-mini-map-bg" />
+      <div className={`mars-mini-map-relief ${layers.relief || layers.terrain ? 'is-visible' : ''}`} />
       <div className="mars-mini-map-grid" />
       {features.map((feature) => (
         <button
@@ -626,7 +711,9 @@ export default function MarsMap() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [focusTick, setFocusTick] = useState(0);
+  const [terrainBoost, setTerrainBoost] = useState(5);
   const [layers, setLayers] = useState({
+    terrain: true,
     relief: true,
     graticule: true,
     features: true,
@@ -647,10 +734,10 @@ export default function MarsMap() {
         const payload = await response.json();
         if (active) {
           setData(payload);
-          setSelected(payload.features?.[0] ? { ...payload.features[0], kind: 'feature' } : null);
+          setSelected(null);
         }
       } catch {
-        if (active) setSelected(FALLBACK_MARS_DATA.features?.[0] ? { ...FALLBACK_MARS_DATA.features[0], kind: 'feature' } : null);
+        if (active) setSelected(null);
       }
     }
     loadMarsData();
@@ -685,6 +772,7 @@ export default function MarsMap() {
             onCoordinate={setHoverCoordinate}
             layers={layers}
             focusTick={focusTick}
+            terrainBoost={terrainBoost}
           />
         </Suspense>
       </Canvas>
@@ -692,7 +780,7 @@ export default function MarsMap() {
       <div className="mars-top-strip">
         <span>UTC {new Date(data.generatedAt || Date.now()).toISOString().slice(0, 16).replace('T', ' ')}</span>
         <strong>Mars Areography Console</strong>
-        <span>{(data.features || []).length} features / {(data.landingSites || []).length} landers and rovers</span>
+        <span>{(data.features || []).length} features / {(data.landingSites || []).length} landers and rovers / MOLA {layers.terrain ? `${terrainBoost}x terrain` : 'terrain off'}</span>
       </div>
 
       <MarsCommandPanel
@@ -706,9 +794,11 @@ export default function MarsMap() {
         selected={selected}
         setSelected={setSelected}
         setFocusTick={setFocusTick}
+        terrainBoost={terrainBoost}
+        setTerrainBoost={setTerrainBoost}
       />
       <MarsInfoPanel data={data} selected={selected} hoverCoordinate={hoverCoordinate} setSelected={setSelected} />
-      <MarsMiniMap data={data} selected={selected} setSelected={setSelected} visible={layers.miniMap} query={query} filter={filter} />
+      <MarsMiniMap data={data} selected={selected} setSelected={setSelected} visible={layers.miniMap} query={query} filter={filter} layers={layers} />
       <MissionRail data={data} setSelected={(site) => {
         setSelected(site);
         setFocusTick((value) => value + 1);
@@ -716,7 +806,7 @@ export default function MarsMap() {
       <SourceStrip data={data} />
 
       <div className="mars-credit">
-        Texture: {data.textures?.surfaceCredit || 'Mars public texture'} - Data: NASA / USGS / IAU reference sources
+        Texture: {data.textures?.surfaceCredit || 'Mars public texture'} - Terrain: {data.textures?.heightmapCredit || 'NASA PDS MOLA MEGDR'} - Data: NASA / USGS / IAU reference sources
       </div>
 
       <style>{marsStyles}</style>
@@ -877,6 +967,44 @@ const marsStyles = `
   color: #fed7aa;
   font-size: 14px;
 }
+.mars-terrain-control {
+  margin-top: 0.85rem;
+  border: 1px solid rgba(251,146,60,0.18);
+  background: linear-gradient(135deg, rgba(251,146,60,0.11), rgba(96,165,250,0.055));
+  border-radius: 14px;
+  padding: 0.72rem;
+}
+.mars-terrain-control div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.mars-terrain-control span {
+  color: #fed7aa;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.mars-terrain-control strong {
+  color: #93c5fd;
+  font-size: 12px;
+}
+.mars-terrain-control input {
+  width: 100%;
+  margin: 0.62rem 0 0.38rem;
+  accent-color: #fb923c;
+}
+.mars-terrain-control input:disabled {
+  opacity: 0.45;
+}
+.mars-terrain-control small {
+  display: block;
+  color: rgba(255,255,255,0.46);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
 .mars-layer-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1016,6 +1144,19 @@ const marsStyles = `
   background-size: cover;
   background-position: center;
   filter: saturate(1.04) contrast(1.1);
+}
+.mars-mini-map-relief {
+  position: absolute;
+  inset: 0;
+  background-image: url('${MARS_HILLSHADE_URL}');
+  background-size: cover;
+  background-position: center;
+  mix-blend-mode: multiply;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.mars-mini-map-relief.is-visible {
+  opacity: 0.34;
 }
 .mars-mini-map-grid {
   position: absolute;
@@ -1157,6 +1298,8 @@ const marsStyles = `
 }
 @media (max-width: 1540px) {
   .mars-map-shell {
+    width: auto;
+    max-width: 100%;
     height: auto;
     min-height: 100vh;
     overflow: visible;
@@ -1179,7 +1322,7 @@ const marsStyles = `
     position: relative;
     inset: auto;
     transform: none;
-    width: 100%;
+    width: auto;
     max-width: none;
   }
   .mars-right-panel {

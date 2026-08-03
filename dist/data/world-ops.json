@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-03T19:33:15.052Z",
+  "generatedAt": "2026-08-03T20:17:46.673Z",
   "sources": [
     {
       "id": "eonet",
@@ -104,26 +104,13 @@
   ],
   "events": [
     {
-      "id": "gdacs-WF-1029764-11",
-      "type": "disaster",
-      "title": "Forest fires in Angola",
-      "lat": -10.348552452644508,
-      "lon": 14.892391054176004,
-      "severity": "green",
-      "timestamp": "2026-08-03T18:32:29.000Z",
-      "source": "GDACS",
-      "url": "https://www.gdacs.org/report.aspx?eventid=1029764&episodeid=11&eventtype=WF",
-      "summary": "Green Forest fires in Angola from: 21 Jul 2026 to: 03 Aug 2026.",
-      "country": "Angola"
-    },
-    {
       "id": "gdacs-WF-1029628-32",
       "type": "disaster",
       "title": "Forest fires in France",
       "lat": 44.8462656528215,
       "lon": -1.0329110267930726,
       "severity": "red",
-      "timestamp": "2026-08-03T18:30:18.000Z",
+      "timestamp": "2026-08-03T19:15:18.000Z",
       "source": "GDACS",
       "url": "https://www.gdacs.org/report.aspx?eventid=1029628&episodeid=32&eventtype=WF",
       "summary": "Red Forest fires in France from: 22 Jul 2026 to: 01 Aug 2026.",
@@ -136,24 +123,37 @@
       "lat": 35.16840400166546,
       "lon": 24.46251368828937,
       "severity": "orange",
-      "timestamp": "2026-08-03T18:30:16.000Z",
+      "timestamp": "2026-08-03T19:15:16.000Z",
       "source": "GDACS",
       "url": "https://www.gdacs.org/report.aspx?eventid=1029958&episodeid=4&eventtype=WF",
       "summary": "Orange Forest fires in Greece from: 30 Jul 2026 to: 01 Aug 2026.",
       "country": "Greece"
     },
     {
-      "id": "gdacs-TC-1001297-31",
+      "id": "gdacs-TC-1001297-32",
       "type": "cyclone",
       "title": "Tropical Cyclone DOLPHIN-26",
-      "lat": 25,
-      "lon": 145.7,
+      "lat": 25.1,
+      "lon": 144.2,
       "severity": "green",
-      "timestamp": "2026-08-03T18:22:57.000Z",
+      "timestamp": "2026-08-03T19:13:38.000Z",
       "source": "GDACS",
-      "url": "https://www.gdacs.org/report.aspx?eventid=1001297&episodeid=31&eventtype=TC",
+      "url": "https://www.gdacs.org/report.aspx?eventid=1001297&episodeid=32&eventtype=TC",
       "summary": "Green Tropical Cyclone DOLPHIN-26 in Marshall Islands, Japan from: 27 Jul 2026 to: 03 Aug 2026 .",
       "country": "Marshall Islands, Japan"
+    },
+    {
+      "id": "gdacs-WF-1029764-11",
+      "type": "disaster",
+      "title": "Forest fires in Angola",
+      "lat": -10.348552452644508,
+      "lon": 14.892391054176004,
+      "severity": "green",
+      "timestamp": "2026-08-03T18:32:29.000Z",
+      "source": "GDACS",
+      "url": "https://www.gdacs.org/report.aspx?eventid=1029764&episodeid=11&eventtype=WF",
+      "summary": "Green Forest fires in Angola from: 21 Jul 2026 to: 03 Aug 2026.",
+      "country": "Angola"
     },
     {
       "id": "gdacs-WF-1029928-13",
@@ -1520,6 +1520,20 @@
       "depthKm": 10
     },
     {
+      "id": "usgs-us6000th6a",
+      "type": "earthquake",
+      "title": "M 4.6 - 37 km WNW of Dāmghān, Iran",
+      "lat": 36.2353,
+      "lon": 53.9299,
+      "severity": "low",
+      "timestamp": "2026-07-31T09:08:55.647Z",
+      "source": "USGS Earthquake Hazards Program",
+      "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us6000th6a",
+      "summary": "Magnitude 4.6 earthquake at 37 km WNW of Dāmghān, Iran; depth 10 km.",
+      "magnitude": 4.6,
+      "depthKm": 10
+    },
+    {
       "id": "usgs-us6000th68",
       "type": "earthquake",
       "title": "M 4.9 - 287 km SW of Banda Aceh, Indonesia",
@@ -2500,20 +2514,6 @@
       "source": "USGS Earthquake Hazards Program",
       "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us6000tg8z",
       "summary": "Magnitude 5 earthquake at 112 km ENE of Georgetown, Saint Helena; depth 10 km.",
-      "magnitude": 5,
-      "depthKm": 10
-    },
-    {
-      "id": "usgs-us6000tg75",
-      "type": "earthquake",
-      "title": "M 5.0 - 88 km SE of Sola, Vanuatu",
-      "lat": -14.5194,
-      "lon": 168.0332,
-      "severity": "medium",
-      "timestamp": "2026-07-27T20:10:01.634Z",
-      "source": "USGS Earthquake Hazards Program",
-      "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us6000tg75",
-      "summary": "Magnitude 5 earthquake at 88 km SE of Sola, Vanuatu; depth 10 km.",
       "magnitude": 5,
       "depthKm": 10
     },
@@ -12312,6 +12312,15 @@
   ],
   "news": [
     {
+      "id": "news-39306",
+      "title": "Louisiana Students Loft Payloads from NASA Balloon Facility in Texas",
+      "site": "NASA",
+      "publishedAt": "2026-08-03T19:22:43.000Z",
+      "url": "https://www.nasa.gov/missions/scientific-balloons/louisiana-students-loft-payloads-from-nasa-balloon-facility-in-texas/",
+      "summary": "Every spring in Palestine, Texas, the wide-open fields around NASA’s Columbia Scientific Balloon Facility fill with students and faculty from across Louisiana. They arrive carrying sensors, laptops, and carefully engineered payloads they have spent months pre...",
+      "imageUrl": "https://www.nasa.gov/wp-content/uploads/2026/08/balloons-la-students-summer-2026.jpg"
+    },
+    {
       "id": "news-39305",
       "title": "Guinea-Bissau Tidal Waters",
       "site": "NASA",
@@ -12517,15 +12526,6 @@
       "url": "https://science.nasa.gov/solar-system/whats-up-august-2026-skywatching-tips-from-nasa/",
       "summary": "A solar eclipse, the Perseids, bright Venus after sunset, and a deep partial lunar eclipse highlight August’s skywatching. Skywatching Highlights Transcript A solar eclipse, one of the year’s best meteor showers, Venus at its brightest in the evening sky, and...",
       "imageUrl": "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/solar-system/skywatching/2026/august/20260717%20Whats%20Up%20August%202026%20WHATSUp_2.jpg"
-    },
-    {
-      "id": "news-39281",
-      "title": "Starbase Pad 1 Retrofits Progress as Block 3 Flights Start",
-      "site": "NASASpaceflight",
-      "publishedAt": "2026-07-31T21:14:22.000Z",
-      "url": "https://www.nasaspaceflight.com/2026/07/pad-1-retrofits-block-3-flights/",
-      "summary": "While SpaceX has now flown two flights out of the newly designed Pad 2, crews… The post Starbase Pad 1 Retrofits Progress as Block 3 Flights Start appeared first on NASASpaceFlight.com.",
-      "imageUrl": "https://www.nasaspaceflight.com/wp-content/uploads/2026/07/DSC01537-wmarked-scaled.jpg"
     }
   ],
   "media": [

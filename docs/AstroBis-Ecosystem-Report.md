@@ -94,7 +94,7 @@ The Oort Cloud is represented as a sparse, spherical modelled shell. It is not a
 
 ## Mars 3D map
 
-The Mars module is a dedicated areography view rather than a decorative planet preview. It combines a locally cached global Mars surface texture with a static same-origin snapshot of major surface features, landing sites, planetary constants, and moon context.
+The Mars module is a dedicated areography view rather than a decorative planet preview. It combines a locally cached global Mars surface texture, a NASA PDS Mars Global Surveyor MOLA topography layer, and a static same-origin snapshot of major surface features, landing sites, planetary constants, and moon context.
 
 The deployed Mars snapshot is written to:
 
@@ -107,9 +107,9 @@ and includes:
 * planetary constants such as radius, gravity, sol length, axial tilt, orbital period, and known moons;
 * named feature points such as Olympus Mons, Valles Marineris, Hellas Planitia, Gale Crater, Jezero Crater, Tharsis Montes, Elysium Mons, Nili Fossae, and polar layered deposits;
 * landing-site records for Viking, Pathfinder, Spirit, Opportunity, Phoenix, Curiosity, InSight, Perseverance, and Zhurong;
-* source records for NASA Mars facts, NASA Mars Trek, IAU/USGS planetary nomenclature, and public texture-map references.
+* source records for NASA Mars facts, NASA Mars Trek, NASA PDS MOLA MEGDR, IAU/USGS planetary nomenclature, and public texture-map references.
 
-The 3D scene uses a spherical Mars body with an equirectangular texture, labelled surface markers, optional coordinate grid, polar cap visualization, a thin atmospheric haze, and simplified Phobos/Deimos orbit context. Coordinate picking converts the selected texture coordinate into latitude and normalized longitude:
+The 3D scene uses a spherical Mars body with an equirectangular texture, MOLA-derived displacement, MOLA hillshade, labelled surface markers, optional coordinate grid, polar cap visualization, a thin atmospheric haze, and simplified Phobos/Deimos orbit context. Coordinate picking converts the selected texture coordinate into latitude and normalized longitude:
 
 [
 \phi_{\mathrm{lat}}=(0.5-v)\times180^\circ
@@ -121,7 +121,7 @@ The 3D scene uses a spherical Mars body with an equirectangular texture, labelle
 
 where (u,v) are the selected texture coordinates. Feature locations are approximate center points, not landing-ellipse or rover-traverse geometries.
 
-This module is not a GIS terrain engine. The relief layer is a WebGL bump/lighting visualization derived from the surface map, so it helps the globe read as a physical world but should not be interpreted as a MOLA elevation product.
+The terrain layer is derived from the PDS MOLA MEGDR median-topography product, whose source grid is 5760 by 2880 samples at 16 pixels per degree. AstroBis resamples that grid into a compact same-origin WebGL heightmap and uses a labelled vertical-exaggeration control so global volcanoes, basins, and canyon systems remain visible at whole-planet scale. This module is still not a rover-scale GIS terrain engine; local HiRISE/CTX patches would be a separate zoomed-surface layer.
 
 ### Orbital geometry
 

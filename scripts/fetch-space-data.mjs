@@ -41,9 +41,16 @@ const MARS_MAP_SNAPSHOT = {
   },
   textures: {
     localSurfaceUrl: 'assets/mars-texture.jpg',
+    localHeightmapUrl: 'assets/mars-mola-heightmap.png',
+    localHillshadeUrl: 'assets/mars-mola-hillshade.jpg',
     surfaceUrl: 'https://commons.wikimedia.org/wiki/Special:FilePath/Solarsystemscope_texture_2k_mars.jpg',
     surfaceCredit: 'Solar System Scope / Wikimedia Commons Mars texture map',
-    textureNote: 'Equirectangular global surface texture. Relief and polar haze are visualization layers, not meter-scale terrain rendering.',
+    heightmapUrl: 'https://pds-geosciences.wustl.edu/mgs/mgs-m-mola-5-megdr-l3-v1/mgsl_300x/meg016/megt90n000eb.img',
+    heightmapLabelUrl: 'https://pds-geosciences.wustl.edu/mgs/mgs-m-mola-5-megdr-l3-v1/mgsl_300x/meg016/megt90n000eb.lbl',
+    heightmapCredit: 'NASA PDS Mars Global Surveyor MOLA MEGDR median topography',
+    elevationRangeMeters: { min: -8177, max: 21171 },
+    heightmapResolution: '5760 x 2880 samples at 16 pixels per degree, resampled to a 2048 x 1024 WebGL displacement map',
+    textureNote: 'Surface color is a public global texture; 3D terrain and relief shading are derived from NASA PDS MOLA topography and vertically exaggerated for readability.',
   },
   sources: [
     {
@@ -57,6 +64,12 @@ const MARS_MAP_SNAPSHOT = {
       label: 'NASA Mars Trek',
       url: 'https://trek.nasa.gov/mars/',
       note: 'Reference portal for Mars surface mapping, contextual layers, and mission geography.',
+    },
+    {
+      id: 'nasa-pds-mola-megdr',
+      label: 'NASA PDS MOLA MEGDR',
+      url: 'https://pds-geosciences.wustl.edu/missions/mgs/megdr.html',
+      note: 'Mars Global Surveyor laser-altimeter topography used for the WebGL terrain displacement and hillshade.',
     },
     {
       id: 'usgs-nomenclature',
@@ -267,7 +280,7 @@ const MARS_MAP_SNAPSHOT = {
   ],
   notes: {
     coordinates: 'Feature coordinates are approximate center points in planetographic/IAU-style Mars reference context, normalized to -180 to +180 longitude for the AstroBis map.',
-    visualization: 'This is a real-data WebGL atlas, not a high-resolution GIS terrain engine. The surface texture, markers, polar haze, and relief shading are separate visual layers.',
+    visualization: 'This is a real-data WebGL atlas, not a rover-scale GIS terrain engine. The surface color, MOLA displacement, MOLA hillshade, markers, polar haze, and labels are separate layers.',
   },
 };
 
