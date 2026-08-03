@@ -10,34 +10,34 @@ const AU_LIGHT_MINUTES = 8.316746;
 const AU_PER_LIGHT_YEAR = 63241.077;
 
 // Moon counts are loaded from the AstroBis same-origin snapshot on every page refresh.
- // The snapshot is versioned in public/data/moon-counts.json and should be updated from
- // IAU/MPC announcements before each release or scheduled site-data refresh.
- const MOON_COUNT_SNAPSHOT = {
-   asOf: '2026-03-26',
-   source: 'IAU Minor Planet Center confirmation for Jupiter and Saturn; curated planetary-satellite snapshot for the remaining systems',
-   counts: {
-     Mercury: 0,
-     Venus: 0,
-     Earth: 1,
-     Mars: 2,
-     Ceres: 0,
-     Jupiter: 101,
-     Saturn: 285,
-     Uranus: 29,
-     Neptune: 16,
-     Pluto: 5,
-     Haumea: 2,
-     Makemake: 1,
-     Eris: 1,
-   },
- };
+// The snapshot is versioned in public/data/moon-counts.json and should be updated
+// from NASA/IAU/MPC summaries before each release or scheduled site-data refresh.
+const MOON_COUNT_SNAPSHOT = {
+  asOf: '2026-08-03',
+  source: 'NASA Space Place planet moon-count summary checked 2026-08-03; curated planetary-satellite snapshot for dwarf planets',
+  counts: {
+    Mercury: 0,
+    Venus: 0,
+    Earth: 1,
+    Mars: 2,
+    Ceres: 0,
+    Jupiter: 115,
+    Saturn: 293,
+    Uranus: 29,
+    Neptune: 16,
+    Pluto: 5,
+    Haumea: 2,
+    Makemake: 1,
+    Eris: 1,
+  },
+};
 
- function moonCountDataUrl() {
-   const base = typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL
-     ? import.meta.env.BASE_URL
-     : '/';
-   return `${base.endsWith('/') ? base : `${base}/`}data/moon-counts.json?ts=${Date.now()}`;
- }
+function moonCountDataUrl() {
+  const base = typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL
+    ? import.meta.env.BASE_URL
+    : '/';
+  return `${base.endsWith('/') ? base : `${base}/`}data/moon-counts.json?ts=${Date.now()}`;
+}
 
 const TEXTURE_URLS = {
   sun: 'https://commons.wikimedia.org/wiki/Special:FilePath/Solarsystemscope_texture_2k_sun.jpg',
