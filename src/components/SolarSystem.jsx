@@ -228,6 +228,8 @@ const SYSTEM_OBJECTS = [
     au: 0.387,
     radiusKm: 2440,
     moons: 0,
+    majorMoons: [],
+    moonNote: 'No confirmed natural satellites.',
     orbitalPeriod: '88 days',
     dayLength: '58.6 Earth days',
     color: '#b6ada1',
@@ -249,6 +251,8 @@ const SYSTEM_OBJECTS = [
     au: 0.723,
     radiusKm: 6052,
     moons: 0,
+    majorMoons: [],
+    moonNote: 'No confirmed natural satellites.',
     orbitalPeriod: '225 days',
     dayLength: '243 Earth days',
     color: '#d9b46f',
@@ -272,6 +276,8 @@ const SYSTEM_OBJECTS = [
     au: 1,
     radiusKm: 6371,
     moons: 1,
+    majorMoons: ['Moon'],
+    moonNote: 'The Moon stabilizes Earth axial wobble and drives ocean tides.',
     orbitalPeriod: '365.25 days',
     dayLength: '23h 56m',
     color: '#4f9cff',
@@ -294,6 +300,8 @@ const SYSTEM_OBJECTS = [
     au: 1.524,
     radiusKm: 3390,
     moons: 2,
+    majorMoons: ['Phobos', 'Deimos'],
+    moonNote: 'Both moons are small, dark, irregular bodies orbiting close to Mars.',
     orbitalPeriod: '687 days',
     dayLength: '24h 37m',
     color: '#c65f36',
@@ -315,6 +323,8 @@ const SYSTEM_OBJECTS = [
     au: 2.77,
     radiusKm: 473,
     moons: 0,
+    majorMoons: [],
+    moonNote: 'No confirmed natural satellites.',
     orbitalPeriod: '4.6 years',
     dayLength: '9.1 hours',
     color: '#a7a29a',
@@ -334,7 +344,9 @@ const SYSTEM_OBJECTS = [
     group: 'Gas giant',
     au: 5.203,
     radiusKm: 69911,
-    moons: 101,
+    moons: 115,
+    majorMoons: ['Io', 'Europa', 'Ganymede', 'Callisto'],
+    moonNote: 'The four Galilean moons are planet-scale worlds; many outer moons are small irregular satellites.',
     orbitalPeriod: '11.9 years',
     dayLength: '9h 56m',
     color: '#d49a55',
@@ -356,7 +368,9 @@ const SYSTEM_OBJECTS = [
     group: 'Gas giant',
     au: 9.537,
     radiusKm: 58232,
-    moons: 285,
+    moons: 293,
+    majorMoons: ['Titan', 'Enceladus', 'Mimas', 'Rhea', 'Iapetus', 'Dione', 'Tethys'],
+    moonNote: 'Saturn currently leads the planetary moon count; Titan has a dense atmosphere.',
     orbitalPeriod: '29.5 years',
     dayLength: '10h 33m',
     color: '#e8cf91',
@@ -379,6 +393,8 @@ const SYSTEM_OBJECTS = [
     au: 19.191,
     radiusKm: 25362,
     moons: 29,
+    majorMoons: ['Titania', 'Oberon', 'Umbriel', 'Ariel', 'Miranda'],
+    moonNote: 'The major moons are icy-rocky worlds named from Shakespeare and Pope characters.',
     orbitalPeriod: '84 years',
     dayLength: '17h 14m',
     color: '#8ce9e7',
@@ -401,6 +417,8 @@ const SYSTEM_OBJECTS = [
     au: 30.07,
     radiusKm: 24622,
     moons: 16,
+    majorMoons: ['Triton', 'Nereid', 'Proteus', 'Larissa', 'Hippocamp'],
+    moonNote: 'Triton is a captured Kuiper-belt object and orbits Neptune retrograde.',
     orbitalPeriod: '164.8 years',
     dayLength: '16h 6m',
     color: '#4169e1',
@@ -422,6 +440,8 @@ const SYSTEM_OBJECTS = [
     au: 39.48,
     radiusKm: 1188,
     moons: 5,
+    majorMoons: ['Charon', 'Nix', 'Hydra', 'Kerberos', 'Styx'],
+    moonNote: 'Charon is so large that Pluto and Charon orbit a barycenter outside Pluto.',
     orbitalPeriod: '248 years',
     dayLength: '6.4 Earth days',
     color: '#d8c0a7',
@@ -443,6 +463,8 @@ const SYSTEM_OBJECTS = [
     au: 43.2,
     radiusKm: 816,
     moons: 2,
+    majorMoons: ['Hiiaka', 'Namaka'],
+    moonNote: 'Haumea has two known moons and a ring around its elongated body.',
     orbitalPeriod: '284 years',
     dayLength: '3.9 hours',
     color: '#dbeafe',
@@ -463,6 +485,8 @@ const SYSTEM_OBJECTS = [
     au: 45.8,
     radiusKm: 715,
     moons: 1,
+    majorMoons: ['S/2015 (136472) 1'],
+    moonNote: 'Makemake has one known small moon, informally nicknamed MK2.',
     orbitalPeriod: '306 years',
     dayLength: '22.5 hours',
     color: '#c7b49a',
@@ -483,6 +507,8 @@ const SYSTEM_OBJECTS = [
     au: 67.8,
     radiusKm: 1163,
     moons: 1,
+    majorMoons: ['Dysnomia'],
+    moonNote: 'Dysnomia helped constrain the mass of the Eris system.',
     orbitalPeriod: '559 years',
     dayLength: '25.9 hours',
     color: '#eef2ff',
@@ -631,6 +657,11 @@ function formatLightTime(au) {
   const days = hours / 24;
   if (days < 365) return `${days.toFixed(days < 10 ? 1 : 0)} light-days`;
   return `${(au / AU_PER_LIGHT_YEAR).toFixed(2)} light-years`;
+}
+
+function moonCountLabel(count) {
+  if (!count) return 'confirmed moons';
+  return count === 1 ? 'known moon' : 'known moons';
 }
 
 function seededRandom(seed) {
@@ -979,7 +1010,6 @@ function makeTexture(name, colorA, colorB, colorC) {
   return texture;
 }
 
-
 function usePlanetTexture(body) {
   const remoteTexture = useOptionalTexture(TEXTURE_URLS[body.texture]);
 
@@ -1089,13 +1119,62 @@ function makeSolarFallbackTexture() {
   return texture;
 }
 
+function SolarProminences() {
+  const arcs = useMemo(() => {
+    const random = seededRandom(90173);
+    return Array.from({ length: 8 }, (_, index) => {
+      const baseAngle = random() * Math.PI * 2;
+      const span = 0.34 + random() * 0.3;
+      const latitude = (random() - 0.5) * 0.72;
+      const baseRadius = 4.24 + random() * 0.18;
+      const loft = 0.24 + random() * 0.38;
+      const points = [];
+      for (let step = 0; step <= 42; step += 1) {
+        const t = step / 42;
+        const angle = baseAngle + (t - 0.5) * span;
+        const arch = Math.sin(t * Math.PI);
+        const radial = baseRadius + arch * loft;
+        const y = Math.sin(latitude) * 1.82 + arch * (0.08 + loft * 0.22);
+        points.push([Math.cos(angle) * radial, y, Math.sin(angle) * radial]);
+      }
+      return {
+        key: `prominence-${index}`,
+        points,
+        color: index % 3 === 0 ? '#fde68a' : '#fb923c',
+        opacity: 0.11 + random() * 0.12,
+      };
+    });
+  }, []);
+
+  return (
+    <group>
+      {arcs.map((arc) => (
+        <Line
+          key={arc.key}
+          points={arc.points}
+          color={arc.color}
+          transparent
+          opacity={arc.opacity}
+          lineWidth={0.9}
+        />
+      ))}
+    </group>
+  );
+}
+
 function Sun({ scale = 1 }) {
   const ref = useRef();
+  const corona = useRef();
   const observedTexture = useOptionalTexture(TEXTURE_URLS.sun);
   const fallbackTexture = useMemo(() => makeSolarFallbackTexture(), []);
 
   useFrame(({ clock }) => {
-    if (ref.current) ref.current.rotation.y = clock.getElapsedTime() * 0.018;
+    const elapsed = clock.getElapsedTime();
+    if (ref.current) ref.current.rotation.y = elapsed * 0.018;
+    if (corona.current) {
+      const pulse = 1 + Math.sin(elapsed * 0.7) * 0.024;
+      corona.current.scale.setScalar(pulse);
+    }
   });
 
   return (
@@ -1123,15 +1202,31 @@ function Sun({ scale = 1 }) {
         />
       </mesh>
 
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[4.22, 4.48, 192]} />
+        <meshBasicMaterial
+          color="#facc15"
+          transparent
+          opacity={0.085}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          toneMapped={false}
+        />
+      </mesh>
+
+      <SolarProminences />
+
       {/* Restrained corona; no large opaque glow shells. */}
-      <mesh scale={1.016}>
+      <mesh ref={corona} scale={1.025}>
         <sphereGeometry args={[4.15, 72, 72]} />
         <meshBasicMaterial
           color="#ffd37d"
           transparent
-          opacity={0.018}
+          opacity={0.026}
           side={THREE.BackSide}
           depthWrite={false}
+          blending={THREE.AdditiveBlending}
           toneMapped={false}
         />
       </mesh>
@@ -2124,23 +2219,74 @@ function Scene({
     </>
   );
 }
+
+function MoonSystemCard({ selected, moonCount, hasMoons, majorMoons, moonMeta }) {
+  return (
+    <div style={{
+      margin: '0 0 12px',
+      padding: '0.78rem',
+      borderRadius: 14,
+      border: `1px solid ${selected.accent}33`,
+      background: `linear-gradient(135deg, ${selected.accent}16, rgba(255,255,255,0.035))`,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline' }}>
+        <div>
+          <div style={{ color: selected.accent, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.14em', fontWeight: 950 }}>Moon system</div>
+          <div style={{ color: 'rgba(255,255,255,0.56)', fontSize: 11, marginTop: 2 }}>
+            {hasMoons ? 'confirmed natural satellites' : 'no confirmed natural satellites'}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ color: '#fff', fontFamily: 'Space Grotesk, Inter, sans-serif', fontSize: '1.75rem', lineHeight: 1, fontWeight: 950 }}>{moonCount ?? 'n/a'}</div>
+          <div style={{ color: selected.accent, fontSize: 11, fontWeight: 900 }}>{moonCountLabel(moonCount ?? 0)}</div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+        {majorMoons.length ? majorMoons.map((moon) => (
+          <span key={moon} style={{
+            color: 'rgba(255,255,255,0.78)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 999,
+            background: 'rgba(255,255,255,0.055)',
+            padding: '0.2rem 0.45rem',
+            fontSize: 10,
+            fontWeight: 850,
+          }}>{moon}</span>
+        )) : (
+          <span style={{
+            color: 'rgba(255,255,255,0.5)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 999,
+            background: 'rgba(255,255,255,0.035)',
+            padding: '0.2rem 0.45rem',
+            fontSize: 10,
+            fontWeight: 800,
+          }}>none confirmed</span>
+        )}
+      </div>
+      <p style={{ marginTop: 10, color: 'rgba(255,255,255,0.55)', fontSize: 11, lineHeight: 1.5 }}>{selected.moonNote}</p>
+      <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.42)', fontSize: 10, lineHeight: 1.45 }}>
+        Snapshot: {moonMeta?.asOf || MOON_COUNT_SNAPSHOT.asOf}. Source: {moonMeta?.source || MOON_COUNT_SNAPSHOT.source}.
+      </div>
+    </div>
+  );
+}
+
 function InfoPanel({ selected, onClose, moonMeta }) {
   if (!selected) return null;
 
   const science = BODY_SCIENCE[selected.name] || null;
   const diameter = selected.radiusKm * 2;
   const distanceKm = selected.au * AU_KM;
-  const moonLabel =
-    typeof selected.moons === 'number'
-      ? `${selected.moons} ${selected.moons === 1 ? 'moon' : 'moons'}`
-      : '—';
-
+  const moonCount = typeof selected.moons === 'number' ? selected.moons : null;
+  const hasMoons = moonCount > 0;
+  const majorMoons = selected.majorMoons || [];
   return (
     <aside className="solar-info-panel" style={{
       position: 'absolute',
       top: 86,
       right: 20,
-      width: 330,
+      width: 350,
       maxHeight: 'calc(100vh - 132px)',
       overflowY: 'auto',
       zIndex: 30,
@@ -2178,6 +2324,14 @@ function InfoPanel({ selected, onClose, moonMeta }) {
         {selected.fact}
       </p>
 
+      <MoonSystemCard
+        selected={selected}
+        moonCount={moonCount}
+        hasMoons={hasMoons}
+        majorMoons={majorMoons}
+        moonMeta={moonMeta}
+      />
+
       <BodySpecimen body={selected} />
 
       {science && (
@@ -2205,7 +2359,7 @@ function InfoPanel({ selected, onClose, moonMeta }) {
           ['Sunlight travel time', formatLightTime(selected.au)],
           ['Diameter', `${numberFmt(diameter)} km`],
           ['Radius', `${(selected.radiusKm / EARTH_RADIUS_KM).toFixed(2)} Earth radii`],
-          ['Known moons', moonLabel],
+
           ['Orbital period', selected.orbitalPeriod],
           ['Day length', selected.dayLength],
           ['Eccentricity', selected.ecc?.toFixed(4) ?? 'n/a'],
@@ -2227,20 +2381,8 @@ function InfoPanel({ selected, onClose, moonMeta }) {
           </div>
         ))}
       </div>
-
-      <div style={{
-        marginTop: 12,
-        padding: '0.65rem',
-        borderRadius: 12,
-        border: '1px solid rgba(255,255,255,0.08)',
-        background: 'rgba(255,255,255,0.04)',
-        color: 'rgba(255,255,255,0.47)',
-        fontSize: 11,
-        lineHeight: 1.5,
-      }}>
-        Moon-count snapshot: {moonMeta?.asOf || MOON_COUNT_SNAPSHOT.asOf}.<br />
-        Source: {moonMeta?.source || MOON_COUNT_SNAPSHOT.source}.<br />
-        Reloading the page requests the newest deployed snapshot; counts can change as small irregular satellites are confirmed.
+      <div style={{ marginTop: 12, padding: '0.65rem', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.45)', fontSize: 11, lineHeight: 1.5 }}>
+        Reference: {selected.reference}. Moon counts follow public NASA/MPC summaries and can change as small irregular satellites are confirmed.
       </div>
     </aside>
   );
@@ -2335,8 +2477,7 @@ function OortResearchPanel({ activePreset, oortRenderMode }) {
     ? (oortRenderMode === 'occupancy'
       ? 'Expanded rendering samples expose the same time-sampled Keplerian phase space. Apparent concentration arises from longer aphelion residence time, not a measured density survey.'
       : 'Markers are sparse simulated phase-space samples: high-eccentricity Keplerian orbits, uniform mean-anomaly sampling, and logarithmic display compression. This is not a survey-derived object-density map.')
-    : 'Choose a scale preset to change the atlas context. The camera remains under manual control until Guided flyby is selected.';
-
+    : 'Use the preset buttons to move from planetary orbits to the Kuiper belt, heliopause, and Oort-scale reservoir. The Oort shell guide stays optional so the scene does not become a misleading solid dome.';
   return (
     <aside className="oort-research-panel" style={{
       position: 'absolute',
@@ -2366,7 +2507,7 @@ function OortResearchPanel({ activePreset, oortRenderMode }) {
         </div>
         {oortActive && (
           <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 11, textAlign: 'right' }}>
-            reference context<br />120–100,000 AU
+            reference context<br />120-100,000 AU
           </div>
         )}
       </div>

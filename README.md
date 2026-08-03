@@ -15,7 +15,7 @@ AstroBis is a browser-native astronomy platform developed by **Biswajit Jana** t
 
 The project focuses on **scientific visualisation, public astronomy data, and browser-based exploration** rather than static educational content. Wherever possible, values are sourced from publicly available scientific archives and displayed through interactive visual tools.
 
-🌐 **Live Website:**
+**Live Website:**
 https://biswajit1999.github.io/AstroBis/
 
 📄 **Technical Report:**
@@ -52,6 +52,8 @@ Features include:
 * AU ruler and light-travel-time references
 * Multiple scale presets
 * Inclined and eccentric orbit visualisation
+* Click-through moon-system details and current moon-count snapshots
+* Textured Sun with restrained corona and prominence rendering
 
 The Solar System spans more than five orders of magnitude in distance, so AstroBis uses compressed visual scales and multiple viewing modes rather than a single linear representation.
 
@@ -59,7 +61,7 @@ The Solar System spans more than five orders of magnitude in distance, so AstroB
 
 ## Exoplanet Explorer
 
-The Exoplanet Explorer uses NASA Exoplanet Archive data and currently stores a working subset of approximately **4,000 planetary systems**.
+The Exoplanet Explorer uses NASA Exoplanet Archive data and currently stores a build-time snapshot of **6,333 confirmed exoplanets across 4,747 planetary systems**.
 
 Capabilities include:
 

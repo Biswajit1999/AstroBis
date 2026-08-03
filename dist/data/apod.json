@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2026-06-22T00:00:00.000Z",
+  "source": "NASA Astronomy Picture of the Day API",
+  "sourceUrl": "https://apod.nasa.gov/apod/astropix.html",
+  "date": "2026-06-22",
+  "title": "M27: The Dumbbell Nebula",
+  "explanation": "The Dumbbell Nebula, also known as Messier 27, is a planetary nebula in Vulpecula. Its colours highlight emission from hydrogen and oxygen in material shed by a star approaching the end of its evolution.",
+  "copyright": "Francesco Antonucci",
+  "media_type": "image",
+  "url": "https://apod.nasa.gov/apod/image/2606/M27_antonucci_960.jpg",
+  "hdurl": "https://apod.nasa.gov/apod/image/2606/M27_antonucci_3090.jpg",
+  "localImageUrl": null,
+  "localImageFile": null,
+  "service_version": "v1"
+}
