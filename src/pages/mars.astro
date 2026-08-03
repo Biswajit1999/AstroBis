@@ -1,0 +1,17 @@
+---
+import Layout from '../layouts/Layout.astro';
+import MarsMap from '../components/MarsMap';
+---
+
+<Layout
+  title="AstroBis Mars 3D Map"
+  description="Explore Mars as a realistic 3D surface atlas with a textured globe, named areographic features, landing sites, moon orbits, coordinate picking, and source-backed science notes."
+>
+  <div style="padding-top:64px;">
+    <MarsMap client:only="react" />
+  </div>
+</Layout>
+
+<style>
+  main { padding:0!important; }
+</style>

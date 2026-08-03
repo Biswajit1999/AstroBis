@@ -22,6 +22,7 @@ const currentPath = basePath && Astro.url.pathname.startsWith(basePath)
 const navLinks = [
   { path: '/', label: 'Home' },
   { path: '/viewer', label: 'Solar System' },
+  { path: '/mars', label: 'Mars Map' },
   { path: '/exoplanets', label: 'Exoplanets' },
   { path: '/iss', label: 'ISS Tracker' },
   { path: '/world', label: 'World Map' },
@@ -164,11 +165,11 @@ const externalLinks = [
     </div>
 
     <p style="margin:0.3rem 0;font-size:0.84rem;">
-      Solar System · Exoplanets · EarthOps world map · ISS propagation · Small-body data · Stellar atlas
+      Solar System · Mars 3D map · Exoplanets · EarthOps world map · ISS propagation · Small-body data · Stellar atlas
     </p>
 
     <p style="margin:0.3rem 0;font-size:0.8rem;color:rgba(255,255,255,0.34);">
-      Data: NASA Exoplanet Archive · NASA/JPL · CelesTrak · EONET · USGS · GDACS
+      Data: NASA Exoplanet Archive · NASA/JPL · NASA Mars Trek · CelesTrak · EONET · USGS · GDACS
     </p>
 
     <p style="font-size:0.79rem;margin-top:0.9rem;">

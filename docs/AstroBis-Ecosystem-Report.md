@@ -90,6 +90,39 @@ The current scale regions are treated as explanatory bands:
 
 The Oort Cloud is represented as a sparse, spherical modelled shell. It is not an observed image or a complete orbital population. Its purpose is to make the scale transition between the planetary system and the distant Solar reservoir visible.
 
+---
+
+## Mars 3D map
+
+The Mars module is a dedicated areography view rather than a decorative planet preview. It combines a locally cached global Mars surface texture with a static same-origin snapshot of major surface features, landing sites, planetary constants, and moon context.
+
+The deployed Mars snapshot is written to:
+
+[
+\texttt{public/data/mars-map.json}
+]
+
+and includes:
+
+* planetary constants such as radius, gravity, sol length, axial tilt, orbital period, and known moons;
+* named feature points such as Olympus Mons, Valles Marineris, Hellas Planitia, Gale Crater, Jezero Crater, Tharsis Montes, Elysium Mons, Nili Fossae, and polar layered deposits;
+* landing-site records for Viking, Pathfinder, Spirit, Opportunity, Phoenix, Curiosity, InSight, Perseverance, and Zhurong;
+* source records for NASA Mars facts, NASA Mars Trek, IAU/USGS planetary nomenclature, and public texture-map references.
+
+The 3D scene uses a spherical Mars body with an equirectangular texture, labelled surface markers, optional coordinate grid, polar cap visualization, a thin atmospheric haze, and simplified Phobos/Deimos orbit context. Coordinate picking converts the selected texture coordinate into latitude and normalized longitude:
+
+[
+\phi_{\mathrm{lat}}=(0.5-v)\times180^\circ
+]
+
+[
+\lambda_{\mathrm{lon}}=u\times360^\circ-180^\circ
+]
+
+where (u,v) are the selected texture coordinates. Feature locations are approximate center points, not landing-ellipse or rover-traverse geometries.
+
+This module is not a GIS terrain engine. The relief layer is a WebGL bump/lighting visualization derived from the surface map, so it helps the globe read as a physical world but should not be interpreted as a MOLA elevation product.
+
 ### Orbital geometry
 
 For planets and dwarf planets, AstroBis can display eccentric and inclined orbit paths. With semi-major axis (a), eccentricity (e), inclination (i), and display parameter (\theta), the semi-minor axis is:

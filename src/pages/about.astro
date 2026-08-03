@@ -15,12 +15,16 @@ const sources = [
   ['NASA Live / NASA+', 'https://www.nasa.gov/live/', 'Official public NASA live programming and mission coverage links'],
   ['NASA Worldview / GIBS', 'https://worldview.earthdata.nasa.gov/', 'Global Earth-observation imagery and science layers'],
   ['NOAA nowCOAST', 'https://nowcoast.noaa.gov/', 'Public NOAA weather, ocean, coastal, watches, warnings, and forecast map services'],
+  ['NASA Mars Facts', 'https://science.nasa.gov/mars/facts/', 'Mars constants, gravity, sol length, orbit, atmosphere, and moon context'],
+  ['NASA Mars Trek', 'https://trek.nasa.gov/mars/', 'Mars mapping context, surface geography, and mission-oriented reference layers'],
+  ['IAU / USGS Planetary Nomenclature', 'https://planetarynames.wr.usgs.gov/', 'Named Mars surface features and coordinate references'],
   ['NASA Oort Cloud', 'https://science.nasa.gov/resource/oort-cloud-and-scale-of-the-solar-system-infographic/', 'Oort Cloud AU scale and outer Solar System context'],
   ['NASA APOD', 'https://api.nasa.gov', 'Daily astronomy image and scientific context'],
   ['Solar System Scope / Wikimedia', 'https://www.solarsystemscope.com/textures/', 'Planet texture maps where available'],
 ];
 const upgrades = [
   'Oort-scale Solar System atlas with AU ruler, heliopause, and spherical cloud shells',
+  'Mars 3D map with real surface texture, named areographic features, landing sites, polar layers, moons, and coordinate picking',
   'EarthOps world map with 3D, 2D, and orbital-shell modes plus public media, satellites, debris, launches, natural events, disasters, earthquakes, and space news',
   'CelesTrak TLE snapshots with local SGP4 propagation and night-side Earth lighting',
   'Exoplanet archive cards plus mission, timeline, and distribution plot windows',
@@ -100,7 +104,8 @@ const reportUrl = 'https://github.com/Biswajit1999/AstroBis/blob/main/docs/Astro
       <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:1.35rem;color:#fff;margin-bottom:0.65rem;">Method Notes</h2>
       <p style="color:rgba(255,255,255,0.6);font-size:0.92rem;line-height:1.75;">
         The project separates measured data from visual interpretation. Solar-system worlds use public texture maps
-        where possible; exoplanet portraits are explicitly labelled as data-driven artist renders because most
+        where possible; the Mars map uses a real global texture with labelled feature markers rather than rover-scale
+        terrain reconstruction; exoplanet portraits are explicitly labelled as data-driven artist renders because most
         exoplanets are not directly resolved in visible light. ISS position is propagated from current TLE data,
         EarthOps event and disaster layers are public feed snapshots rather than official impact assessments,
         and small-body risk labels are prioritisation proxies, not official impact predictions.

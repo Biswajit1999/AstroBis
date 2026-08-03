@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-03T19:03:30.062Z",
+  "generatedAt": "2026-08-03T19:33:15.052Z",
   "sources": [
     {
       "id": "eonet",
@@ -104,30 +104,17 @@
   ],
   "events": [
     {
-      "id": "gdacs-WF-1029987-14",
+      "id": "gdacs-WF-1029764-11",
       "type": "disaster",
-      "title": "Forest fires in Greece",
-      "lat": 38.12280110873759,
-      "lon": 23.258079338378952,
+      "title": "Forest fires in Angola",
+      "lat": -10.348552452644508,
+      "lon": 14.892391054176004,
       "severity": "green",
-      "timestamp": "2026-08-03T18:03:09.000Z",
+      "timestamp": "2026-08-03T18:32:29.000Z",
       "source": "GDACS",
-      "url": "https://www.gdacs.org/report.aspx?eventid=1029987&episodeid=14&eventtype=WF",
-      "summary": "Green Forest fires in Greece from: 31 Jul 2026 to: 03 Aug 2026.",
-      "country": "Greece"
-    },
-    {
-      "id": "gdacs-TC-1001297-31",
-      "type": "cyclone",
-      "title": "Tropical Cyclone DOLPHIN-26",
-      "lat": 25,
-      "lon": 145.7,
-      "severity": "green",
-      "timestamp": "2026-08-03T18:01:02.000Z",
-      "source": "GDACS",
-      "url": "https://www.gdacs.org/report.aspx?eventid=1001297&episodeid=31&eventtype=TC",
-      "summary": "Green Tropical Cyclone DOLPHIN-26 in Marshall Islands, Japan from: 27 Jul 2026 to: 03 Aug 2026 .",
-      "country": "Marshall Islands, Japan"
+      "url": "https://www.gdacs.org/report.aspx?eventid=1029764&episodeid=11&eventtype=WF",
+      "summary": "Green Forest fires in Angola from: 21 Jul 2026 to: 03 Aug 2026.",
+      "country": "Angola"
     },
     {
       "id": "gdacs-WF-1029628-32",
@@ -136,7 +123,7 @@
       "lat": 44.8462656528215,
       "lon": -1.0329110267930726,
       "severity": "red",
-      "timestamp": "2026-08-03T18:00:19.000Z",
+      "timestamp": "2026-08-03T18:30:18.000Z",
       "source": "GDACS",
       "url": "https://www.gdacs.org/report.aspx?eventid=1029628&episodeid=32&eventtype=WF",
       "summary": "Red Forest fires in France from: 22 Jul 2026 to: 01 Aug 2026.",
@@ -149,10 +136,62 @@
       "lat": 35.16840400166546,
       "lon": 24.46251368828937,
       "severity": "orange",
-      "timestamp": "2026-08-03T18:00:17.000Z",
+      "timestamp": "2026-08-03T18:30:16.000Z",
       "source": "GDACS",
       "url": "https://www.gdacs.org/report.aspx?eventid=1029958&episodeid=4&eventtype=WF",
       "summary": "Orange Forest fires in Greece from: 30 Jul 2026 to: 01 Aug 2026.",
+      "country": "Greece"
+    },
+    {
+      "id": "gdacs-TC-1001297-31",
+      "type": "cyclone",
+      "title": "Tropical Cyclone DOLPHIN-26",
+      "lat": 25,
+      "lon": 145.7,
+      "severity": "green",
+      "timestamp": "2026-08-03T18:22:57.000Z",
+      "source": "GDACS",
+      "url": "https://www.gdacs.org/report.aspx?eventid=1001297&episodeid=31&eventtype=TC",
+      "summary": "Green Tropical Cyclone DOLPHIN-26 in Marshall Islands, Japan from: 27 Jul 2026 to: 03 Aug 2026 .",
+      "country": "Marshall Islands, Japan"
+    },
+    {
+      "id": "gdacs-WF-1029928-13",
+      "type": "disaster",
+      "title": "Forest fires in Portugal",
+      "lat": 41.67645247398802,
+      "lon": -7.227458059955059,
+      "severity": "green",
+      "timestamp": "2026-08-03T18:09:48.000Z",
+      "source": "GDACS",
+      "url": "https://www.gdacs.org/report.aspx?eventid=1029928&episodeid=13&eventtype=WF",
+      "summary": "Green Forest fires in Portugal from: 28 Jul 2026 to: 02 Aug 2026.",
+      "country": "Portugal"
+    },
+    {
+      "id": "gdacs-WF-1029969-9",
+      "type": "disaster",
+      "title": "Forest fires in Angola",
+      "lat": -16.182879968007022,
+      "lon": 14.389578319737051,
+      "severity": "green",
+      "timestamp": "2026-08-03T18:04:32.000Z",
+      "source": "GDACS",
+      "url": "https://www.gdacs.org/report.aspx?eventid=1029969&episodeid=9&eventtype=WF",
+      "summary": "Green Forest fires in Angola from: 30 Jul 2026 to: 03 Aug 2026.",
+      "country": "Angola"
+    },
+    {
+      "id": "gdacs-WF-1029987-14",
+      "type": "disaster",
+      "title": "Forest fires in Greece",
+      "lat": 38.12280110873759,
+      "lon": 23.258079338378952,
+      "severity": "green",
+      "timestamp": "2026-08-03T18:03:09.000Z",
+      "source": "GDACS",
+      "url": "https://www.gdacs.org/report.aspx?eventid=1029987&episodeid=14&eventtype=WF",
+      "summary": "Green Forest fires in Greece from: 31 Jul 2026 to: 03 Aug 2026.",
       "country": "Greece"
     },
     {
@@ -181,45 +220,6 @@
       "summary": "Magnitude 4.7 earthquake at 61 km S of Shikotan, Russia; depth 35 km.",
       "magnitude": 4.7,
       "depthKm": 35
-    },
-    {
-      "id": "gdacs-WF-1029764-10",
-      "type": "disaster",
-      "title": "Forest fires in Angola",
-      "lat": -10.348591515185118,
-      "lon": 14.892384749059232,
-      "severity": "green",
-      "timestamp": "2026-08-03T14:32:38.000Z",
-      "source": "GDACS",
-      "url": "https://www.gdacs.org/report.aspx?eventid=1029764&episodeid=10&eventtype=WF",
-      "summary": "Green Forest fires in Angola from: 21 Jul 2026 to: 01 Aug 2026.",
-      "country": "Angola"
-    },
-    {
-      "id": "gdacs-WF-1029928-13",
-      "type": "disaster",
-      "title": "Forest fires in Portugal",
-      "lat": 41.67645247398802,
-      "lon": -7.227458059955059,
-      "severity": "green",
-      "timestamp": "2026-08-03T14:08:48.000Z",
-      "source": "GDACS",
-      "url": "https://www.gdacs.org/report.aspx?eventid=1029928&episodeid=13&eventtype=WF",
-      "summary": "Green Forest fires in Portugal from: 28 Jul 2026 to: 02 Aug 2026.",
-      "country": "Portugal"
-    },
-    {
-      "id": "gdacs-WF-1029969-8",
-      "type": "disaster",
-      "title": "Forest fires in Angola",
-      "lat": -16.18339742022636,
-      "lon": 14.389617325869818,
-      "severity": "green",
-      "timestamp": "2026-08-03T14:04:38.000Z",
-      "source": "GDACS",
-      "url": "https://www.gdacs.org/report.aspx?eventid=1029969&episodeid=8&eventtype=WF",
-      "summary": "Green Forest fires in Angola from: 30 Jul 2026 to: 03 Aug 2026.",
-      "country": "Angola"
     },
     {
       "id": "usgs-us6000thrs",
