@@ -8,7 +8,7 @@
 
 ## Project scope
 
-AstroBis is an independently developed browser-based astronomy environment for exploring Solar System scale, exoplanet catalogue parameters, satellite motion, close-approach records, interstellar visitors, and bright-star geometry.
+AstroBis is an independently developed browser-based astronomy environment for exploring Solar System scale, EarthOps world mapping, exoplanet catalogue parameters, satellite motion, close-approach records, interstellar visitors, and bright-star geometry.
 
 The project is not intended to replace specialist packages such as NASA Horizons, mission operations software, full planetarium applications, or peer-reviewed catalogue analysis pipelines. Its purpose is narrower: to make public astronomical data, physical scale, and derived quantities inspectable through a coherent interactive interface.
 
@@ -169,19 +169,19 @@ This gives the user a physically meaningful way to understand why an Oort Cloud-
 
 The exoplanet module uses a NASA Exoplanet Archive TAP query against the Planetary Systems Composite Parameters table, `PSCompPars`.
 
-The deployed snapshot is intentionally bounded:
+The deployed snapshot uses a high working ceiling:
 
 [
-N_{\max}=4000
+N_{\max}=7000
 ]
 
-The query selects up to 4,000 planet rows ordered by host-system distance:
+The query selects up to 7,000 planet rows ordered by host-system distance:
 
 [
 \mathrm{ORDER\ BY}\ \texttt{sy_dist}\ \mathrm{ASC}
 ]
 
-This is therefore a nearby-system-oriented working subset, not the complete confirmed exoplanet population and not a statistically unbiased sample.
+This ceiling is above the confirmed-planet count at the time of the current snapshot, so the deployed table can carry the full confirmed working catalogue while retaining a bounded query for static-site reliability. The interface also stores a separate archive count query for headline totals.
 
 The interface includes catalogue values such as:
 
@@ -353,6 +353,82 @@ AstroBis should describe this module as:
 > SGP4 propagation from the latest available GP/TLE element set or bundled snapshot.
 
 It should not use language such as “mission-grade live position” or “real-time operational tracking.”
+
+---
+
+## EarthOps world map
+
+The EarthOps module adds a space-first world map rather than a general geopolitical news map. Its purpose is to bring orbital infrastructure, upcoming launches, public Earth-event feeds, and spaceflight news into a single browser scene.
+
+The module uses a build-time snapshot file:
+
+[
+\texttt{public/data/world-ops.json}
+]
+
+The snapshot schema includes:
+
+* `generatedAt`, `schemaVersion`, and `sources`;
+* `events[]` for Earth events, earthquakes, and public disaster alerts;
+* `satellites[]` for selected CelesTrak General Perturbations objects;
+* `launches[]` for upcoming launch cards;
+* `news[]` for spaceflight-news articles;
+* `totals` for layer and source counts.
+
+### Public feed layers
+
+The present EarthOps snapshot draws from:
+
+* NASA EONET v3 for open natural-event feeds;
+* USGS GeoJSON earthquake feeds for recent seismic events;
+* GDACS current disaster feeds for public disaster-alert markers;
+* CelesTrak GP JSON groups for stations, recent launches, GEO objects, Starlink, OneWeb, and selected debris populations;
+* Launch Library 2 for upcoming launch windows and pad metadata;
+* Spaceflight News API for spaceflight articles.
+
+Browser-side refresh is only attempted for CORS-friendly sources: EONET, USGS, GDACS, and selected CelesTrak groups. Launch and news records remain snapshot based unless a future public CORS policy makes client refresh reliable.
+
+### Earth geometry
+
+Surface markers are converted from geodetic latitude and longitude to a visual sphere using:
+
+[
+x=R\cos\phi\cos\lambda
+\tag{32}
+]
+
+[
+y=R\sin\phi
+\tag{33}
+]
+
+[
+z=-R\cos\phi\sin\lambda
+\tag{34}
+]
+
+where (\phi) is latitude, (\lambda) is longitude, and (R) is the visual Earth radius. This is appropriate for map markers and launch-site pins, but it is not a geodetic Earth ellipsoid model.
+
+The globe is an interpretive 3D visual layer using public Earth texture maps, a separate cloud layer, a night-light layer, atmosphere glow, star background, and a terminator reference. These layers provide spatial context for public event feeds and orbital overlays.
+
+### Satellite and debris display
+
+EarthOps renders large orbital groups as lightweight point clouds. Objects are placed using catalogue orbital elements and a simplified angular update suitable for visual awareness:
+
+[
+M(t)=M_0+n\Delta t
+\tag{35}
+]
+
+where (M_0) is the mean anomaly in degrees and (n) is mean motion converted to degrees per day. This produces a stable visual approximation for many objects while keeping the page responsive.
+
+Selected high-value operational views, such as the dedicated ISS tracker, use SGP4 propagation from current GP/TLE data. EarthOps should therefore be described as an orbital-awareness layer, not a precision flight-dynamics engine.
+
+### Launch-site mapping
+
+Launch Library pad locations are normalized with a curated coordinate lookup for common launch sites including Kennedy/Cape Canaveral, Vandenberg, Starbase, Wallops, Baikonur, Kourou, Wenchang, Jiuquan, Taiyuan, Xichang, Tanegashima, Satish Dhawan, Mahia, Plesetsk, Vostochny, and Kodiak.
+
+Where a pad cannot be matched, the launch still appears in the mission timeline but does not receive a mapped globe marker.
 
 ---
 
@@ -602,9 +678,10 @@ The following limits are explicit:
 
 * Oort Cloud particles are modelled visual markers, not detected bodies.
 * Planet renders are visual encodings of archive values, not direct images.
-* The exoplanet table is a 4,000-row distance-sorted subset, not the complete archive.
+* The exoplanet table uses a bounded TAP query and should be interpreted with the snapshot generation date.
 * The exploration score and habitable-zone band are comparative proxies.
 * ISS coordinates depend on element age and the available GP/TLE set.
+* EarthOps event, disaster, launch, and news records are public feed snapshots, not official emergency-management or mission-status products.
 * Small-body diameter estimates depend on assumed albedo.
 * Impact-energy values are scale comparisons, not consequence assessments.
 * Visitor outward-travel values are simplified constant-speed estimates.
@@ -620,6 +697,9 @@ AstroBis currently draws on the following public scientific services and softwar
 * NASA/JPL Small-Body Database Close-Approach Data API;
 * NASA/JPL Small-Body Database orbital data;
 * CelesTrak GP/TLE data for the ISS;
+* CelesTrak GP JSON groups for EarthOps satellite and debris samples;
+* NASA EONET v3, USGS GeoJSON, and GDACS current disaster feeds for EarthOps public event layers;
+* Launch Library 2 and Spaceflight News API for mission timeline context;
 * SGP4 propagation through `satellite.js`;
 * NASA Solar System science material for Oort Cloud scale context.
 

@@ -1,7 +1,7 @@
 {
   "name": "astrobis",
   "version": "1.0.0",
-  "description": "AstroBis - Interactive 3D astronomy platform with an Oort-scale solar-system atlas, exoplanets, ISS tracker, small-body watch, and star maps",
+  "description": "AstroBis - Interactive 3D astronomy platform with an Oort-scale solar-system atlas, EarthOps world map, exoplanets, ISS tracker, small-body watch, and star maps",
   "type": "module",
   "scripts": {
     "dev": "astro dev",
@@ -19,6 +19,7 @@
     "@react-three/postprocessing": "2.16",
     "astro": "^4.5.0",
     "axios": "^1.6.0",
+    "lucide-react": "^1.28.0",
     "postprocessing": "6.35",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

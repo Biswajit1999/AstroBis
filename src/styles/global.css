@@ -402,7 +402,7 @@ body {
 .mission-deck {
   width: min(1040px, 100%);
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: 0.75rem;
   padding: 0.75rem;
   border: 1px solid rgba(148,163,184,0.18);

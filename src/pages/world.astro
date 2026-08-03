@@ -1,0 +1,11 @@
+---
+import Layout from '../layouts/Layout.astro';
+import WorldMap from '../components/WorldMap';
+---
+
+<Layout
+  title="AstroBis EarthOps World Map"
+  description="AstroBis EarthOps World Map combines a 3D Earth with public satellite, debris, launch, NASA EONET, USGS earthquake, GDACS disaster, and spaceflight-news snapshots."
+>
+  <WorldMap client:only="react" />
+</Layout>

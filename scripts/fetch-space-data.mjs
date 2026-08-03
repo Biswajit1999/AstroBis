@@ -19,11 +19,318 @@ const HOME_STATS_FALLBACK = {
   },
 };
 
+const WORLD_OPS_FALLBACK = {
+  schemaVersion: 1,
+  generatedAt,
+  sources: [
+    { id: 'fallback', label: 'Bundled AstroBis EarthOps fallback', status: 'fallback', count: 4 },
+  ],
+  events: [
+    {
+      id: 'fallback-eonet-hawaii',
+      type: 'nasa-event',
+      title: 'NASA Earth-event layer unavailable',
+      lat: 19.42,
+      lon: -155.29,
+      severity: 'reference',
+      timestamp: generatedAt,
+      source: 'offline fallback',
+      url: 'https://eonet.gsfc.nasa.gov/',
+      summary: 'Fallback marker used only when live public Earth-event feeds cannot be reached during the build.',
+    },
+    {
+      id: 'fallback-quake-pacific',
+      type: 'earthquake',
+      title: 'USGS earthquake layer unavailable',
+      lat: 35.68,
+      lon: 139.76,
+      severity: 'reference',
+      timestamp: generatedAt,
+      source: 'offline fallback',
+      url: 'https://earthquake.usgs.gov/',
+      summary: 'Fallback reference marker used when the USGS GeoJSON feed is unavailable.',
+    },
+  ],
+  satellites: [
+    {
+      id: 'fallback-iss',
+      name: 'ISS (ZARYA)',
+      noradId: 25544,
+      objectId: '1998-067A',
+      group: 'Space stations',
+      status: 'station',
+      epoch: generatedAt,
+      meanMotion: 15.49,
+      eccentricity: 0.0007,
+      inclination: 51.64,
+      raan: 0,
+      argumentOfPerigee: 0,
+      meanAnomaly: 0,
+      altitudeKm: 420,
+    },
+  ],
+  launches: [
+    {
+      id: 'fallback-launch-ksc',
+      name: 'Launch Library feed unavailable',
+      net: generatedAt,
+      status: 'snapshot fallback',
+      provider: 'offline fallback',
+      mission: 'Upcoming launch feed could not be reached during the build.',
+      pad: 'Kennedy Space Center',
+      location: 'Florida, United States',
+      lat: 28.5729,
+      lon: -80.649,
+      url: 'https://ll.thespacedevs.com/',
+    },
+  ],
+  news: [
+    {
+      id: 'fallback-news',
+      title: 'Spaceflight news feed unavailable',
+      site: 'offline fallback',
+      publishedAt: generatedAt,
+      url: 'https://api.spaceflightnewsapi.net/v4/docs/',
+      summary: 'AstroBis keeps the last deployed EarthOps snapshot when external news APIs are unreachable.',
+      imageUrl: '',
+    },
+  ],
+  totals: {
+    events: 2,
+    satellites: 1,
+    launches: 1,
+    news: 1,
+  },
+};
+
+const GDACS_TYPE_LABELS = {
+  EQ: 'earthquake',
+  TC: 'cyclone',
+  FL: 'flood',
+  VO: 'volcano',
+  DR: 'drought',
+};
+
+const CELESTRAK_WORLD_GROUPS = [
+  { id: 'stations', label: 'Space stations', status: 'station', limit: 22 },
+  { id: 'last-30-days', label: 'Recent launches', status: 'recent-object', limit: 80 },
+  { id: 'geo', label: 'Geostationary belt', status: 'satellite', limit: 80 },
+  { id: 'starlink', label: 'Starlink constellation sample', status: 'satellite', limit: 140 },
+  { id: 'oneweb', label: 'OneWeb constellation sample', status: 'satellite', limit: 70 },
+  { id: 'cosmos-2251-debris', label: 'Cosmos 2251 debris sample', status: 'debris', limit: 110 },
+  { id: 'fengyun-1c-debris', label: 'Fengyun 1C debris sample', status: 'debris', limit: 130 },
+  { id: 'iridium-33-debris', label: 'Iridium 33 debris sample', status: 'debris', limit: 80 },
+];
+
+const LAUNCH_SITE_COORDINATES = [
+  { match: /kennedy|cape canaveral|ccsfs|ksc/i, lat: 28.5729, lon: -80.649 },
+  { match: /vandenberg/i, lat: 34.742, lon: -120.572 },
+  { match: /starbase|boca chica/i, lat: 25.997, lon: -97.156 },
+  { match: /wallops/i, lat: 37.94, lon: -75.466 },
+  { match: /baikonur/i, lat: 45.965, lon: 63.305 },
+  { match: /kourou|guiana/i, lat: 5.239, lon: -52.768 },
+  { match: /wenchang/i, lat: 19.614, lon: 110.951 },
+  { match: /jiuquan/i, lat: 40.96, lon: 100.298 },
+  { match: /taiyuan/i, lat: 38.849, lon: 111.608 },
+  { match: /xichang/i, lat: 28.246, lon: 102.028 },
+  { match: /tanegashima/i, lat: 30.391, lon: 130.969 },
+  { match: /satish dhawan|sriharikota/i, lat: 13.7199, lon: 80.2304 },
+  { match: /mahia|rocket lab/i, lat: -39.262, lon: 177.865 },
+  { match: /plesetsk/i, lat: 62.927, lon: 40.575 },
+  { match: /vostochny/i, lat: 51.884, lon: 128.333 },
+  { match: /kodiak|pacific spaceport/i, lat: 57.435, lon: -152.339 },
+];
+
 function todayISO() {
   const date = new Date();
   const pad = (value) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
+
+function daysAgoISO(days) {
+  const date = new Date(Date.now() - days * 86400000);
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function finiteNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function safeIso(value) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 1000000000) {
+    return new Date(numeric).toISOString();
+  }
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : generatedAt;
+}
+
+function trimText(value, maxLength = 220) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 1).trim()}...`;
+}
+
+function sampleEvenly(rows, limit) {
+  if (!Array.isArray(rows) || rows.length <= limit) return rows || [];
+  const step = Math.max(1, Math.ceil(rows.length / limit));
+  return rows.filter((_, index) => index % step === 0).slice(0, limit);
+}
+
+function sourceRecord(id, label, url, status, count, error) {
+  return {
+    id,
+    label,
+    url,
+    status,
+    count,
+    ...(error ? { error: trimText(error.message || error, 140) } : {}),
+  };
+}
+
+function latestPointGeometry(geometry = []) {
+  return [...geometry].reverse().find((item) => item?.type === 'Point' && Array.isArray(item.coordinates));
+}
+
+function launchSiteCoordinate(location = '', pad = '') {
+  const text = `${pad} ${location}`;
+  return LAUNCH_SITE_COORDINATES.find((site) => site.match.test(text)) || null;
+}
+
+function satelliteAltitudeKm(meanMotion) {
+  const motion = finiteNumber(meanMotion);
+  if (!motion || motion <= 0) return null;
+  const mu = 398600.4418;
+  const radiansPerSecond = motion * 2 * Math.PI / 86400;
+  const semiMajorKm = Math.cbrt(mu / (radiansPerSecond ** 2));
+  return semiMajorKm - 6371;
+}
+
+function eonetSeverity(event) {
+  const point = latestPointGeometry(event.geometry);
+  const magnitude = finiteNumber(point?.magnitudeValue);
+  const category = event.categories?.[0]?.id || '';
+  if (category === 'wildfires' && magnitude !== null) {
+    if (magnitude >= 50000) return 'high';
+    if (magnitude >= 5000) return 'medium';
+  }
+  return event.closed ? 'closed' : 'active';
+}
+
+function normalizeEonetEvent(event) {
+  const point = latestPointGeometry(event.geometry);
+  if (!point) return null;
+  const [lon, lat] = point.coordinates || [];
+  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) return null;
+  const category = event.categories?.[0];
+  return {
+    id: `eonet-${event.id}`,
+    type: category?.id || 'nasa-event',
+    title: event.title || 'NASA Earth event',
+    lat: Number(lat),
+    lon: Number(lon),
+    severity: eonetSeverity(event),
+    timestamp: safeIso(point.date || event.closed || generatedAt),
+    source: 'NASA EONET',
+    url: event.sources?.[0]?.url || event.link || 'https://eonet.gsfc.nasa.gov/',
+    summary: trimText(event.description || category?.title || 'Open NASA Earth Observatory Natural Event Tracker record.'),
+  };
+}
+
+function normalizeUsgsFeature(feature) {
+  const coordinates = feature.geometry?.coordinates || [];
+  const [lon, lat, depthKm] = coordinates;
+  const mag = finiteNumber(feature.properties?.mag);
+  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) return null;
+  return {
+    id: `usgs-${feature.id}`,
+    type: 'earthquake',
+    title: feature.properties?.title || 'USGS earthquake',
+    lat: Number(lat),
+    lon: Number(lon),
+    severity: mag >= 6.5 ? 'high' : mag >= 5 ? 'medium' : 'low',
+    timestamp: safeIso(feature.properties?.time),
+    source: 'USGS Earthquake Hazards Program',
+    url: feature.properties?.url || 'https://earthquake.usgs.gov/',
+    summary: trimText(`Magnitude ${mag ?? 'n/a'} earthquake at ${feature.properties?.place || 'reported location'}; depth ${finiteNumber(depthKm) ?? 'n/a'} km.`),
+    magnitude: mag,
+    depthKm: finiteNumber(depthKm),
+  };
+}
+
+function normalizeGdacsFeature(feature) {
+  const coordinates = feature.geometry?.coordinates || [];
+  const [lon, lat] = coordinates;
+  const props = feature.properties || {};
+  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) return null;
+  const alert = String(props.alertlevel || props.episodealertlevel || 'Green');
+  return {
+    id: `gdacs-${props.eventtype}-${props.eventid}-${props.episodeid}`,
+    type: GDACS_TYPE_LABELS[props.eventtype] || 'disaster',
+    title: props.name || props.description || 'GDACS disaster alert',
+    lat: Number(lat),
+    lon: Number(lon),
+    severity: alert.toLowerCase(),
+    timestamp: safeIso(props.datemodified || props.fromdate || generatedAt),
+    source: 'GDACS',
+    url: props.url?.report || 'https://www.gdacs.org/',
+    summary: trimText(props.htmldescription || props.description || `${alert} GDACS event in ${props.country || 'reported region'}.`),
+    country: props.country || '',
+  };
+}
+
+function normalizeSatellite(row, group) {
+  const meanMotion = finiteNumber(row.MEAN_MOTION);
+  return {
+    id: `${group.id}-${row.NORAD_CAT_ID || row.OBJECT_ID || row.OBJECT_NAME}`,
+    name: row.OBJECT_NAME || `NORAD ${row.NORAD_CAT_ID}`,
+    noradId: finiteNumber(row.NORAD_CAT_ID),
+    objectId: row.OBJECT_ID || '',
+    group: group.label,
+    status: group.status,
+    epoch: safeIso(row.EPOCH),
+    meanMotion,
+    eccentricity: finiteNumber(row.ECCENTRICITY) ?? 0,
+    inclination: finiteNumber(row.INCLINATION) ?? 0,
+    raan: finiteNumber(row.RA_OF_ASC_NODE) ?? 0,
+    argumentOfPerigee: finiteNumber(row.ARG_OF_PERICENTER) ?? 0,
+    meanAnomaly: finiteNumber(row.MEAN_ANOMALY) ?? 0,
+    altitudeKm: satelliteAltitudeKm(meanMotion),
+  };
+}
+
+function normalizeLaunch(launch) {
+  const coordinates = launchSiteCoordinate(launch.location, launch.pad);
+  return {
+    id: launch.id || launch.slug || launch.name,
+    name: launch.name || 'Upcoming launch',
+    net: safeIso(launch.net || launch.window_start),
+    status: launch.status?.name || launch.status || 'unknown',
+    provider: launch.lsp_name || launch.launch_service_provider?.name || 'unknown provider',
+    mission: trimText(launch.mission?.description || launch.mission?.name || launch.mission || 'Mission details pending.', 260),
+    pad: launch.pad?.name || launch.pad || 'pad pending',
+    location: launch.pad?.location?.name || launch.location || 'location pending',
+    lat: coordinates?.lat ?? null,
+    lon: coordinates?.lon ?? null,
+    url: launch.url || 'https://ll.thespacedevs.com/',
+    image: launch.image || '',
+  };
+}
+
+function normalizeNews(article) {
+  return {
+    id: `news-${article.id || article.url || article.title}`,
+    title: article.title || 'Spaceflight news',
+    site: article.news_site || 'Spaceflight News API',
+    publishedAt: safeIso(article.published_at || article.updated_at),
+    url: article.url || 'https://api.spaceflightnewsapi.net/',
+    summary: trimText(article.summary || '', 260),
+    imageUrl: article.image_url || '',
+  };
+}
+
 
 async function fetchJson(url, label) {
   const controller = new AbortController();
@@ -374,4 +681,160 @@ async function fetchIssTle() {
   }
 }
 
-await Promise.all([fetchExoplanets(), fetchNeoApproaches(), fetchIssTle(), fetchInterstellarVisitors(), fetchBrightStarCatalogue()]);
+async function loadSource(id, label, url, loader, fallback = []) {
+  try {
+    const data = await loader(url);
+    return {
+      data,
+      source: sourceRecord(id, label, url, 'live', Array.isArray(data) ? data.length : 0),
+    };
+  } catch (error) {
+    return {
+      data: fallback,
+      source: sourceRecord(id, label, url, 'fallback', fallback.length, error),
+    };
+  }
+}
+
+async function fetchWorldEonet() {
+  const url = 'https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=90';
+  return loadSource('eonet', 'NASA EONET open natural events', url, async (sourceUrl) => {
+    const payload = await fetchJson(sourceUrl, 'NASA EONET world events');
+    return (payload.events || [])
+      .map(normalizeEonetEvent)
+      .filter(Boolean)
+      .slice(0, 90);
+  }, WORLD_OPS_FALLBACK.events.filter((event) => event.id.includes('eonet')));
+}
+
+async function fetchWorldUsgs() {
+  const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_week.geojson';
+  return loadSource('usgs', 'USGS earthquakes magnitude 2.5+ weekly feed', url, async (sourceUrl) => {
+    const payload = await fetchJson(sourceUrl, 'USGS earthquake GeoJSON');
+    return (payload.features || [])
+      .map(normalizeUsgsFeature)
+      .filter(Boolean)
+      .sort((a, b) => (b.magnitude || 0) - (a.magnitude || 0))
+      .slice(0, 120);
+  }, WORLD_OPS_FALLBACK.events.filter((event) => event.id.includes('quake')));
+}
+
+async function fetchWorldGdacs() {
+  const params = new URLSearchParams({
+    eventlist: 'EQ,TC,FL,VO',
+    fromdate: daysAgoISO(45),
+    todate: todayISO(),
+  });
+  const url = `https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP?${params.toString()}`;
+  return loadSource('gdacs', 'GDACS current disaster alerts', url, async (sourceUrl) => {
+    const payload = await fetchJson(sourceUrl, 'GDACS disaster events');
+    return (payload.features || [])
+      .map(normalizeGdacsFeature)
+      .filter(Boolean)
+      .slice(0, 160);
+  }, []);
+}
+
+async function fetchWorldSatellites() {
+  const satellites = [];
+  const sources = [];
+
+  for (const group of CELESTRAK_WORLD_GROUPS) {
+    const url = `https://celestrak.org/NORAD/elements/gp.php?GROUP=${group.id}&FORMAT=json`;
+    try {
+      const payload = await fetchJson(url, `CelesTrak ${group.id}`);
+      const rows = sampleEvenly(payload, group.limit)
+        .map((row) => normalizeSatellite(row, group))
+        .filter((satellite) => satellite.name && satellite.meanMotion);
+      satellites.push(...rows);
+      sources.push(sourceRecord(`celestrak-${group.id}`, `CelesTrak ${group.label}`, url, 'live', rows.length));
+    } catch (error) {
+      sources.push(sourceRecord(`celestrak-${group.id}`, `CelesTrak ${group.label}`, url, 'fallback', 0, error));
+    }
+  }
+
+  if (!satellites.length) satellites.push(...WORLD_OPS_FALLBACK.satellites);
+  return { data: satellites, sources };
+}
+
+async function fetchWorldLaunches() {
+  const url = 'https://ll.thespacedevs.com/2.0.0/launch/upcoming/?limit=36&mode=list';
+  return loadSource('launch-library', 'The Space Devs Launch Library 2', url, async (sourceUrl) => {
+    const payload = await fetchJson(sourceUrl, 'Launch Library 2 upcoming launches');
+    return (payload.results || [])
+      .map(normalizeLaunch)
+      .filter((launch) => launch.name)
+      .slice(0, 36);
+  }, WORLD_OPS_FALLBACK.launches);
+}
+
+async function fetchWorldNews() {
+  const url = 'https://api.spaceflightnewsapi.net/v4/articles/?limit=24';
+  return loadSource('spaceflight-news', 'Spaceflight News API', url, async (sourceUrl) => {
+    const payload = await fetchJson(sourceUrl, 'Spaceflight News API articles');
+    return (payload.results || [])
+      .map(normalizeNews)
+      .filter((article) => article.title)
+      .slice(0, 24);
+  }, WORLD_OPS_FALLBACK.news);
+}
+
+async function fetchWorldOps() {
+  try {
+    const [eonet, usgs, gdacs, satelliteBundle, launches, news] = await Promise.all([
+      fetchWorldEonet(),
+      fetchWorldUsgs(),
+      fetchWorldGdacs(),
+      fetchWorldSatellites(),
+      fetchWorldLaunches(),
+      fetchWorldNews(),
+    ]);
+
+    const events = [...eonet.data, ...usgs.data, ...gdacs.data]
+      .filter((event) => Number.isFinite(event.lat) && Number.isFinite(event.lon))
+      .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+    const satellites = satelliteBundle.data;
+
+    await writeSnapshot('world-ops.json', {
+      schemaVersion: 1,
+      generatedAt,
+      sources: [
+        eonet.source,
+        usgs.source,
+        gdacs.source,
+        ...satelliteBundle.sources,
+        launches.source,
+        news.source,
+      ],
+      events,
+      satellites,
+      launches: launches.data,
+      news: news.data,
+      totals: {
+        events: events.length,
+        satellites: satellites.length,
+        debris: satellites.filter((satellite) => satellite.status === 'debris').length,
+        launches: launches.data.length,
+        news: news.data.length,
+        nasaEvents: eonet.data.length,
+        earthquakes: usgs.data.length,
+        disasters: gdacs.data.length,
+      },
+      notes: {
+        scope: 'AstroBis EarthOps is space-first: orbital infrastructure, launches, Earth hazards, and spaceflight context. It is not a broad conflict or political OSINT clone.',
+        liveRefresh: 'Browser live refresh is limited to CORS-friendly public feeds. Launches and space-news articles use the latest deployed build snapshot.',
+      },
+    });
+  } catch (error) {
+    await keepExistingOrWriteFallback('world-ops.json', WORLD_OPS_FALLBACK, error);
+  }
+}
+
+await Promise.all([
+  fetchExoplanets(),
+  fetchNeoApproaches(),
+  fetchIssTle(),
+  fetchInterstellarVisitors(),
+  fetchBrightStarCatalogue(),
+  fetchWorldOps(),
+]);

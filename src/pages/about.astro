@@ -7,12 +7,18 @@ const sources = [
   ['JPL SBDB CAD', 'https://ssd-api.jpl.nasa.gov/doc/cad.html', 'Near-Earth close-approach objects through 2050'],
   ['JPL SBDB API', 'https://ssd-api.jpl.nasa.gov/doc/sbdb.html', 'Known interstellar and hyperbolic visitor orbit elements'],
   ['CelesTrak GP/TLE', 'https://celestrak.org/NORAD/documentation/gp-data-formats.php', 'ISS orbital elements propagated with SGP4'],
+  ['NASA EONET v3', 'https://eonet.gsfc.nasa.gov/docs/v3', 'Open natural-event feeds for the EarthOps world map'],
+  ['USGS Earthquake GeoJSON', 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php', 'Recent earthquake locations, magnitudes, depths, and timestamps'],
+  ['GDACS Current Disasters', 'https://www.gdacs.org/gdacsapi/', 'Public disaster-alert feed for awareness markers'],
+  ['Launch Library 2', 'https://ll.thespacedevs.com/2.0.0/swagger', 'Upcoming launch windows, providers, pads, and mission summaries'],
+  ['Spaceflight News API', 'https://api.spaceflightnewsapi.net/v4/docs/', 'Spaceflight headlines for the EarthOps mission timeline'],
   ['NASA Oort Cloud', 'https://science.nasa.gov/resource/oort-cloud-and-scale-of-the-solar-system-infographic/', 'Oort Cloud AU scale and outer Solar System context'],
   ['NASA APOD', 'https://api.nasa.gov', 'Daily astronomy image and scientific context'],
   ['Solar System Scope / Wikimedia', 'https://www.solarsystemscope.com/textures/', 'Planet texture maps where available'],
 ];
 const upgrades = [
   'Oort-scale Solar System atlas with AU ruler, heliopause, and spherical cloud shells',
+  'EarthOps world map with satellites, debris, launches, natural events, disasters, earthquakes, and space news',
   'CelesTrak TLE snapshots with local SGP4 propagation and night-side Earth lighting',
   'Exoplanet archive cards plus mission, timeline, and distribution plot windows',
   'JPL close-approach snapshots with interstellar visitor orbit context',
@@ -93,6 +99,7 @@ const reportUrl = 'https://github.com/Biswajit1999/AstroBis/blob/main/docs/Astro
         The project separates measured data from visual interpretation. Solar-system worlds use public texture maps
         where possible; exoplanet portraits are explicitly labelled as data-driven artist renders because most
         exoplanets are not directly resolved in visible light. ISS position is propagated from current TLE data,
+        EarthOps event and disaster layers are public feed snapshots rather than official impact assessments,
         and small-body risk labels are prioritisation proxies, not official impact predictions.
       </p>
     </section>

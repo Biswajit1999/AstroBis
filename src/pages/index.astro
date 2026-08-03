@@ -25,13 +25,20 @@ const missionTiles = [
   },
   {
     index: '03',
+    label: 'World Map',
+    value: 'EarthOps',
+    detail: '3D Earth console for satellites, debris, launches, hazards, and space news.',
+    href: withBase('/world'),
+  },
+  {
+    index: '04',
     label: 'Small Bodies',
     value: 'Through 2050',
     detail: 'JPL close-approach data plus hyperbolic interstellar visitor context.',
     href: withBase('/neo'),
   },
   {
-    index: '04',
+    index: '05',
     label: 'ISS Orbit',
     value: 'Live Earth',
     detail: 'Textured 3D Earth, orbit projection, telemetry, and ground track.',
@@ -68,6 +75,15 @@ const featureModules = [
     cta: 'Track ISS',
   },
   {
+    code: 'OPS',
+    title: 'EarthOps World Map',
+    desc: 'A space-first world map that combines CelesTrak satellites and debris, Launch Library missions, NASA EONET events, USGS earthquakes, GDACS alerts, and spaceflight news.',
+    tag: 'Earth Data',
+    tagCol: '#67e8f9',
+    href: withBase('/world'),
+    cta: 'Open World Map',
+  },
+  {
     code: 'NEO',
     title: 'Small-Body Watch',
     desc: 'Look ahead through 2050 using JPL close-approach data with distance filters, speed, size estimates, risk-proxy sorting, and interstellar visitor orbits.',
@@ -97,7 +113,7 @@ const featureModules = [
 ];
 ---
 
-<Layout title="Home" description="AstroBis is an interactive astronomy platform for realistic 3D space data, Oort-scale solar-system exploration, exoplanets, ISS tracking, small bodies, and star maps.">
+<Layout title="Home" description="AstroBis is an interactive astronomy platform for realistic 3D space data, Oort-scale solar-system exploration, EarthOps world mapping, exoplanets, ISS tracking, small bodies, and star maps.">
   <section class="home-hero hero-scan">
     <StarfieldCanvas client:load />
 
@@ -118,8 +134,8 @@ const featureModules = [
       <h1 class="home-title">AstroBis</h1>
 
       <p class="home-subtitle">
-        A browser-native space lab for realistic Solar System scale, live orbital tracking,
-        future asteroid approaches, interstellar visitors, exoplanet discovery data, and a dimensional stellar atlas.
+        A browser-native space lab for realistic Solar System scale, Earth operations mapping,
+        live orbital tracking, future asteroid approaches, interstellar visitors, exoplanet discovery data, and a dimensional stellar atlas.
       </p>
 
       <div class="home-cta-row">
@@ -166,7 +182,7 @@ const featureModules = [
         What You Can <span class="gradient-text">Explore</span>
       </h2>
       <p class="section-copy">
-        From the Oort Cloud to live orbital traffic, AstroBis keeps the useful science close to the surface.
+        From the Oort Cloud to live orbital traffic and public Earth-event feeds, AstroBis keeps the useful science close to the surface.
       </p>
     </div>
 
@@ -209,7 +225,7 @@ const featureModules = [
       <h2>Start with the Solar System</h2>
       <p>
         Open the AstroBis atlas, travel from Mercury to the Oort Cloud, then jump into exoplanets,
-        live ISS telemetry, future asteroid approaches, and the stellar map.
+        live ISS telemetry, EarthOps mapping, future asteroid approaches, and the stellar map.
       </p>
       <a href={withBase('/viewer')} class="btn btn-primary">
         Open the Solar System Atlas
