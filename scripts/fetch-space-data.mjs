@@ -361,12 +361,36 @@ const WORLD_OPS_FALLBACK = {
     },
   ],
   media: [],
+  spaceWeather: {
+    observedAt: generatedAt,
+    kp: null,
+    label: 'NOAA SWPC unavailable',
+    status: 'fallback',
+    summary: 'Space-weather context is unavailable in the offline fallback snapshot.',
+    samples: [],
+  },
+  opsBrief: {
+    id: 'fallback-earthops-brief',
+    label: 'AstroBis synthetic mission brief',
+    generatedAt,
+    mode: 'local deterministic synthesis',
+    confidence: 42,
+    headline: 'EarthOps is running on a safe offline reference snapshot.',
+    watch: [
+      { label: 'Public feeds', value: 'fallback', tone: '#fbbf24', summary: 'Live source data was unavailable during the build.' },
+    ],
+    bullets: [
+      'Fallback markers are displayed until the next successful public-feed refresh.',
+      'Launch, news, orbital, hazard, and media layers keep source badges and uncertainty labels visible.',
+    ],
+  },
   totals: {
     events: 2,
     satellites: 1,
     launches: 1,
     news: 1,
     media: 0,
+    spaceWeather: 0,
   },
 };
 
@@ -380,13 +404,19 @@ const GDACS_TYPE_LABELS = {
 
 const CELESTRAK_WORLD_GROUPS = [
   { id: 'stations', label: 'Space stations', status: 'station', limit: 22 },
-  { id: 'last-30-days', label: 'Recent launches', status: 'recent-object', limit: 80 },
-  { id: 'geo', label: 'Geostationary belt', status: 'satellite', limit: 80 },
-  { id: 'starlink', label: 'Starlink constellation sample', status: 'satellite', limit: 140 },
-  { id: 'oneweb', label: 'OneWeb constellation sample', status: 'satellite', limit: 70 },
-  { id: 'cosmos-2251-debris', label: 'Cosmos 2251 debris sample', status: 'debris', limit: 110 },
-  { id: 'fengyun-1c-debris', label: 'Fengyun 1C debris sample', status: 'debris', limit: 130 },
-  { id: 'iridium-33-debris', label: 'Iridium 33 debris sample', status: 'debris', limit: 80 },
+  { id: 'last-30-days', label: 'Recent launches', status: 'recent-object', limit: 120 },
+  { id: 'geo', label: 'Geostationary belt', status: 'satellite', limit: 120 },
+  { id: 'weather', label: 'Weather satellites', status: 'satellite', limit: 80 },
+  { id: 'science', label: 'Science missions', status: 'satellite', limit: 70 },
+  { id: 'gps-ops', label: 'GPS operational constellation', status: 'satellite', limit: 44 },
+  { id: 'glo-ops', label: 'GLONASS operational constellation', status: 'satellite', limit: 36 },
+  { id: 'galileo', label: 'Galileo constellation', status: 'satellite', limit: 42 },
+  { id: 'beidou', label: 'BeiDou constellation', status: 'satellite', limit: 54 },
+  { id: 'starlink', label: 'Starlink constellation sample', status: 'satellite', limit: 260 },
+  { id: 'oneweb', label: 'OneWeb constellation sample', status: 'satellite', limit: 110 },
+  { id: 'cosmos-2251-debris', label: 'Cosmos 2251 debris sample', status: 'debris', limit: 170 },
+  { id: 'fengyun-1c-debris', label: 'Fengyun 1C debris sample', status: 'debris', limit: 190 },
+  { id: 'iridium-33-debris', label: 'Iridium 33 debris sample', status: 'debris', limit: 130 },
 ];
 
 const LAUNCH_SITE_COORDINATES = [
@@ -458,6 +488,66 @@ const WORLD_OPS_MEDIA = [
     url: 'https://nowcoast.noaa.gov/',
     embedUrl: '',
     summary: 'NOAA near-real-time weather, ocean, coastal, watches, warnings, and forecast guidance map services.',
+  },
+  {
+    id: 'noaa-space-weather',
+    type: 'space-weather',
+    title: 'NOAA SWPC Space Weather',
+    provider: 'NOAA Space Weather Prediction Center',
+    status: 'official space-weather dashboards',
+    url: 'https://www.swpc.noaa.gov/',
+    embedUrl: '',
+    summary: 'Operational solar wind, geomagnetic, aurora, radio blackout, and radiation-storm products from NOAA SWPC.',
+  },
+  {
+    id: 'esa-web-tv',
+    type: 'live-directory',
+    title: 'ESA Web TV',
+    provider: 'European Space Agency',
+    status: 'official public programming',
+    url: 'https://www.esa.int/ESA_Multimedia/ESA_Web_TV',
+    embedUrl: '',
+    summary: 'ESA mission coverage, launch broadcasts, briefings, and agency programming from the official public channel.',
+  },
+  {
+    id: 'esa-youtube-live',
+    type: 'video-directory',
+    title: 'ESA YouTube Live',
+    provider: 'ESA / YouTube',
+    status: 'official public stream directory',
+    url: 'https://www.youtube.com/@EuropeanSpaceAgency/live',
+    embedUrl: '',
+    summary: 'Public live page for European Space Agency streams when broadcasts are scheduled.',
+  },
+  {
+    id: 'spacex-live',
+    type: 'video-directory',
+    title: 'SpaceX Live Broadcasts',
+    provider: 'SpaceX',
+    status: 'launch webcast directory',
+    url: 'https://www.spacex.com/launches/',
+    embedUrl: '',
+    summary: 'Launch webcast and mission pages for SpaceX flights, included as public source context rather than a live API.',
+  },
+  {
+    id: 'noaa-goes-viewer',
+    type: 'earth-imagery',
+    title: 'NOAA GOES Image Viewer',
+    provider: 'NOAA NESDIS',
+    status: 'near-real-time geostationary imagery',
+    url: 'https://www.star.nesdis.noaa.gov/GOES/',
+    embedUrl: '',
+    summary: 'GOES imagery for storms, water vapor, fire weather, clouds, and full-disk context from NOAA NESDIS.',
+  },
+  {
+    id: 'jpl-eyes',
+    type: 'mission-visualization',
+    title: 'NASA Eyes',
+    provider: 'NASA/JPL',
+    status: 'public mission visualization',
+    url: 'https://eyes.nasa.gov/',
+    embedUrl: '',
+    summary: 'NASA/JPL public visualization portal for Solar System missions, spacecraft, planetary context, and exploration timelines.',
   },
 ];
 
@@ -639,9 +729,10 @@ function normalizeLaunch(launch) {
   };
 }
 
-function normalizeNews(article) {
+function normalizeNews(article, lane = 'article') {
   return {
-    id: `news-${article.id || article.url || article.title}`,
+    id: `news-${lane}-${article.id || article.url || article.title}`,
+    lane,
     title: article.title || 'Spaceflight news',
     site: article.news_site || 'Spaceflight News API',
     publishedAt: safeIso(article.published_at || article.updated_at),
@@ -1004,14 +1095,16 @@ async function fetchIssTle() {
 async function loadSource(id, label, url, loader, fallback = []) {
   try {
     const data = await loader(url);
+    const count = Array.isArray(data) ? data.length : data ? 1 : 0;
     return {
       data,
-      source: sourceRecord(id, label, url, 'live', Array.isArray(data) ? data.length : 0),
+      source: sourceRecord(id, label, url, 'live', count),
     };
   } catch (error) {
+    const count = Array.isArray(fallback) ? fallback.length : fallback ? 1 : 0;
     return {
       data: fallback,
-      source: sourceRecord(id, label, url, 'fallback', fallback.length, error),
+      source: sourceRecord(id, label, url, 'fallback', count, error),
     };
   }
 }
@@ -1078,60 +1171,216 @@ async function fetchWorldSatellites() {
 }
 
 async function fetchWorldLaunches() {
-  const url = 'https://ll.thespacedevs.com/2.0.0/launch/upcoming/?limit=36&mode=list';
+  const url = 'https://ll.thespacedevs.com/2.0.0/launch/upcoming/?limit=64&mode=list';
   return loadSource('launch-library', 'The Space Devs Launch Library 2', url, async (sourceUrl) => {
     const payload = await fetchJson(sourceUrl, 'Launch Library 2 upcoming launches');
     return (payload.results || [])
       .map(normalizeLaunch)
       .filter((launch) => launch.name)
-      .slice(0, 36);
+      .slice(0, 64);
   }, WORLD_OPS_FALLBACK.launches);
 }
 
 async function fetchWorldNews() {
-  const url = 'https://api.spaceflightnewsapi.net/v4/articles/?limit=24';
+  const url = 'https://api.spaceflightnewsapi.net/v4/articles/?limit=36';
   return loadSource('spaceflight-news', 'Spaceflight News API', url, async (sourceUrl) => {
-    const payload = await fetchJson(sourceUrl, 'Spaceflight News API articles');
-    return (payload.results || [])
-      .map(normalizeNews)
+    const endpoints = [
+      { lane: 'article', url: sourceUrl },
+      { lane: 'blog', url: 'https://api.spaceflightnewsapi.net/v4/blogs/?limit=18' },
+      { lane: 'report', url: 'https://api.spaceflightnewsapi.net/v4/reports/?limit=18' },
+    ];
+    const settled = await Promise.allSettled(
+      endpoints.map((endpoint) => fetchJson(endpoint.url, `Spaceflight News API ${endpoint.lane}s`).then((payload) => ({ endpoint, payload }))),
+    );
+    const rows = settled.flatMap((result) => {
+      if (result.status !== 'fulfilled') return [];
+      const { endpoint, payload } = result.value;
+      return (payload.results || []).map((article) => normalizeNews(article, endpoint.lane));
+    });
+    if (!rows.length) throw new Error('Spaceflight News API returned no article, blog, or report rows');
+    const unique = new Map();
+    for (const article of rows.filter((item) => item.title)) {
+      unique.set(article.url || article.id, article);
+    }
+    return [...unique.values()]
+      .sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt))
       .filter((article) => article.title)
-      .slice(0, 24);
+      .slice(0, 72);
   }, WORLD_OPS_FALLBACK.news);
+}
+
+async function fetchWorldSpaceWeather() {
+  const url = 'https://services.swpc.noaa.gov/json/planetary_k_index_1m.json';
+  return loadSource('noaa-swpc-kp', 'NOAA SWPC planetary K index', url, async (sourceUrl) => {
+    const payload = await fetchJson(sourceUrl, 'NOAA SWPC planetary K index');
+    const samples = (payload || [])
+      .map((row) => ({
+        observedAt: safeIso(row.time_tag),
+        kp: finiteNumber(row.estimated_kp ?? row.kp_index),
+        label: row.kp || '',
+      }))
+      .filter((row) => row.kp !== null)
+      .sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt))
+      .slice(0, 18);
+    if (!samples.length) throw new Error('NOAA SWPC Kp feed returned no usable samples');
+    const latest = samples[0];
+    const status = latest.kp >= 7 ? 'storm' : latest.kp >= 5 ? 'active' : latest.kp >= 4 ? 'unsettled' : 'quiet';
+    return {
+      observedAt: latest.observedAt,
+      kp: latest.kp,
+      label: latest.label || `Kp ${latest.kp.toFixed(1)}`,
+      status,
+      summary: `Latest NOAA SWPC planetary K index is ${latest.kp.toFixed(1)} (${status}).`,
+      samples,
+    };
+  }, WORLD_OPS_FALLBACK.spaceWeather);
+}
+
+function eventSeverityRank(event) {
+  const value = String(event?.severity || '').toLowerCase();
+  if (['red', 'high', 'major', 'critical'].includes(value)) return 3;
+  if (['orange', 'medium', 'moderate', 'active'].includes(value)) return 2;
+  if (['yellow', 'low', 'green', 'minor'].includes(value)) return 1;
+  return 0;
+}
+
+function countWithinDays(rows, field, days) {
+  const now = Date.now();
+  const span = days * 86400000;
+  return rows.filter((row) => {
+    const time = Date.parse(row?.[field]);
+    return Number.isFinite(time) && time >= now - span && time <= now + span;
+  }).length;
+}
+
+function buildWorldOpsBrief({ events, satellites, launches, news, media, sources, spaceWeather }) {
+  const liveSources = sources.filter((source) => source.status === 'live').length;
+  const fallbackSources = sources.filter((source) => source.status === 'fallback').length;
+  const sourceTotal = Math.max(1, sources.length);
+  const highEvents = events.filter((event) => eventSeverityRank(event) >= 3).length;
+  const activeEvents = events.filter((event) => eventSeverityRank(event) >= 2).length;
+  const debris = satellites.filter((satellite) => satellite.status === 'debris').length;
+  const stations = satellites.filter((satellite) => satellite.status === 'station').length;
+  const nextLaunches7d = launches.filter((launch) => {
+    const net = Date.parse(launch.net);
+    return Number.isFinite(net) && net >= Date.now() && net <= Date.now() + 7 * 86400000;
+  }).length;
+  const recentNews24h = countWithinDays(news, 'publishedAt', 1);
+  const kp = finiteNumber(spaceWeather?.kp);
+  const sourceScore = liveSources / sourceTotal;
+  const freshnessBonus = recentNews24h ? 9 : 0;
+  const confidence = Math.round(Math.max(38, Math.min(96, sourceScore * 72 + 16 + freshnessBonus - fallbackSources * 3)));
+  const kpText = kp === null ? 'Kp unavailable' : `Kp ${kp.toFixed(1)} ${spaceWeather.status || ''}`.trim();
+
+  const nextLaunch = launches
+    .filter((launch) => Number.isFinite(Date.parse(launch.net)) && Date.parse(launch.net) >= Date.now())
+    .sort((a, b) => Date.parse(a.net) - Date.parse(b.net))[0];
+  const dominantEvent = events
+    .slice()
+    .sort((a, b) => eventSeverityRank(b) - eventSeverityRank(a) || Date.parse(b.timestamp) - Date.parse(a.timestamp))[0];
+
+  return {
+    id: 'earthops-synthetic-brief',
+    label: 'AstroBis AI signal core',
+    generatedAt,
+    mode: 'local deterministic synthesis over public feeds',
+    confidence,
+    headline: `${events.length.toLocaleString()} Earth signals, ${satellites.length.toLocaleString()} orbital objects, ${launches.length.toLocaleString()} launches, ${news.length.toLocaleString()} news items fused into one public snapshot.`,
+    watch: [
+      {
+        label: 'Hazard load',
+        value: `${activeEvents} active`,
+        tone: highEvents ? '#fb7185' : '#fbbf24',
+        summary: highEvents ? `${highEvents} high-severity public-feed items are flagged.` : 'No high-severity public-feed item dominates the snapshot.',
+      },
+      {
+        label: 'Orbit traffic',
+        value: `${satellites.length.toLocaleString()} tracked`,
+        tone: '#67e8f9',
+        summary: `${debris.toLocaleString()} debris points and ${stations} station-class objects are included in the sampled CelesTrak shell.`,
+      },
+      {
+        label: 'Launch tempo',
+        value: `${nextLaunches7d} in 7d`,
+        tone: '#fbbf24',
+        summary: nextLaunch ? `Next scheduled item: ${nextLaunch.name}.` : 'No near-term launch card is available in the current snapshot.',
+      },
+      {
+        label: 'Space weather',
+        value: kpText,
+        tone: kp !== null && kp >= 5 ? '#fb7185' : '#86efac',
+        summary: spaceWeather?.summary || 'NOAA SWPC Kp context is unavailable.',
+      },
+      {
+        label: 'News velocity',
+        value: `${recentNews24h} recent`,
+        tone: '#93c5fd',
+        summary: `${news.length.toLocaleString()} article, blog, and report cards are available from the public spaceflight feed.`,
+      },
+      {
+        label: 'Media ops',
+        value: `${media.length} sources`,
+        tone: '#c4b5fd',
+        summary: 'Public live/video/imagery portals are linked as source context, not rebroadcast infrastructure.',
+      },
+    ],
+    bullets: [
+      dominantEvent ? `Priority Earth signal: ${dominantEvent.title} (${dominantEvent.source}, ${dominantEvent.severity}).` : 'No Earth-event item is currently prioritized.',
+      nextLaunch ? `Next launch window: ${nextLaunch.name} from ${nextLaunch.location}.` : 'Launch Library cards are waiting for the next successful snapshot.',
+      fallbackSources ? `${fallbackSources} source lane(s) used fallback handling; the UI keeps those uncertainty labels visible.` : 'All queried source lanes returned live data during the build.',
+      'This panel is a transparent AstroBis synthesis layer over public feeds, not a private prediction or official impact assessment.',
+    ],
+    sourceHealth: { live: liveSources, fallback: fallbackSources, total: sourceTotal },
+  };
 }
 
 async function fetchWorldOps() {
   try {
-    const [eonet, usgs, gdacs, satelliteBundle, launches, news] = await Promise.all([
+    const [eonet, usgs, gdacs, satelliteBundle, launches, news, spaceWeather] = await Promise.all([
       fetchWorldEonet(),
       fetchWorldUsgs(),
       fetchWorldGdacs(),
       fetchWorldSatellites(),
       fetchWorldLaunches(),
       fetchWorldNews(),
+      fetchWorldSpaceWeather(),
     ]);
 
     const events = [...eonet.data, ...usgs.data, ...gdacs.data]
       .filter((event) => Number.isFinite(event.lat) && Number.isFinite(event.lon))
       .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
     const satellites = satelliteBundle.data;
-
-    await writeSnapshot('world-ops.json', {
-      schemaVersion: 1,
-      generatedAt,
-      sources: [
-        eonet.source,
-        usgs.source,
-        gdacs.source,
-        ...satelliteBundle.sources,
-        launches.source,
-        news.source,
-        sourceRecord('media-directory', 'Curated public media directory', 'https://www.nasa.gov/live/', 'static', WORLD_OPS_MEDIA.length),
-      ],
+    const sources = [
+      eonet.source,
+      usgs.source,
+      gdacs.source,
+      ...satelliteBundle.sources,
+      launches.source,
+      news.source,
+      spaceWeather.source,
+      sourceRecord('media-directory', 'Curated public media directory', 'https://www.nasa.gov/live/', 'static', WORLD_OPS_MEDIA.length),
+    ];
+    const opsBrief = buildWorldOpsBrief({
       events,
       satellites,
       launches: launches.data,
       news: news.data,
       media: WORLD_OPS_MEDIA,
+      sources,
+      spaceWeather: spaceWeather.data,
+    });
+
+    await writeSnapshot('world-ops.json', {
+      schemaVersion: 1,
+      generatedAt,
+      sources,
+      events,
+      satellites,
+      launches: launches.data,
+      news: news.data,
+      media: WORLD_OPS_MEDIA,
+      spaceWeather: spaceWeather.data,
+      opsBrief,
       totals: {
         events: events.length,
         satellites: satellites.length,
@@ -1139,6 +1388,7 @@ async function fetchWorldOps() {
         launches: launches.data.length,
         news: news.data.length,
         media: WORLD_OPS_MEDIA.length,
+        spaceWeather: spaceWeather.data ? 1 : 0,
         nasaEvents: eonet.data.length,
         earthquakes: usgs.data.length,
         disasters: gdacs.data.length,

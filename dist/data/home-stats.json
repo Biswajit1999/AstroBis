@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-03T20:17:46.673Z",
-  "sourceGeneratedAt": "2026-08-03T20:17:46.673Z",
+  "generatedAt": "2026-08-03T20:56:06.335Z",
+  "sourceGeneratedAt": "2026-08-03T20:56:06.335Z",
   "source": "NASA Exoplanet Archive TAP confirmed-planet count plus AstroBis labelled scale references",
   "exoplanetQuery": "select count(pl_name) from ps where default_flag = 1",
   "stats": {

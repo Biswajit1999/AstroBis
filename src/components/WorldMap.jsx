@@ -96,7 +96,31 @@ const FALLBACK_WORLD = {
       summary: 'Public live video stream associated with the International Space Station.',
     },
   ],
-  totals: { events: 1, satellites: 1, debris: 0, launches: 0, news: 0, media: 2 },
+  spaceWeather: {
+    observedAt: '2026-01-01T00:00:00.000Z',
+    kp: null,
+    label: 'NOAA SWPC unavailable',
+    status: 'fallback',
+    summary: 'Space-weather context is unavailable in the offline fallback snapshot.',
+    samples: [],
+  },
+  opsBrief: {
+    id: 'fallback-earthops-brief',
+    label: 'AstroBis AI signal core',
+    generatedAt: '2026-01-01T00:00:00.000Z',
+    mode: 'local deterministic synthesis',
+    confidence: 42,
+    headline: 'EarthOps is running on a safe offline reference snapshot.',
+    watch: [
+      { label: 'Public feeds', value: 'fallback', tone: '#fbbf24', summary: 'Live source data was unavailable during the build.' },
+    ],
+    bullets: [
+      'Fallback markers are displayed until the next successful public-feed refresh.',
+      'Launch, news, orbital, hazard, and media layers keep source badges and uncertainty labels visible.',
+    ],
+    sourceHealth: { live: 0, fallback: 1, total: 1 },
+  },
+  totals: { events: 1, satellites: 1, debris: 0, launches: 0, news: 0, media: 2, spaceWeather: 0 },
 };
 
 const GDACS_TYPE_LABELS = {
@@ -293,6 +317,60 @@ function itemColor(kind, item) {
 
 function selectionId(selection) {
   return selection ? `${selection.kind}:${selection.item.id || selection.item.title || selection.item.name}` : '';
+}
+
+function severityRank(event) {
+  const value = String(event?.severity || '').toLowerCase();
+  if (['red', 'high', 'major', 'critical'].includes(value)) return 3;
+  if (['orange', 'medium', 'moderate', 'active'].includes(value)) return 2;
+  if (['yellow', 'low', 'green', 'minor'].includes(value)) return 1;
+  return 0;
+}
+
+function countRecent(rows, field, hours) {
+  const now = Date.now();
+  const span = hours * 3600000;
+  return rows.filter((row) => {
+    const time = Date.parse(row?.[field]);
+    return Number.isFinite(time) && now - time >= 0 && now - time <= span;
+  }).length;
+}
+
+function buildDisplayBrief(payload, visibleEvents, visibleSatellites, visibleLaunches) {
+  if (payload.opsBrief?.watch?.length) return payload.opsBrief;
+
+  const news = payload.news || [];
+  const media = payload.media || [];
+  const kp = finiteNumber(payload.spaceWeather?.kp);
+  const activeEvents = visibleEvents.filter((event) => severityRank(event) >= 2).length;
+  const highEvents = visibleEvents.filter((event) => severityRank(event) >= 3).length;
+  const debris = visibleSatellites.filter((satellite) => satellite.status === 'debris').length;
+  const nextLaunches7d = visibleLaunches.filter((launch) => {
+    const net = Date.parse(launch.net);
+    return Number.isFinite(net) && net >= Date.now() && net <= Date.now() + 7 * 86400000;
+  }).length;
+  const recentNews = countRecent(news, 'publishedAt', 24);
+  return {
+    id: 'earthops-client-brief',
+    label: 'AstroBis AI signal core',
+    generatedAt: payload.generatedAt,
+    mode: 'client synthesis over loaded public snapshot',
+    confidence: 58,
+    headline: `${visibleEvents.length.toLocaleString()} visible Earth signals and ${visibleSatellites.length.toLocaleString()} orbital objects are active in the current layer stack.`,
+    watch: [
+      { label: 'Hazard load', value: `${activeEvents} active`, tone: highEvents ? '#fb7185' : '#fbbf24', summary: highEvents ? `${highEvents} high-severity items visible.` : 'No high-severity visible item dominates.' },
+      { label: 'Orbit traffic', value: `${visibleSatellites.length.toLocaleString()} tracked`, tone: '#67e8f9', summary: `${debris.toLocaleString()} debris objects are visible with the current filters.` },
+      { label: 'Launch tempo', value: `${nextLaunches7d} in 7d`, tone: '#fbbf24', summary: `${visibleLaunches.length.toLocaleString()} launch cards are loaded.` },
+      { label: 'Space weather', value: kp === null ? 'Kp n/a' : `Kp ${kp.toFixed(1)}`, tone: kp !== null && kp >= 5 ? '#fb7185' : '#86efac', summary: payload.spaceWeather?.summary || 'NOAA Kp context is unavailable.' },
+      { label: 'News velocity', value: `${recentNews} recent`, tone: '#93c5fd', summary: `${news.length.toLocaleString()} public news items are loaded.` },
+      { label: 'Media ops', value: `${media.length} sources`, tone: '#c4b5fd', summary: 'Public video, imagery, and mission-source links are available.' },
+    ],
+    bullets: [
+      'This client brief is computed locally from loaded public data.',
+      'Uncertainty labels remain visible because public feeds are not official impact predictions.',
+    ],
+    sourceHealth: { live: 0, fallback: 0, total: payload.sources?.length || 0 },
+  };
 }
 
 function latestPointGeometry(geometry = []) {
@@ -914,10 +992,11 @@ function ViewModeButton({ mode, active, onSelect }) {
   );
 }
 
-function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveStatus, visibleCounts, onSelect, satellites, viewMode, setViewMode }) {
+function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveStatus, visibleCounts, onSelect, satellites, events, launches, selected, viewMode, setViewMode }) {
   const prioritySatellites = satellites
     .filter((satellite) => satellite.status === 'station' || satellite.status === 'recent-object')
     .slice(0, 8);
+  const kp = finiteNumber(payload.spaceWeather?.kp);
 
   return (
     <aside className="worldops-panel worldops-left">
@@ -933,7 +1012,23 @@ function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveS
         <StatPill label="orbital objects" value={payload.totals?.satellites ?? payload.satellites.length} color="#67e8f9" />
         <StatPill label="debris sample" value={payload.totals?.debris ?? 0} color="#fb7185" />
         <StatPill label="launches" value={payload.launches.length} color="#fbbf24" />
+        <StatPill label="news items" value={payload.news?.length || 0} color="#93c5fd" />
+        <StatPill label="space weather" value={kp === null ? 'n/a' : `Kp ${kp.toFixed(1)}`} color={kp !== null && kp >= 5 ? '#fb7185' : '#86efac'} />
       </div>
+
+      {layers.miniMap && (
+        <div className="worldops-control-block worldops-mini-dock">
+          <div className="worldops-block-title"><Map size={14} /> 2D tactical inset</div>
+          <MiniMap
+            events={events}
+            launches={launches}
+            satellites={satellites}
+            layers={layers}
+            selected={selected}
+            onSelect={onSelect}
+          />
+        </div>
+      )}
 
       <div className="worldops-control-block">
         <div className="worldops-block-title"><Globe2 size={14} /> View mode</div>
@@ -994,7 +1089,44 @@ function DetailRows({ rows }) {
   );
 }
 
-function SelectionPanel({ selected, payload, sourceMode }) {
+function AIBrief({ brief, sourceMode }) {
+  if (!brief) return null;
+  const confidence = clamp(Number(brief.confidence) || 0, 0, 100);
+  const watch = brief.watch || [];
+  const bullets = brief.bullets || [];
+  return (
+    <section className="worldops-ai-brief">
+      <div className="worldops-ai-scanline" aria-hidden="true" />
+      <div className="worldops-ai-topline">
+        <span><Zap size={13} /> AI signal core</span>
+        <strong>{sourceMode}</strong>
+      </div>
+      <h3>{brief.headline || 'Public feeds loaded into AstroBis EarthOps.'}</h3>
+      <div className="worldops-ai-meter" style={{ '--confidence': `${confidence}%` }}>
+        <span>confidence</span>
+        <strong>{Math.round(confidence)}%</strong>
+        <i />
+      </div>
+      <div className="worldops-ai-grid">
+        {watch.slice(0, 6).map((item) => (
+          <article key={`${item.label}-${item.value}`} style={{ '--tone': item.tone || '#67e8f9' }}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+            <small>{item.summary}</small>
+          </article>
+        ))}
+      </div>
+      <div className="worldops-ai-bullets">
+        {bullets.slice(0, 4).map((bullet) => <p key={bullet}>{bullet}</p>)}
+      </div>
+      <footer>
+        {brief.mode || 'local deterministic synthesis'} - {brief.sourceHealth?.live ?? 0}/{brief.sourceHealth?.total ?? 0} live source lanes
+      </footer>
+    </section>
+  );
+}
+
+function SelectionPanel({ selected, payload, sourceMode, brief }) {
   const fallback = selected || (
     payload.launches[0]
       ? { kind: 'launch', item: payload.launches[0] }
@@ -1022,6 +1154,8 @@ function SelectionPanel({ selected, payload, sourceMode }) {
   return (
     <aside className="worldops-panel worldops-right" style={{ '--accent': color }}>
       <div className="worldops-kicker"><Crosshair size={14} /> Intelligence panel</div>
+      <AIBrief brief={brief} sourceMode={sourceMode} />
+      <div className="worldops-detail-divider" />
       <div className="worldops-detail-heading">
         <span>{label}</span>
         <h2>{title}</h2>
@@ -1101,10 +1235,13 @@ function SelectionPanel({ selected, payload, sourceMode }) {
   );
 }
 
-function MiniMap({ events, launches, selected, onSelect }) {
+function MiniMap({ events, launches, satellites = [], layers = DEFAULT_LAYERS, selected, onSelect }) {
   const subsolar = subsolarPoint(new Date());
   const plottedEvents = events.slice(0, 180);
   const plottedLaunches = launches.filter((launch) => Number.isFinite(launch.lat) && Number.isFinite(launch.lon)).slice(0, 24);
+  const plottedSatellites = (layers.satellites || layers.debris)
+    ? satellites.filter((satellite) => satellite.status === 'debris' ? layers.debris : layers.satellites).slice(0, 240)
+    : [];
   const pointStyle = (item, kind) => ({
     left: `${((item.lon + 180) / 360) * 100}%`,
     top: `${((90 - item.lat) / 180) * 100}%`,
@@ -1120,6 +1257,21 @@ function MiniMap({ events, launches, selected, onSelect }) {
         {[25, 50, 75].map((y) => <line key={`y${y}`} x1="0" y1={y} x2="100" y2={y} />)}
         <path d={terminatorPath(subsolar)} />
       </svg>
+      {plottedSatellites.map((satellite) => {
+        const point = satelliteGeoPoint(satellite, new Date());
+        if (!point) return null;
+        const satelliteItem = { ...satellite, lat: point.lat, lon: point.lon };
+        return (
+          <button
+            key={satellite.id}
+            type="button"
+            className={`worldops-map-dot satellite ${satellite.status === 'debris' ? 'debris' : ''} ${selectionId(selected) === selectionId({ kind: 'satellite', item: satellite }) ? 'is-active' : ''}`}
+            style={pointStyle(satelliteItem, 'satellite')}
+            onClick={() => onSelect({ kind: 'satellite', item: satellite })}
+            title={satellite.name}
+          />
+        );
+      })}
       {plottedEvents.map((event) => (
         <button
           key={event.id}
@@ -1141,8 +1293,8 @@ function MiniMap({ events, launches, selected, onSelect }) {
         />
       ))}
       <div className="worldops-mini-label">
-        <strong>2D operational map</strong>
-        <span>events, launch sites, terminator</span>
+        <strong>2D tactical inset</strong>
+        <span>signals, orbits, launch sites, terminator</span>
       </div>
     </div>
   );
@@ -1151,8 +1303,8 @@ function MiniMap({ events, launches, selected, onSelect }) {
 function TimelineRail({ launches, events, news, media, layers, onSelect }) {
   const eventItems = events.slice(0, 9);
   const launchItems = launches.slice().sort((a, b) => Date.parse(a.net) - Date.parse(b.net)).slice(0, 8);
-  const newsItems = layers.news ? news.slice(0, 7) : [];
-  const mediaItems = media.slice(0, 6);
+  const newsItems = layers.news ? news.slice(0, 10) : [];
+  const mediaItems = media.slice(0, 9);
   return (
     <section className="worldops-timeline" aria-label="EarthOps mission timeline">
       <div className="worldops-timeline-group">
@@ -1219,14 +1371,17 @@ function LoadingFallback() {
 function CommandStrip({ payload, viewMode, visibleCounts, sourceMode }) {
   const utc = new Date().toISOString().replace('T', ' ').slice(0, 19);
   const generated = payload.generatedAt ? new Date(payload.generatedAt).toISOString().replace('T', ' ').slice(0, 16) : 'snapshot pending';
+  const kp = finiteNumber(payload.spaceWeather?.kp);
   return (
     <div className="worldops-command-strip">
       <span><Radio size={13} /> UTC {utc}</span>
       <span><Globe2 size={13} /> {viewMode === 'map' ? '2D ops projection' : viewMode === 'shell' ? 'orbital-shell view' : '3D globe view'}</span>
       <span><Activity size={13} /> {visibleCounts.events.toLocaleString()} signals</span>
       <span><Satellite size={13} /> {visibleCounts.satellites.toLocaleString()} objects</span>
+      <span><Zap size={13} /> {kp === null ? 'Kp n/a' : `Kp ${kp.toFixed(1)}`}</span>
+      <span><Newspaper size={13} /> {payload.news?.length || 0} news</span>
       <span><Eye size={13} /> {payload.media?.length || 0} public media</span>
-      <span><Newspaper size={13} /> {sourceMode}</span>
+      <span><RefreshCw size={13} /> {sourceMode}</span>
       <strong>snapshot {generated} UTC</strong>
     </div>
   );
@@ -1303,7 +1458,13 @@ export default function WorldMap() {
     events: visibleEvents.length,
     satellites: visibleSatellites.length,
     launches: visibleLaunches.length,
-  }), [visibleEvents.length, visibleSatellites.length, visibleLaunches.length]);
+    news: payload.news?.length || 0,
+    media: payload.media?.length || 0,
+  }), [visibleEvents.length, visibleSatellites.length, visibleLaunches.length, payload.news, payload.media]);
+  const opsBrief = useMemo(
+    () => buildDisplayBrief(payload, visibleEvents, visibleSatellites, visibleLaunches),
+    [payload, visibleEvents, visibleSatellites, visibleLaunches],
+  );
 
   return (
     <div className={`worldops-root view-${viewMode}`}>
@@ -1351,15 +1512,14 @@ export default function WorldMap() {
         visibleCounts={visibleCounts}
         onSelect={setSelected}
         satellites={payload.satellites}
+        events={visibleEvents}
+        launches={visibleLaunches}
+        selected={selected}
         viewMode={viewMode}
         setViewMode={setViewMode}
       />
 
-      <SelectionPanel selected={selected} payload={payload} sourceMode={sourceMode} />
-
-      {layers.miniMap && (
-        <MiniMap events={visibleEvents} launches={visibleLaunches} selected={selected} onSelect={setSelected} />
-      )}
+      <SelectionPanel selected={selected} payload={payload} sourceMode={sourceMode} brief={opsBrief} />
 
       <TimelineRail launches={visibleLaunches} events={visibleEvents} news={payload.news} media={payload.media || []} layers={layers} onSelect={setSelected} />
     </div>
@@ -1441,7 +1601,7 @@ const WORLDOPS_CSS = `
   left: 18px;
   top: 88px;
   width: min(360px, calc(100vw - 36px));
-  max-height: min(610px, calc(100vh - 315px));
+  max-height: calc(100vh - 112px);
   overflow: auto;
   padding: 1rem;
 }
@@ -1453,6 +1613,9 @@ const WORLDOPS_CSS = `
   overflow: auto;
   padding: 1.05rem;
   border-color: color-mix(in srgb, var(--accent), rgba(148,163,184,0.2) 64%);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent), rgba(4,8,18,0.92) 90%), rgba(4,7,17,0.78)),
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent), transparent 72%), transparent 44%);
 }
 .worldops-kicker {
   display: inline-flex;
@@ -1721,6 +1884,147 @@ const WORLDOPS_CSS = `
   font-size: 0.72rem;
   line-height: 1.55;
 }
+.worldops-detail-divider {
+  height: 1px;
+  margin: 0.92rem 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent), rgba(255,255,255,0.3) 38%), transparent);
+}
+.worldops-ai-brief {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 0.82rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent), rgba(255,255,255,0.1) 58%);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.025)),
+    radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--accent), transparent 58%), transparent 44%);
+  box-shadow: inset 0 0 32px rgba(255,255,255,0.035), 0 18px 52px rgba(0,0,0,0.28);
+}
+.worldops-ai-scanline {
+  position: absolute;
+  z-index: -1;
+  inset: -45% 0 auto;
+  height: 56%;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--accent), transparent 50%), transparent);
+  opacity: 0.42;
+  animation: worldops-scan 5.6s linear infinite;
+}
+.worldops-ai-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin-bottom: 0.58rem;
+}
+.worldops-ai-topline span,
+.worldops-ai-topline strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.64rem;
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.worldops-ai-topline span {
+  color: #67e8f9;
+}
+.worldops-ai-topline strong {
+  color: rgba(255,255,255,0.48);
+}
+.worldops-ai-brief h3 {
+  margin: 0;
+  color: rgba(255,255,255,0.92);
+  font-family: 'Space Grotesk', Inter, sans-serif;
+  font-size: 0.96rem;
+  line-height: 1.22;
+  letter-spacing: 0;
+}
+.worldops-ai-meter {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 0.7rem;
+  align-items: center;
+  margin: 0.82rem 0;
+}
+.worldops-ai-meter span {
+  color: rgba(255,255,255,0.44);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.worldops-ai-meter strong {
+  color: #cffafe;
+  font-size: 0.76rem;
+}
+.worldops-ai-meter i {
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, #67e8f9 var(--confidence), rgba(255,255,255,0.1) var(--confidence)),
+    rgba(255,255,255,0.06);
+  box-shadow: 0 0 18px rgba(103,232,249,0.24);
+}
+.worldops-ai-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.46rem;
+}
+.worldops-ai-grid article {
+  min-height: 84px;
+  padding: 0.56rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--tone), rgba(255,255,255,0.08) 64%);
+  background: color-mix(in srgb, var(--tone), rgba(255,255,255,0.035) 91%);
+}
+.worldops-ai-grid span {
+  display: block;
+  color: rgba(255,255,255,0.44);
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.worldops-ai-grid strong {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--tone);
+  font-family: 'Space Grotesk', Inter, sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.1;
+}
+.worldops-ai-grid small {
+  display: block;
+  margin-top: 0.32rem;
+  color: rgba(255,255,255,0.48);
+  font-size: 0.61rem;
+  line-height: 1.28;
+}
+.worldops-ai-bullets {
+  display: grid;
+  gap: 0.34rem;
+  margin-top: 0.74rem;
+}
+.worldops-ai-bullets p {
+  margin: 0;
+  padding-left: 0.62rem;
+  border-left: 2px solid color-mix(in srgb, var(--accent), rgba(255,255,255,0.18) 38%);
+  color: rgba(255,255,255,0.58);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+.worldops-ai-brief footer {
+  margin-top: 0.68rem;
+  padding-top: 0.56rem;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.38);
+  font-size: 0.62rem;
+  line-height: 1.35;
+}
 .worldops-space-label {
   min-width: 126px;
   max-width: 210px;
@@ -1861,16 +2165,14 @@ const WORLDOPS_CSS = `
   box-shadow: 0 0 10px var(--dot-color);
 }
 .worldops-mini-map {
-  position: absolute;
-  z-index: 25;
-  left: 396px;
-  top: 148px;
-  width: min(360px, calc(100vw - 792px));
-  height: 188px;
-  border-radius: 18px;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 176px;
+  border-radius: 16px;
   overflow: hidden;
   border: 1px solid rgba(255,255,255,0.14);
-  box-shadow: 0 20px 70px rgba(0,0,0,0.36);
+  box-shadow: 0 18px 48px rgba(0,0,0,0.34);
 }
 .worldops-mini-map-bg {
   position: absolute;
@@ -1910,14 +2212,24 @@ const WORLDOPS_CSS = `
   width: 9px;
   height: 9px;
 }
+.worldops-map-dot.satellite {
+  width: 3px;
+  height: 3px;
+  border: 0;
+  opacity: 0.9;
+}
+.worldops-map-dot.satellite.debris {
+  opacity: 0.66;
+}
 .worldops-map-dot.is-active {
   width: 14px;
   height: 14px;
+  z-index: 4;
 }
 .worldops-mini-label {
   position: absolute;
-  left: 14px;
-  top: 12px;
+  left: 12px;
+  top: 10px;
   color: white;
 }
 .worldops-mini-label strong {
@@ -2029,6 +2341,10 @@ const WORLDOPS_CSS = `
 @keyframes worldops-spin {
   to { transform: rotate(360deg); }
 }
+@keyframes worldops-scan {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(310%); }
+}
 @media (max-width: 1180px) {
   .worldops-left,
   .worldops-right {
@@ -2058,7 +2374,6 @@ const WORLDOPS_CSS = `
   .worldops-command-strip,
   .worldops-left,
   .worldops-right,
-  .worldops-mini-map,
   .worldops-timeline {
     position: relative;
     left: auto;
