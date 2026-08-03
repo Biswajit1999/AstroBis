@@ -373,6 +373,7 @@ The snapshot schema includes:
 * `satellites[]` for selected CelesTrak General Perturbations objects;
 * `launches[]` for upcoming launch cards;
 * `news[]` for spaceflight-news articles;
+* `media[]` for curated official/public video and Earth-imagery source links;
 * `totals` for layer and source counts.
 
 ### Public feed layers
@@ -385,6 +386,7 @@ The present EarthOps snapshot draws from:
 * CelesTrak GP JSON groups for stations, recent launches, GEO objects, Starlink, OneWeb, and selected debris populations;
 * Launch Library 2 for upcoming launch windows and pad metadata;
 * Spaceflight News API for spaceflight articles.
+* NASA Live, NASA ISS public streams, NASA Worldview/GIBS, and NOAA nowCOAST for official/public media and Earth-imagery entry points.
 
 Browser-side refresh is only attempted for CORS-friendly sources: EONET, USGS, GDACS, and selected CelesTrak groups. Launch and news records remain snapshot based unless a future public CORS policy makes client refresh reliable.
 
@@ -411,6 +413,12 @@ where (\phi) is latitude, (\lambda) is longitude, and (R) is the visual Earth ra
 
 The globe is an interpretive 3D visual layer using public Earth texture maps, a separate cloud layer, a night-light layer, atmosphere glow, star background, and a terminator reference. These layers provide spatial context for public event feeds and orbital overlays.
 
+The user can switch between three views:
+
+* a 3D globe for geographic context;
+* a 2D operations projection for dense marker inspection;
+* an orbital-shell view that de-emphasises Earth and makes satellite/debris structure easier to read.
+
 ### Satellite and debris display
 
 EarthOps renders large orbital groups as lightweight point clouds. Objects are placed using catalogue orbital elements and a simplified angular update suitable for visual awareness:
@@ -423,6 +431,10 @@ M(t)=M_0+n\Delta t
 where (M_0) is the mean anomaly in degrees and (n) is mean motion converted to degrees per day. This produces a stable visual approximation for many objects while keeping the page responsive.
 
 Selected high-value operational views, such as the dedicated ISS tracker, use SGP4 propagation from current GP/TLE data. EarthOps should therefore be described as an orbital-awareness layer, not a precision flight-dynamics engine.
+
+### Public media policy
+
+EarthOps does not rebroadcast commercial news channels or unvetted CCTV streams. The media deck is limited to official/public sources and source links such as NASA live programming, ISS video streams, NASA Earthdata Worldview/GIBS, and NOAA nowCOAST. Embedded players are used only where a public embeddable URL is available.
 
 ### Launch-site mapping
 
@@ -700,6 +712,7 @@ AstroBis currently draws on the following public scientific services and softwar
 * CelesTrak GP JSON groups for EarthOps satellite and debris samples;
 * NASA EONET v3, USGS GeoJSON, and GDACS current disaster feeds for EarthOps public event layers;
 * Launch Library 2 and Spaceflight News API for mission timeline context;
+* NASA Live, NASA Worldview/GIBS, and NOAA nowCOAST for public media and Earth-imagery context;
 * SGP4 propagation through `satellite.js`;
 * NASA Solar System science material for Oort Cloud scale context.
 

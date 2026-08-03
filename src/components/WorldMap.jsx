@@ -74,7 +74,29 @@ const FALLBACK_WORLD = {
   ],
   launches: [],
   news: [],
-  totals: { events: 1, satellites: 1, debris: 0, launches: 0, news: 0 },
+  media: [
+    {
+      id: 'nasa-live',
+      type: 'live-directory',
+      title: 'NASA Live and NASA+',
+      provider: 'NASA',
+      status: 'official public programming',
+      url: 'https://www.nasa.gov/live/',
+      embedUrl: '',
+      summary: 'Official NASA live programming, launch coverage, mission events, and NASA+ viewing links.',
+    },
+    {
+      id: 'iss-live-video',
+      type: 'video',
+      title: 'ISS Live Video',
+      provider: 'NASA / YouTube',
+      status: 'official public stream',
+      url: 'https://www.youtube.com/watch?v=M3HKLzjvKPc',
+      embedUrl: 'https://www.youtube-nocookie.com/embed/M3HKLzjvKPc?rel=0&modestbranding=1',
+      summary: 'Public live video stream associated with the International Space Station.',
+    },
+  ],
+  totals: { events: 1, satellites: 1, debris: 0, launches: 0, news: 0, media: 2 },
 };
 
 const GDACS_TYPE_LABELS = {
@@ -99,6 +121,12 @@ const LAYER_CONFIG = [
 ];
 
 const DEFAULT_LAYERS = Object.fromEntries(LAYER_CONFIG.map((layer) => [layer.key, true]));
+
+const VIEW_MODES = [
+  { key: 'globe', label: '3D Globe', icon: Globe2 },
+  { key: 'map', label: '2D Ops Map', icon: Map },
+  { key: 'shell', label: 'Orbit Shell', icon: Orbit },
+];
 
 const EVENT_COLORS = {
   wildfires: '#fb923c',
@@ -177,6 +205,26 @@ function latLonVector(lat, lon, radius = 1) {
     radius * Math.cos(phi),
     radius * Math.sin(phi) * Math.sin(theta),
   );
+}
+
+function projectLatLon(lat, lon) {
+  return {
+    x: ((normalizeLon(lon) + 180) / 360) * 100,
+    y: ((90 - clamp(lat, -89.9, 89.9)) / 180) * 100,
+  };
+}
+
+function vectorToLatLon(vector) {
+  const radius = vector.length() || 1;
+  return {
+    lat: Math.asin(clamp(vector.y / radius, -1, 1)) * 180 / Math.PI,
+    lon: normalizeLon(Math.atan2(vector.z, -vector.x) * 180 / Math.PI - 180),
+  };
+}
+
+function satelliteGeoPoint(satellite, now = Date.now()) {
+  if (!satellite?.meanMotion) return null;
+  return vectorToLatLon(satelliteVector(satellite, now));
 }
 
 function subsolarPoint(date = INITIAL_RENDER_DATE) {
@@ -460,6 +508,85 @@ async function refreshLiveLayers() {
   };
 }
 
+function OpsProjectionMap({ events, launches, satellites, layers, selected, onSelect }) {
+  const subsolar = subsolarPoint(new Date());
+  const satellitePoints = useMemo(() => {
+    const visible = satellites
+      .filter((satellite) => satellite.status === 'debris' ? layers.debris : layers.satellites)
+      .slice(0, 620);
+    const now = Date.now();
+    return visible
+      .map((satellite) => {
+        const point = satelliteGeoPoint(satellite, now);
+        if (!point) return null;
+        return { satellite, ...projectLatLon(point.lat, point.lon) };
+      })
+      .filter(Boolean);
+  }, [satellites, layers.debris, layers.satellites]);
+  const eventPoints = events.slice(0, 260).map((event) => ({ event, ...projectLatLon(event.lat, event.lon) }));
+  const launchPoints = launches
+    .filter((launch) => Number.isFinite(launch.lat) && Number.isFinite(launch.lon))
+    .slice(0, 48)
+    .map((launch) => ({ launch, ...projectLatLon(launch.lat, launch.lon) }));
+
+  return (
+    <div className="worldops-projection-map">
+      <div className="worldops-projection-bg" />
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        {[-120, -60, 0, 60, 120].map((lon) => {
+          const x = projectLatLon(0, lon).x;
+          return <line key={`lon-${lon}`} x1={x} y1="0" x2={x} y2="100" />;
+        })}
+        {[-60, -30, 0, 30, 60].map((lat) => {
+          const y = projectLatLon(lat, 0).y;
+          return <line key={`lat-${lat}`} x1="0" y1={y} x2="100" y2={y} />;
+        })}
+        <path d={terminatorPath(subsolar)} className="terminator" />
+      </svg>
+
+      {satellitePoints.map(({ satellite, x, y }) => (
+        <button
+          key={satellite.id}
+          type="button"
+          className={`worldops-projection-dot orbital ${satellite.status === 'debris' ? 'debris' : ''} ${selectionId(selected) === selectionId({ kind: 'satellite', item: satellite }) ? 'is-active' : ''}`}
+          style={{ left: `${x}%`, top: `${y}%`, '--dot-color': itemColor('satellite', satellite) }}
+          onClick={() => onSelect({ kind: 'satellite', item: satellite })}
+          title={satellite.name}
+        />
+      ))}
+
+      {eventPoints.map(({ event, x, y }) => (
+        <button
+          key={event.id}
+          type="button"
+          className={`worldops-projection-dot event ${selectionId(selected) === selectionId({ kind: 'event', item: event }) ? 'is-active' : ''}`}
+          style={{ left: `${x}%`, top: `${y}%`, '--dot-color': itemColor('event', event) }}
+          onClick={() => onSelect({ kind: 'event', item: event })}
+          title={event.title}
+        />
+      ))}
+
+      {launchPoints.map(({ launch, x, y }) => (
+        <button
+          key={launch.id}
+          type="button"
+          className={`worldops-projection-dot launch ${selectionId(selected) === selectionId({ kind: 'launch', item: launch }) ? 'is-active' : ''}`}
+          style={{ left: `${x}%`, top: `${y}%`, '--dot-color': itemColor('launch', launch) }}
+          onClick={() => onSelect({ kind: 'launch', item: launch })}
+          title={launch.name}
+        />
+      ))}
+
+      <div className="worldops-map-legend">
+        <span><i style={{ '--dot-color': '#67e8f9' }} /> satellites</span>
+        <span><i style={{ '--dot-color': '#fb7185' }} /> debris</span>
+        <span><i style={{ '--dot-color': '#fb923c' }} /> events</span>
+        <span><i style={{ '--dot-color': '#fbbf24' }} /> launches</span>
+      </div>
+    </div>
+  );
+}
+
 function NightLightsLayer({ texture, sunDirection }) {
   const material = useMemo(() => new THREE.ShaderMaterial({
     uniforms: {
@@ -540,7 +667,7 @@ function AtmosphereShell() {
   );
 }
 
-function EarthGlobe({ layers, markerCount }) {
+function EarthGlobe({ layers, markerCount, shellMode = false }) {
   const [earthDay, earthNormal, earthSpecular, earthLights, earthClouds] = useLoader(THREE.TextureLoader, [
     EARTH_TEXTURES.day,
     EARTH_TEXTURES.normal,
@@ -577,13 +704,15 @@ function EarthGlobe({ layers, markerCount }) {
           specularMap={earthSpecular}
           specular={new THREE.Color('#315982')}
           shininess={20}
+          transparent={shellMode}
+          opacity={shellMode ? 0.36 : 1}
         />
       </mesh>
-      {layers.cityLights && <NightLightsLayer texture={earthLights} sunDirection={sunDirection} />}
+      {layers.cityLights && !shellMode && <NightLightsLayer texture={earthLights} sunDirection={sunDirection} />}
       {layers.clouds && (
         <mesh ref={clouds}>
           <sphereGeometry args={[1.013, 128, 128]} />
-          <meshLambertMaterial map={earthClouds} transparent opacity={0.34} depthWrite={false} />
+          <meshLambertMaterial map={earthClouds} transparent opacity={shellMode ? 0.12 : 0.34} depthWrite={false} />
         </mesh>
       )}
       <AtmosphereShell />
@@ -647,7 +776,7 @@ function OrbitBands({ selected }) {
   );
 }
 
-function SatelliteField({ satellites, layers }) {
+function SatelliteField({ satellites, layers, mode = 'globe' }) {
   const geometryRef = useRef();
   const lastUpdate = useRef(0);
   const visible = useMemo(() => satellites.filter((satellite) => (
@@ -691,7 +820,7 @@ function SatelliteField({ satellites, layers }) {
         <bufferAttribute attach="attributes-position" array={buffers.positions} count={visible.length} itemSize={3} />
         <bufferAttribute attach="attributes-color" array={buffers.colors} count={visible.length} itemSize={3} />
       </bufferGeometry>
-      <pointsMaterial vertexColors size={0.019} transparent opacity={0.74} sizeAttenuation depthWrite={false} />
+      <pointsMaterial vertexColors size={mode === 'shell' ? 0.028 : 0.019} transparent opacity={mode === 'shell' ? 0.9 : 0.74} sizeAttenuation depthWrite={false} />
     </points>
   );
 }
@@ -721,16 +850,16 @@ function SelectedSatelliteMarker({ selected, onSelect }) {
   );
 }
 
-function WorldScene({ events, launches, satellites, layers, selected, onSelect }) {
+function WorldScene({ events, launches, satellites, layers, selected, onSelect, mode = 'globe' }) {
   const launchMarkers = launches.filter((launch) => Number.isFinite(launch.lat) && Number.isFinite(launch.lon));
   const markerCount = events.length + launchMarkers.length + satellites.length;
   return (
     <>
       <color attach="background" args={['#01030b']} />
       <Stars radius={220} depth={90} count={9000} factor={3.1} saturation={0.18} fade speed={0.08} />
-      <EarthGlobe layers={layers} markerCount={markerCount} />
+      <EarthGlobe layers={layers} markerCount={markerCount} shellMode={mode === 'shell'} />
       {layers.orbitTrails && <OrbitBands selected={selected} />}
-      <SatelliteField satellites={satellites} layers={layers} />
+      <SatelliteField satellites={satellites} layers={layers} mode={mode} />
       <SelectedSatelliteMarker selected={selected} onSelect={onSelect} />
       {events.map((event) => <SurfaceMarker key={event.id} item={event} kind="event" selected={selected} onSelect={onSelect} />)}
       {layers.launches && launchMarkers.map((launch) => <SurfaceMarker key={launch.id} item={launch} kind="launch" selected={selected} onSelect={onSelect} />)}
@@ -769,7 +898,23 @@ function LayerButton({ layer, enabled, onToggle }) {
   );
 }
 
-function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveStatus, visibleCounts, onSelect, satellites }) {
+function ViewModeButton({ mode, active, onSelect }) {
+  const Icon = mode.icon;
+  return (
+    <button
+      type="button"
+      className="worldops-mode-button"
+      data-active={active ? 'true' : 'false'}
+      onClick={() => onSelect(mode.key)}
+      title={mode.label}
+    >
+      <Icon size={15} strokeWidth={2.2} />
+      <span>{mode.label}</span>
+    </button>
+  );
+}
+
+function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveStatus, visibleCounts, onSelect, satellites, viewMode, setViewMode }) {
   const prioritySatellites = satellites
     .filter((satellite) => satellite.status === 'station' || satellite.status === 'recent-object')
     .slice(0, 8);
@@ -788,6 +933,15 @@ function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveS
         <StatPill label="orbital objects" value={payload.totals?.satellites ?? payload.satellites.length} color="#67e8f9" />
         <StatPill label="debris sample" value={payload.totals?.debris ?? 0} color="#fb7185" />
         <StatPill label="launches" value={payload.launches.length} color="#fbbf24" />
+      </div>
+
+      <div className="worldops-control-block">
+        <div className="worldops-block-title"><Globe2 size={14} /> View mode</div>
+        <div className="worldops-mode-grid">
+          {VIEW_MODES.map((mode) => (
+            <ViewModeButton key={mode.key} mode={mode} active={viewMode === mode.key} onSelect={setViewMode} />
+          ))}
+        </div>
       </div>
 
       <div className="worldops-control-block">
@@ -855,7 +1009,15 @@ function SelectionPanel({ selected, payload, sourceMode }) {
   const { kind, item } = fallback;
   const color = itemColor(kind, item);
   const title = item.title || item.name;
-  const label = kind === 'event' ? item.source : kind === 'launch' ? 'Upcoming launch' : kind === 'satellite' ? item.group : item.site;
+  const label = kind === 'event'
+    ? item.source
+    : kind === 'launch'
+      ? 'Upcoming launch'
+      : kind === 'satellite'
+        ? item.group
+        : kind === 'media'
+          ? 'Public media source'
+          : item.site;
 
   return (
     <aside className="worldops-panel worldops-right" style={{ '--accent': color }}>
@@ -902,6 +1064,28 @@ function SelectionPanel({ selected, payload, sourceMode }) {
           ['Published', formatDate(item.publishedAt)],
           ['Source', 'Spaceflight News API snapshot', '#93c5fd'],
         ]} />
+      )}
+
+      {kind === 'media' && (
+        <>
+          <DetailRows rows={[
+            ['Provider', item.provider],
+            ['Type', item.type],
+            ['Status', item.status, '#86efac'],
+            ['Use', item.embedUrl ? 'embeddable public player' : 'open official source'],
+          ]} />
+          {item.embedUrl && (
+            <div className="worldops-media-frame">
+              <iframe
+                src={item.embedUrl}
+                title={item.title}
+                loading="lazy"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+          )}
+        </>
       )}
 
       <a className="worldops-source-link" href={item.url || '#'} target="_blank" rel="noopener noreferrer">
@@ -964,10 +1148,11 @@ function MiniMap({ events, launches, selected, onSelect }) {
   );
 }
 
-function TimelineRail({ launches, events, news, layers, onSelect }) {
+function TimelineRail({ launches, events, news, media, layers, onSelect }) {
   const eventItems = events.slice(0, 9);
   const launchItems = launches.slice().sort((a, b) => Date.parse(a.net) - Date.parse(b.net)).slice(0, 8);
   const newsItems = layers.news ? news.slice(0, 7) : [];
+  const mediaItems = media.slice(0, 6);
   return (
     <section className="worldops-timeline" aria-label="EarthOps mission timeline">
       <div className="worldops-timeline-group">
@@ -1006,6 +1191,18 @@ function TimelineRail({ launches, events, news, layers, onSelect }) {
           ))}
         </div>
       </div>
+      <div className="worldops-timeline-group">
+        <header><Eye size={14} /> Public media</header>
+        <div className="worldops-timeline-scroll">
+          {mediaItems.map((item) => (
+            <button key={item.id} type="button" onClick={() => onSelect({ kind: 'media', item })}>
+              <span>{item.provider}</span>
+              <strong>{item.title}</strong>
+              <small>{item.status}</small>
+            </button>
+          ))}
+        </div>
+      </div>
     </section>
   );
 }
@@ -1019,9 +1216,26 @@ function LoadingFallback() {
   );
 }
 
+function CommandStrip({ payload, viewMode, visibleCounts, sourceMode }) {
+  const utc = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  const generated = payload.generatedAt ? new Date(payload.generatedAt).toISOString().replace('T', ' ').slice(0, 16) : 'snapshot pending';
+  return (
+    <div className="worldops-command-strip">
+      <span><Radio size={13} /> UTC {utc}</span>
+      <span><Globe2 size={13} /> {viewMode === 'map' ? '2D ops projection' : viewMode === 'shell' ? 'orbital-shell view' : '3D globe view'}</span>
+      <span><Activity size={13} /> {visibleCounts.events.toLocaleString()} signals</span>
+      <span><Satellite size={13} /> {visibleCounts.satellites.toLocaleString()} objects</span>
+      <span><Eye size={13} /> {payload.media?.length || 0} public media</span>
+      <span><Newspaper size={13} /> {sourceMode}</span>
+      <strong>snapshot {generated} UTC</strong>
+    </div>
+  );
+}
+
 export default function WorldMap() {
   const [payload, setPayload] = useState(FALLBACK_WORLD);
   const [layers, setLayers] = useState(DEFAULT_LAYERS);
+  const [viewMode, setViewMode] = useState('globe');
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -1092,26 +1306,40 @@ export default function WorldMap() {
   }), [visibleEvents.length, visibleSatellites.length, visibleLaunches.length]);
 
   return (
-    <div className="worldops-root">
+    <div className={`worldops-root view-${viewMode}`}>
       <style>{WORLDOPS_CSS}</style>
-      <div className="worldops-canvas">
-        <Canvas camera={{ position: [0.18, 0.32, 3.35], fov: 44 }} dpr={[1, 1.75]}>
-          <Suspense fallback={null}>
-            <WorldScene
-              events={visibleEvents}
-              launches={visibleLaunches}
-              satellites={payload.satellites}
-              layers={layers}
-              selected={selected}
-              onSelect={setSelected}
-            />
-          </Suspense>
-        </Canvas>
+      <div className={`worldops-canvas is-${viewMode}`}>
+        {viewMode === 'map' ? (
+          <OpsProjectionMap
+            events={visibleEvents}
+            launches={visibleLaunches}
+            satellites={payload.satellites}
+            layers={layers}
+            selected={selected}
+            onSelect={setSelected}
+          />
+        ) : (
+          <Canvas camera={{ position: viewMode === 'shell' ? [0.18, 0.2, 5.05] : [0.18, 0.32, 3.35], fov: viewMode === 'shell' ? 48 : 44 }} dpr={[1, 1.75]}>
+            <Suspense fallback={null}>
+              <WorldScene
+                events={visibleEvents}
+                launches={visibleLaunches}
+                satellites={payload.satellites}
+                layers={layers}
+                selected={selected}
+                onSelect={setSelected}
+                mode={viewMode}
+              />
+            </Suspense>
+          </Canvas>
+        )}
         {loading && <LoadingFallback />}
         <div className="worldops-orbit-credit">
           Data snapshots: NASA EONET - USGS - GDACS - CelesTrak - Launch Library 2 - Spaceflight News API
         </div>
       </div>
+
+      <CommandStrip payload={payload} viewMode={viewMode} visibleCounts={visibleCounts} sourceMode={sourceMode} />
 
       <MissionPanel
         payload={payload}
@@ -1123,6 +1351,8 @@ export default function WorldMap() {
         visibleCounts={visibleCounts}
         onSelect={setSelected}
         satellites={payload.satellites}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
       />
 
       <SelectionPanel selected={selected} payload={payload} sourceMode={sourceMode} />
@@ -1131,7 +1361,7 @@ export default function WorldMap() {
         <MiniMap events={visibleEvents} launches={visibleLaunches} selected={selected} onSelect={setSelected} />
       )}
 
-      <TimelineRail launches={visibleLaunches} events={visibleEvents} news={payload.news} layers={layers} onSelect={setSelected} />
+      <TimelineRail launches={visibleLaunches} events={visibleEvents} news={payload.news} media={payload.media || []} layers={layers} onSelect={setSelected} />
     </div>
   );
 }
@@ -1153,6 +1383,49 @@ const WORLDOPS_CSS = `
 }
 .worldops-canvas canvas {
   display: block;
+}
+.worldops-command-strip {
+  position: absolute;
+  z-index: 27;
+  top: 88px;
+  left: 396px;
+  right: 396px;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  gap: 0.45rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0.46rem 0.7rem;
+  border: 1px solid rgba(103,232,249,0.22);
+  border-radius: 14px;
+  background: rgba(3,7,18,0.72);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 18px 70px rgba(0,0,0,0.35);
+  color: rgba(255,255,255,0.72);
+}
+.worldops-command-strip::-webkit-scrollbar {
+  display: none;
+}
+.worldops-command-strip span,
+.worldops-command-strip strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 24px;
+  padding: 0.18rem 0.46rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.035);
+  font-size: 0.66rem;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+}
+.worldops-command-strip strong {
+  color: #67e8f9;
 }
 .worldops-panel {
   position: absolute;
@@ -1176,6 +1449,8 @@ const WORLDOPS_CSS = `
   right: 18px;
   top: 88px;
   width: min(360px, calc(100vw - 36px));
+  max-height: min(620px, calc(100vh - 236px));
+  overflow: auto;
   padding: 1.05rem;
   border-color: color-mix(in srgb, var(--accent), rgba(148,163,184,0.2) 64%);
 }
@@ -1249,6 +1524,32 @@ const WORLDOPS_CSS = `
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.48rem;
+}
+.worldops-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.48rem;
+}
+.worldops-mode-button {
+  min-height: 52px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.64);
+  display: grid;
+  place-items: center;
+  gap: 0.22rem;
+  padding: 0.45rem 0.28rem;
+  cursor: pointer;
+  font-size: 0.66rem;
+  font-weight: 900;
+  text-align: center;
+}
+.worldops-mode-button[data-active="true"] {
+  color: #041014;
+  background: linear-gradient(135deg, #67e8f9, #86efac);
+  border-color: rgba(255,255,255,0.28);
+  box-shadow: 0 0 22px rgba(103,232,249,0.25);
 }
 .worldops-layer-button {
   height: 38px;
@@ -1396,6 +1697,20 @@ const WORLDOPS_CSS = `
   border: 1px solid color-mix(in srgb, var(--accent), rgba(255,255,255,0.14) 52%);
   background: color-mix(in srgb, var(--accent), rgba(255,255,255,0.04) 86%);
 }
+.worldops-media-frame {
+  margin-top: 0.85rem;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid rgba(103,232,249,0.2);
+  background: rgba(0,0,0,0.48);
+  aspect-ratio: 16 / 9;
+}
+.worldops-media-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
 .worldops-method-note {
   margin-top: 0.8rem;
   padding: 0.74rem;
@@ -1431,11 +1746,125 @@ const WORLDOPS_CSS = `
   line-height: 1.16;
   margin-top: 0.16rem;
 }
+.worldops-projection-map {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #020617;
+}
+.worldops-projection-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(2,6,23,0.18), rgba(2,6,23,0.56)),
+    url(${EARTH_TEXTURES.day});
+  background-size: cover;
+  background-position: center;
+  filter: saturate(1.08) contrast(1.08) brightness(0.72);
+}
+.worldops-projection-map::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 52%, rgba(1,3,11,0.1) 74%, rgba(1,3,11,0.7) 100%),
+    linear-gradient(90deg, rgba(103,232,249,0.06) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(103,232,249,0.05) 1px, transparent 1px);
+  background-size: auto, 8.333% 100%, 100% 16.66%;
+  pointer-events: none;
+}
+.worldops-projection-map svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.72;
+}
+.worldops-projection-map line {
+  stroke: rgba(191,219,254,0.2);
+  stroke-width: 0.08;
+}
+.worldops-projection-map .terminator {
+  fill: none;
+  stroke: rgba(250,204,21,0.72);
+  stroke-width: 0.18;
+  stroke-dasharray: 1.3 1;
+}
+.worldops-projection-dot {
+  position: absolute;
+  z-index: 4;
+  width: 7px;
+  height: 7px;
+  border-radius: 99px;
+  border: 1px solid rgba(255,255,255,0.75);
+  background: var(--dot-color);
+  box-shadow: 0 0 13px var(--dot-color);
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  padding: 0;
+}
+.worldops-projection-dot.orbital {
+  width: 4px;
+  height: 4px;
+  opacity: 0.86;
+  border: 0;
+}
+.worldops-projection-dot.debris {
+  opacity: 0.72;
+}
+.worldops-projection-dot.launch {
+  width: 11px;
+  height: 11px;
+  background: transparent;
+}
+.worldops-projection-dot.launch::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: inherit;
+  background: var(--dot-color);
+}
+.worldops-projection-dot.is-active {
+  width: 16px;
+  height: 16px;
+  z-index: 8;
+}
+.worldops-map-legend {
+  position: absolute;
+  z-index: 8;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.42rem;
+  padding: 0.42rem 0.62rem;
+  border-radius: 999px;
+  background: rgba(3,7,18,0.78);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.worldops-map-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  color: rgba(255,255,255,0.72);
+  font-size: 0.66rem;
+  font-weight: 850;
+}
+.worldops-map-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 99px;
+  background: var(--dot-color);
+  box-shadow: 0 0 10px var(--dot-color);
+}
 .worldops-mini-map {
   position: absolute;
   z-index: 25;
   left: 396px;
-  top: 88px;
+  top: 148px;
   width: min(360px, calc(100vw - 792px));
   height: 188px;
   border-radius: 18px;
@@ -1605,6 +2034,10 @@ const WORLDOPS_CSS = `
   .worldops-right {
     width: min(330px, calc(100vw - 36px));
   }
+  .worldops-command-strip {
+    left: 366px;
+    right: 366px;
+  }
   .worldops-timeline {
     left: 366px;
     right: 366px;
@@ -1622,6 +2055,7 @@ const WORLDOPS_CSS = `
     height: 62vh;
     min-height: 440px;
   }
+  .worldops-command-strip,
   .worldops-left,
   .worldops-right,
   .worldops-mini-map,
@@ -1634,6 +2068,11 @@ const WORLDOPS_CSS = `
     transform: none;
     width: min(720px, calc(100vw - 24px));
     margin: 0.8rem auto;
+  }
+  .worldops-left,
+  .worldops-right {
+    max-height: none;
+    overflow: visible;
   }
   .worldops-timeline {
     grid-template-columns: 1fr;

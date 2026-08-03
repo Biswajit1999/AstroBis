@@ -24,7 +24,7 @@ AstroBis currently contains seven major modules:
 | Module | Description |
 | --- | --- |
 | Solar System Atlas | Interactive planets, dwarf planets, Kuiper Belt, heliopause, and Oort Cloud scale exploration |
-| EarthOps World Map | Space-first world map with satellites, debris, launches, natural events, disasters, earthquakes, and space news |
+| EarthOps World Map | Space-first world map with satellites, debris, launches, natural events, disasters, earthquakes, space news, and public media |
 | Exoplanet Explorer | NASA Exoplanet Archive catalogue browsing, filtering, and visual analytics |
 | ISS Mission Control | ISS tracking using CelesTrak orbital elements and SGP4 propagation |
 | Small-Body Watch | Near-Earth object monitoring and interstellar visitor records |
@@ -63,7 +63,9 @@ It combines:
 * USGS recent earthquakes
 * GDACS current disaster alerts
 * Spaceflight News API articles
+* Curated official/public media links including NASA Live, ISS live video, NASA Worldview, and NOAA nowCOAST
 * Layer toggles, source badges, uncertainty labels, selected-item details, and a mission timeline
+* Switchable 3D globe, 2D operations map, and orbital-shell views
 
 The page uses build-time snapshots by default. Browser-side refresh is attempted only for CORS-friendly public feeds and falls back gracefully when a feed is unavailable.
 
@@ -115,11 +117,13 @@ AstroBis integrates public astronomical and Earth-facing datasets from:
 * NASA/JPL Close-Approach Data API
 * NASA Astronomy Picture of the Day
 * NASA EONET v3
+* NASA Live and NASA Earthdata Worldview
 * USGS Earthquake GeoJSON feeds
 * GDACS current disaster feed
 * CelesTrak GP orbital data
 * Launch Library 2
 * Spaceflight News API
+* NOAA nowCOAST
 * Public astronomical catalogues and reference datasets
 
 Build-time snapshots are generated automatically to keep the site functional when third-party APIs are unavailable.

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-03T18:16:58.440Z",
+  "generatedAt": "2026-08-03T19:03:30.062Z",
   "source": "NASA Exoplanet Archive TAP PSCompPars working catalogue",
   "query": "select top 7000 pl_name,hostname,discoverymethod,disc_facility,disc_year,pl_orbper,pl_rade,pl_bmasse,pl_eqt,pl_insol,pl_orbsmax,pl_orbeccen,pl_orbincl,sy_dist,st_teff,st_rad,st_mass,st_spectype from pscomppars where pl_name is not null and hostname is not null order by sy_dist asc",
   "countQueries": {

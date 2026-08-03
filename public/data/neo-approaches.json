@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-03T18:16:58.440Z",
+  "generatedAt": "2026-08-03T19:03:30.062Z",
   "source": "NASA/JPL SBDB Close Approach Data API",
   "query": {
     "date-min": "2026-08-03",
@@ -120032,7 +120032,7 @@
     ]
   ],
   "signature": {
-    "version": "1.5",
-    "source": "NASA/JPL SBDB Close Approach Data API"
+    "source": "NASA/JPL SBDB Close Approach Data API",
+    "version": "1.5"
   }
 }
