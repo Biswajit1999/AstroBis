@@ -157,17 +157,17 @@ const VIEW_MODES = [
 const CONSENT_STORAGE_KEY = 'astrobis-earthops-consent-v1';
 
 const GEOGRAPHIC_LABELS = [
-  { name: 'North America', lat: 47, lon: -101, type: 'continent' },
-  { name: 'South America', lat: -16, lon: -59, type: 'continent' },
-  { name: 'Europe', lat: 52, lon: 14, type: 'continent' },
-  { name: 'Africa', lat: 2, lon: 20, type: 'continent' },
-  { name: 'Asia', lat: 43, lon: 86, type: 'continent' },
-  { name: 'Australia', lat: -25, lon: 134, type: 'continent' },
-  { name: 'Antarctica', lat: -78, lon: 30, type: 'continent' },
-  { name: 'Pacific Ocean', lat: 2, lon: -150, type: 'ocean' },
-  { name: 'Atlantic Ocean', lat: 3, lon: -32, type: 'ocean' },
-  { name: 'Indian Ocean', lat: -18, lon: 78, type: 'ocean' },
-  { name: 'Arctic Ocean', lat: 78, lon: 0, type: 'ocean' },
+  { name: 'North America', lat: 47, lon: -101, type: 'continent', mapOnly: true },
+  { name: 'South America', lat: -16, lon: -59, type: 'continent', mapOnly: true },
+  { name: 'Europe', lat: 52, lon: 14, type: 'continent', mapOnly: true },
+  { name: 'Africa', lat: 2, lon: 20, type: 'continent', mapOnly: true },
+  { name: 'Asia', lat: 43, lon: 86, type: 'continent', mapOnly: true },
+  { name: 'Australia', lat: -25, lon: 134, type: 'continent', mapOnly: true },
+  { name: 'Antarctica', lat: -78, lon: 30, type: 'continent', mapOnly: true },
+  { name: 'Pacific Ocean', lat: 2, lon: -150, type: 'ocean', mapOnly: true },
+  { name: 'Atlantic Ocean', lat: 3, lon: -32, type: 'ocean', mapOnly: true },
+  { name: 'Indian Ocean', lat: -18, lon: 78, type: 'ocean', mapOnly: true },
+  { name: 'Arctic Ocean', lat: 78, lon: 0, type: 'ocean', mapOnly: true },
   { name: 'Cape Canaveral', lat: 28.57, lon: -80.65, type: 'spaceport' },
   { name: 'Vandenberg', lat: 34.74, lon: -120.57, type: 'spaceport' },
   { name: 'Kourou', lat: 5.24, lon: -52.77, type: 'spaceport' },
@@ -877,11 +877,11 @@ function EarthGlobe({ layers, markerCount, shellMode = false }) {
 function GeographicLabels({ userLocation, onSelect }) {
   return (
     <>
-      {GEOGRAPHIC_LABELS.map((label) => {
+      {GEOGRAPHIC_LABELS.filter((label) => !label.mapOnly).map((label) => {
         const position = latLonVector(label.lat, label.lon, label.type === 'spaceport' ? 1.035 : 1.022);
         return (
           <Billboard key={label.name} position={position}>
-            <Html center distanceFactor={label.type === 'spaceport' ? 5.9 : 7.2}>
+            <Html center distanceFactor={9.4}>
               <div className={`worldops-earth-label ${label.type}`}>
                 {label.type === 'spaceport' && <MapPin size={10} />}
                 <span>{label.name}</span>
@@ -2475,17 +2475,17 @@ const WORLDOPS_CSS = `
 .worldops-user-label {
   display: inline-flex;
   align-items: center;
-  gap: 0.24rem;
-  min-height: 20px;
-  padding: 0.18rem 0.38rem;
+  gap: 0.18rem;
+  min-height: 16px;
+  padding: 0.12rem 0.28rem;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(3,7,18,0.56);
-  color: rgba(255,255,255,0.7);
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(3,7,18,0.42);
+  color: rgba(255,255,255,0.56);
   font-family: 'Space Grotesk', Inter, sans-serif;
-  font-size: 0.56rem;
+  font-size: 0.42rem;
   font-weight: 900;
-  text-shadow: 0 1px 5px rgba(0,0,0,0.9);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
   white-space: nowrap;
   pointer-events: auto;
 }
@@ -2497,9 +2497,9 @@ const WORLDOPS_CSS = `
   font-style: italic;
 }
 .worldops-earth-label.spaceport {
-  color: rgba(254,240,138,0.82);
-  background: rgba(36,24,4,0.62);
-  border-color: rgba(251,191,36,0.24);
+  color: rgba(254,240,138,0.68);
+  background: rgba(36,24,4,0.42);
+  border-color: rgba(251,191,36,0.14);
 }
 .worldops-user-label {
   border-color: rgba(134,239,172,0.42);
@@ -2609,9 +2609,9 @@ const WORLDOPS_CSS = `
   position: absolute;
   z-index: 5;
   transform: translate(-50%, -50%);
-  color: rgba(255,255,255,0.58);
+  color: rgba(255,255,255,0.42);
   font-family: 'Space Grotesk', Inter, sans-serif;
-  font-size: 0.62rem;
+  font-size: 0.54rem;
   font-weight: 900;
   letter-spacing: 0.02em;
   text-shadow: 0 2px 6px rgba(0,0,0,0.85), 0 0 12px rgba(0,0,0,0.85);
@@ -2619,12 +2619,12 @@ const WORLDOPS_CSS = `
   white-space: nowrap;
 }
 .worldops-projection-label.ocean {
-  color: rgba(125,211,252,0.46);
+  color: rgba(125,211,252,0.36);
   font-style: italic;
 }
 .worldops-projection-label.spaceport {
-  color: rgba(254,240,138,0.72);
-  font-size: 0.56rem;
+  color: rgba(254,240,138,0.58);
+  font-size: 0.48rem;
   text-transform: uppercase;
 }
 .worldops-projection-user {

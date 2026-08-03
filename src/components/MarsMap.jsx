@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { Html, Line, OrbitControls, Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import {
@@ -322,32 +322,22 @@ function MoonSystem({ moons, visible }) {
   );
 }
 
-function CameraFocus({ selected, focusTick }) {
+function CameraFocus() {
   const controls = useRef();
-  const { camera } = useThree();
-  const targetPosition = useMemo(() => {
-    if (!selected) return null;
-    const normal = latLonVector(selected.lat, selected.lon, 1)
-      .applyEuler(new THREE.Euler(MARS_BASE_ROTATION.x, MARS_BASE_ROTATION.y, MARS_BASE_ROTATION.z))
-      .normalize();
-    return {
-      target: normal.clone().multiplyScalar(0.28),
-      camera: normal.clone().multiplyScalar(2.75).add(new THREE.Vector3(0.16, 0.12, 0.16)),
-    };
-  }, [selected?.id, focusTick]);
-
-  useFrame(() => {
-    if (!controls.current || !targetPosition) return;
-    controls.current.target.lerp(targetPosition.target, 0.035);
-    camera.position.lerp(targetPosition.camera, 0.026);
-    camera.lookAt(controls.current.target);
-    controls.current.update();
-  });
-
-  return <OrbitControls ref={controls} enableDamping dampingFactor={0.06} minDistance={1.35} maxDistance={6.4} />;
+  return (
+    <OrbitControls
+      ref={controls}
+      enableDamping
+      dampingFactor={0.06}
+      enablePan={false}
+      autoRotate={false}
+      minDistance={1.35}
+      maxDistance={6.4}
+    />
+  );
 }
 
-function MarsGlobe({ data, selected, onSelect, onCoordinate, layers, focusTick, terrainBoost }) {
+function MarsGlobe({ data, selected, onSelect, onCoordinate, layers, terrainBoost }) {
   const [texture, heightTexture, hillshadeTexture] = useLoader(THREE.TextureLoader, [
     MARS_TEXTURE_URL,
     MARS_HEIGHTMAP_URL,
@@ -458,7 +448,7 @@ function MarsGlobe({ data, selected, onSelect, onCoordinate, layers, focusTick, 
       <EffectComposer>
         <Bloom luminanceThreshold={0.22} luminanceSmoothing={0.78} intensity={1.08} radius={0.64} />
       </EffectComposer>
-      <CameraFocus selected={selected?.lat !== undefined ? selected : null} focusTick={focusTick} />
+      <CameraFocus />
     </>
   );
 }
@@ -771,7 +761,6 @@ export default function MarsMap() {
             }}
             onCoordinate={setHoverCoordinate}
             layers={layers}
-            focusTick={focusTick}
             terrainBoost={terrainBoost}
           />
         </Suspense>
@@ -903,10 +892,23 @@ const marsStyles = `
   width: 100%;
   margin-top: 0.7rem;
   border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.06);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.045)),
+    #11131d;
   color: #fff;
   border-radius: 14px;
   padding: 0.68rem 0.75rem;
+  font-weight: 800;
+  color-scheme: dark;
+  outline: 0;
+}
+.mars-select:focus {
+  border-color: rgba(251,146,60,0.44);
+  box-shadow: 0 0 0 3px rgba(251,146,60,0.16);
+}
+.mars-select option {
+  color: #fff;
+  background: #11131d;
   font-weight: 800;
 }
 .mars-presets {
