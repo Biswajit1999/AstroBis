@@ -1,6 +1,6 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { Html, Line, OrbitControls, Stars } from '@react-three/drei';
+import { Billboard, Html, Line, OrbitControls, Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import {
   Activity,
@@ -29,7 +29,7 @@ const LOCAL_WORLD_URL = `${BASE_PATH}data/world-ops.json`;
 const INITIAL_RENDER_DATE = new Date('2026-01-01T00:00:00.000Z');
 
 const EARTH_TEXTURES = {
-  day: 'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg',
+  day: `${BASE_PATH}assets/earth-blue-marble-4096.jpg`,
   normal: 'https://threejs.org/examples/textures/planets/earth_normal_2048.jpg',
   specular: 'https://threejs.org/examples/textures/planets/earth_specular_2048.jpg',
   lights: 'https://threejs.org/examples/textures/planets/earth_lights_2048.png',
@@ -106,7 +106,7 @@ const FALLBACK_WORLD = {
   },
   opsBrief: {
     id: 'fallback-earthops-brief',
-    label: 'AstroBis AI signal core',
+    label: 'AstroBis signal core',
     generatedAt: '2026-01-01T00:00:00.000Z',
     mode: 'local deterministic synthesis',
     confidence: 42,
@@ -352,7 +352,7 @@ function buildDisplayBrief(payload, visibleEvents, visibleSatellites, visibleLau
   const recentNews = countRecent(news, 'publishedAt', 24);
   return {
     id: 'earthops-client-brief',
-    label: 'AstroBis AI signal core',
+    label: 'AstroBis signal core',
     generatedAt: payload.generatedAt,
     mode: 'client synthesis over loaded public snapshot',
     confidence: 58,
@@ -727,8 +727,8 @@ function AtmosphereShell() {
       uniform vec3 glowColor;
       varying vec3 vNormal;
       void main() {
-        float rim = pow(0.76 - abs(vNormal.z), 2.35);
-        gl_FragColor = vec4(glowColor, clamp(rim, 0.0, 0.2));
+        float rim = pow(0.68 - abs(vNormal.z), 2.55);
+        gl_FragColor = vec4(glowColor, clamp(rim, 0.0, 0.12));
       }
     `,
     transparent: true,
@@ -739,7 +739,7 @@ function AtmosphereShell() {
 
   return (
     <mesh>
-      <sphereGeometry args={[1.058, 96, 96]} />
+      <sphereGeometry args={[1.035, 128, 128]} />
       <primitive object={material} attach="material" />
     </mesh>
   );
@@ -761,10 +761,10 @@ function EarthGlobe({ layers, markerCount, shellMode = false }) {
   useMemo(() => {
     [earthDay, earthLights, earthClouds].forEach((texture) => {
       texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = 8;
+      texture.anisotropy = 16;
     });
-    earthNormal.anisotropy = 8;
-    earthSpecular.anisotropy = 8;
+    earthNormal.anisotropy = 16;
+    earthSpecular.anisotropy = 16;
   }, [earthDay, earthNormal, earthSpecular, earthLights, earthClouds]);
 
   useFrame(({ clock }) => {
@@ -774,14 +774,14 @@ function EarthGlobe({ layers, markerCount, shellMode = false }) {
   return (
     <group>
       <mesh>
-        <sphereGeometry args={[1, 128, 128]} />
+        <sphereGeometry args={[1, 192, 192]} />
         <meshPhongMaterial
           map={earthDay}
           normalMap={earthNormal}
-          normalScale={new THREE.Vector2(0.36, 0.36)}
+          normalScale={new THREE.Vector2(0.22, 0.22)}
           specularMap={earthSpecular}
-          specular={new THREE.Color('#315982')}
-          shininess={20}
+          specular={new THREE.Color('#24465f')}
+          shininess={13}
           transparent={shellMode}
           opacity={shellMode ? 0.36 : 1}
         />
@@ -789,14 +789,14 @@ function EarthGlobe({ layers, markerCount, shellMode = false }) {
       {layers.cityLights && !shellMode && <NightLightsLayer texture={earthLights} sunDirection={sunDirection} />}
       {layers.clouds && (
         <mesh ref={clouds}>
-          <sphereGeometry args={[1.013, 128, 128]} />
-          <meshLambertMaterial map={earthClouds} transparent opacity={shellMode ? 0.12 : 0.34} depthWrite={false} />
+          <sphereGeometry args={[1.011, 160, 160]} />
+          <meshLambertMaterial map={earthClouds} transparent opacity={shellMode ? 0.1 : 0.24} depthWrite={false} />
         </mesh>
       )}
       <AtmosphereShell />
       <ambientLight intensity={0.12} color="#7dd3fc" />
-      <directionalLight position={sunVector.toArray()} color="#fff7ed" intensity={3.5} />
-      <pointLight position={sunVector.toArray()} color="#facc15" intensity={2.2} distance={14} />
+      <directionalLight position={sunVector.toArray()} color="#fff7ed" intensity={2.75} />
+      <pointLight position={sunVector.toArray()} color="#facc15" intensity={1.1} distance={14} />
     </group>
   );
 }
@@ -805,27 +805,37 @@ function SurfaceMarker({ item, kind, selected, onSelect }) {
   if (!Number.isFinite(item.lat) || !Number.isFinite(item.lon)) return null;
   const active = selectionId(selected) === selectionId({ kind, item });
   const color = itemColor(kind, item);
-  const position = latLonVector(item.lat, item.lon, kind === 'launch' ? 1.055 : 1.035);
-  const size = kind === 'launch' ? 0.017 : active ? 0.019 : 0.011;
+  const surface = latLonVector(item.lat, item.lon, 1.006);
+  const position = latLonVector(item.lat, item.lon, kind === 'launch' ? 1.048 : 1.032);
+  const size = kind === 'launch' ? 0.024 : active ? 0.023 : 0.016;
+  const opacity = active ? 0.95 : kind === 'launch' ? 0.62 : 0.46;
 
   return (
     <group position={position} onClick={(event) => { event.stopPropagation(); onSelect({ kind, item }); }}>
-      <mesh>
-        <sphereGeometry args={[size, 18, 18]} />
-        <meshBasicMaterial color={color} transparent opacity={0.96} />
-      </mesh>
-      <mesh>
-        <ringGeometry args={[size * 1.8, size * 3.4, 32]} />
-        <meshBasicMaterial color={color} transparent opacity={active ? 0.72 : 0.26} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
-      {active && (
-        <Html center distanceFactor={5.4}>
-          <div className="worldops-space-label">
-            <span>{kind === 'launch' ? 'Launch site' : item.source}</span>
-            <strong>{item.title || item.name}</strong>
-          </div>
-        </Html>
-      )}
+      <Line points={[surface.clone().sub(position), new THREE.Vector3(0, 0, 0)]} color={color} transparent opacity={active ? 0.56 : 0.22} lineWidth={active ? 1.15 : 0.62} />
+      <Billboard>
+        {kind === 'launch' ? (
+          <mesh rotation-z={Math.PI / 4}>
+            <planeGeometry args={[size * 1.15, size * 1.15]} />
+            <meshBasicMaterial color={color} transparent opacity={opacity} depthWrite={false} />
+          </mesh>
+        ) : (
+          <mesh>
+            <ringGeometry args={[size * 0.48, size, 28]} />
+            <meshBasicMaterial color={color} transparent opacity={opacity} side={THREE.DoubleSide} depthWrite={false} />
+          </mesh>
+        )}
+        <mesh>
+          <circleGeometry args={[size * 0.22, 16]} />
+          <meshBasicMaterial color={active ? '#ffffff' : color} transparent opacity={active ? 0.96 : 0.72} depthWrite={false} />
+        </mesh>
+        {active && (
+          <mesh>
+            <ringGeometry args={[size * 1.35, size * 1.75, 32]} />
+            <meshBasicMaterial color="#ffffff" transparent opacity={0.34} side={THREE.DoubleSide} depthWrite={false} />
+          </mesh>
+        )}
+      </Billboard>
     </group>
   );
 }
@@ -898,7 +908,7 @@ function SatelliteField({ satellites, layers, mode = 'globe' }) {
         <bufferAttribute attach="attributes-position" array={buffers.positions} count={visible.length} itemSize={3} />
         <bufferAttribute attach="attributes-color" array={buffers.colors} count={visible.length} itemSize={3} />
       </bufferGeometry>
-      <pointsMaterial vertexColors size={mode === 'shell' ? 0.028 : 0.019} transparent opacity={mode === 'shell' ? 0.9 : 0.74} sizeAttenuation depthWrite={false} />
+      <pointsMaterial vertexColors size={mode === 'shell' ? 0.022 : 0.010} transparent opacity={mode === 'shell' ? 0.72 : 0.38} sizeAttenuation depthWrite={false} />
     </points>
   );
 }
@@ -1089,25 +1099,25 @@ function DetailRows({ rows }) {
   );
 }
 
-function AIBrief({ brief, sourceMode }) {
+function SignalBrief({ brief, sourceMode }) {
   if (!brief) return null;
   const confidence = clamp(Number(brief.confidence) || 0, 0, 100);
   const watch = brief.watch || [];
   const bullets = brief.bullets || [];
   return (
-    <section className="worldops-ai-brief">
-      <div className="worldops-ai-scanline" aria-hidden="true" />
-      <div className="worldops-ai-topline">
-        <span><Zap size={13} /> AI signal core</span>
+    <section className="worldops-signal-brief">
+      <div className="worldops-signal-scanline" aria-hidden="true" />
+      <div className="worldops-signal-topline">
+        <span><Zap size={13} /> Signal core</span>
         <strong>{sourceMode}</strong>
       </div>
       <h3>{brief.headline || 'Public feeds loaded into AstroBis EarthOps.'}</h3>
-      <div className="worldops-ai-meter" style={{ '--confidence': `${confidence}%` }}>
-        <span>confidence</span>
+      <div className="worldops-signal-meter" style={{ '--confidence': `${confidence}%` }}>
+        <span>source health</span>
         <strong>{Math.round(confidence)}%</strong>
         <i />
       </div>
-      <div className="worldops-ai-grid">
+      <div className="worldops-signal-grid">
         {watch.slice(0, 6).map((item) => (
           <article key={`${item.label}-${item.value}`} style={{ '--tone': item.tone || '#67e8f9' }}>
             <span>{item.label}</span>
@@ -1116,7 +1126,7 @@ function AIBrief({ brief, sourceMode }) {
           </article>
         ))}
       </div>
-      <div className="worldops-ai-bullets">
+      <div className="worldops-signal-bullets">
         {bullets.slice(0, 4).map((bullet) => <p key={bullet}>{bullet}</p>)}
       </div>
       <footer>
@@ -1126,7 +1136,67 @@ function AIBrief({ brief, sourceMode }) {
   );
 }
 
-function SelectionPanel({ selected, payload, sourceMode, brief }) {
+function SignalPanel({ sourceMode, brief }) {
+  return (
+    <aside className="worldops-panel worldops-right" style={{ '--accent': '#67e8f9' }}>
+      <div className="worldops-kicker"><Crosshair size={14} /> Source console</div>
+      <SignalBrief brief={brief} sourceMode={sourceMode} />
+      <div className="worldops-method-note">
+        {sourceMode === 'live'
+          ? 'Live refresh updates CORS-friendly public feeds in the browser; launches and news remain build snapshots.'
+          : 'Public feed snapshot. Disaster and news layers are situational context, not official hazard or impact assessments.'}
+      </div>
+    </aside>
+  );
+}
+
+function SourcePreview({ kind, item, color }) {
+  const image = item.imageUrl || item.image || '';
+  const sourceName = item.site || item.provider || item.source || item.group || 'public source';
+  if (kind === 'media' && item.embedUrl) {
+    return (
+      <figure className="worldops-source-preview">
+        <div className="worldops-media-frame">
+          <iframe
+            src={item.embedUrl}
+            title={item.title}
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        </div>
+        <figcaption>Embedded public player from {sourceName}; stream availability depends on the source.</figcaption>
+      </figure>
+    );
+  }
+  if (image) {
+    return (
+      <figure className="worldops-source-preview">
+        <img src={image} alt="" loading="lazy" />
+        <figcaption>Source image from {sourceName}; open the public source for full context.</figcaption>
+      </figure>
+    );
+  }
+  const satellitePoint = kind === 'satellite' ? satelliteGeoPoint(item, new Date()) : null;
+  const lat = finiteNumber(item.lat ?? satellitePoint?.lat);
+  const lon = finiteNumber(item.lon ?? satellitePoint?.lon);
+  const hasPoint = lat !== null && lon !== null;
+  const point = hasPoint ? projectLatLon(lat, lon) : { x: 50, y: 50 };
+  return (
+    <figure className="worldops-source-preview">
+      <div className="worldops-location-snapshot" style={{ '--accent': color, '--x': `${point.x}%`, '--y': `${point.y}%` }}>
+        <span />
+      </div>
+      <figcaption>
+        {hasPoint
+          ? `Coordinate snapshot from ${sourceName}: ${lat.toFixed(2)}, ${lon.toFixed(2)}.`
+          : `Public source snapshot from ${sourceName}; mapped coordinates are not supplied for this item.`}
+      </figcaption>
+    </figure>
+  );
+}
+
+function SelectedSourceCard({ selected, payload, sourceMode }) {
   const fallback = selected || (
     payload.launches[0]
       ? { kind: 'launch', item: payload.launches[0] }
@@ -1152,15 +1222,14 @@ function SelectionPanel({ selected, payload, sourceMode, brief }) {
           : item.site;
 
   return (
-    <aside className="worldops-panel worldops-right" style={{ '--accent': color }}>
-      <div className="worldops-kicker"><Crosshair size={14} /> Intelligence panel</div>
-      <AIBrief brief={brief} sourceMode={sourceMode} />
-      <div className="worldops-detail-divider" />
+    <aside className="worldops-panel worldops-selected-card" style={{ '--accent': color }}>
+      <div className="worldops-kicker"><Crosshair size={14} /> Selected source</div>
       <div className="worldops-detail-heading">
         <span>{label}</span>
         <h2>{title}</h2>
         <p>{item.summary || item.mission || item.status || 'Public data snapshot item.'}</p>
       </div>
+      <SourcePreview kind={kind} item={item} color={color} />
 
       {kind === 'event' && (
         <DetailRows rows={[
@@ -1201,25 +1270,12 @@ function SelectionPanel({ selected, payload, sourceMode, brief }) {
       )}
 
       {kind === 'media' && (
-        <>
-          <DetailRows rows={[
-            ['Provider', item.provider],
-            ['Type', item.type],
-            ['Status', item.status, '#86efac'],
-            ['Use', item.embedUrl ? 'embeddable public player' : 'open official source'],
-          ]} />
-          {item.embedUrl && (
-            <div className="worldops-media-frame">
-              <iframe
-                src={item.embedUrl}
-                title={item.title}
-                loading="lazy"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
-            </div>
-          )}
-        </>
+        <DetailRows rows={[
+          ['Provider', item.provider],
+          ['Type', item.type],
+          ['Status', item.status, '#86efac'],
+          ['Use', item.embedUrl ? 'embeddable public player' : 'open official source'],
+        ]} />
       )}
 
       <a className="worldops-source-link" href={item.url || '#'} target="_blank" rel="noopener noreferrer">
@@ -1496,7 +1552,7 @@ export default function WorldMap() {
         )}
         {loading && <LoadingFallback />}
         <div className="worldops-orbit-credit">
-          Data snapshots: NASA EONET - USGS - GDACS - CelesTrak - Launch Library 2 - Spaceflight News API
+          Data snapshots: NASA EONET - USGS - GDACS - CelesTrak - Launch Library 2 - Spaceflight News API - Earth texture: NASA Blue Marble
         </div>
       </div>
 
@@ -1519,7 +1575,8 @@ export default function WorldMap() {
         setViewMode={setViewMode}
       />
 
-      <SelectionPanel selected={selected} payload={payload} sourceMode={sourceMode} brief={opsBrief} />
+      <SignalPanel payload={payload} sourceMode={sourceMode} brief={opsBrief} />
+      <SelectedSourceCard selected={selected} payload={payload} sourceMode={sourceMode} />
 
       <TimelineRail launches={visibleLaunches} events={visibleEvents} news={payload.news} media={payload.media || []} layers={layers} onSelect={setSelected} />
     </div>
@@ -1609,13 +1666,26 @@ const WORLDOPS_CSS = `
   right: 18px;
   top: 88px;
   width: min(360px, calc(100vw - 36px));
-  max-height: min(620px, calc(100vh - 236px));
+  max-height: min(448px, calc(100vh - 454px));
   overflow: auto;
   padding: 1.05rem;
   border-color: color-mix(in srgb, var(--accent), rgba(148,163,184,0.2) 64%);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--accent), rgba(4,8,18,0.92) 90%), rgba(4,7,17,0.78)),
     radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent), transparent 72%), transparent 44%);
+}
+.worldops-selected-card {
+  right: 18px;
+  bottom: 16px;
+  width: min(360px, calc(100vw - 36px));
+  max-height: min(430px, calc(100vh - 570px));
+  overflow: auto;
+  padding: 1rem;
+  border-color: color-mix(in srgb, var(--accent), rgba(148,163,184,0.18) 62%);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent), rgba(4,8,18,0.9) 94%), rgba(4,7,17,0.8)),
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent), transparent 74%), transparent 42%);
+  animation: worldops-card-rise 520ms cubic-bezier(0.2, 0.9, 0.2, 1);
 }
 .worldops-kicker {
   display: inline-flex;
@@ -1860,6 +1930,70 @@ const WORLDOPS_CSS = `
   border: 1px solid color-mix(in srgb, var(--accent), rgba(255,255,255,0.14) 52%);
   background: color-mix(in srgb, var(--accent), rgba(255,255,255,0.04) 86%);
 }
+.worldops-source-preview {
+  margin: 0.82rem 0 0;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent), rgba(255,255,255,0.12) 58%);
+  background: rgba(0,0,0,0.36);
+}
+.worldops-source-preview img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: rgba(0,0,0,0.5);
+  transform: scale(1.015);
+  animation: worldops-preview-drift 18s ease-in-out infinite alternate;
+}
+.worldops-source-preview figcaption {
+  margin: 0;
+  padding: 0.55rem 0.64rem;
+  color: rgba(255,255,255,0.52);
+  font-size: 0.67rem;
+  line-height: 1.35;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.worldops-location-snapshot {
+  position: relative;
+  height: 154px;
+  background-image:
+    linear-gradient(rgba(2,6,23,0.05), rgba(2,6,23,0.5)),
+    url(${EARTH_TEXTURES.day});
+  background-size: cover;
+  background-position: center;
+  filter: saturate(1.05) contrast(1.08);
+  animation: worldops-preview-drift 18s ease-in-out infinite alternate;
+}
+.worldops-location-snapshot::before,
+.worldops-location-snapshot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.worldops-location-snapshot::before {
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(255,255,255,0.08) 1px, transparent 1px);
+  background-size: 16.66% 100%, 100% 25%;
+}
+.worldops-location-snapshot::after {
+  background: radial-gradient(circle at var(--x) var(--y), color-mix(in srgb, var(--accent), transparent 26%) 0 1.2%, transparent 1.4% 100%);
+  box-shadow: inset 0 0 42px rgba(0,0,0,0.44);
+}
+.worldops-location-snapshot span {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: 18px;
+  height: 18px;
+  border: 2px solid white;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  background: var(--accent);
+  box-shadow: 0 0 18px var(--accent), 0 0 0 9px color-mix(in srgb, var(--accent), transparent 72%);
+}
 .worldops-media-frame {
   margin-top: 0.85rem;
   overflow: hidden;
@@ -1873,6 +2007,11 @@ const WORLDOPS_CSS = `
   height: 100%;
   border: 0;
   display: block;
+}
+.worldops-source-preview .worldops-media-frame {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
 }
 .worldops-method-note {
   margin-top: 0.8rem;
@@ -1889,7 +2028,7 @@ const WORLDOPS_CSS = `
   margin: 0.92rem 0;
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent), rgba(255,255,255,0.3) 38%), transparent);
 }
-.worldops-ai-brief {
+.worldops-signal-brief {
   position: relative;
   isolation: isolate;
   overflow: hidden;
@@ -1901,7 +2040,7 @@ const WORLDOPS_CSS = `
     radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--accent), transparent 58%), transparent 44%);
   box-shadow: inset 0 0 32px rgba(255,255,255,0.035), 0 18px 52px rgba(0,0,0,0.28);
 }
-.worldops-ai-scanline {
+.worldops-signal-scanline {
   position: absolute;
   z-index: -1;
   inset: -45% 0 auto;
@@ -1910,15 +2049,15 @@ const WORLDOPS_CSS = `
   opacity: 0.42;
   animation: worldops-scan 5.6s linear infinite;
 }
-.worldops-ai-topline {
+.worldops-signal-topline {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.7rem;
   margin-bottom: 0.58rem;
 }
-.worldops-ai-topline span,
-.worldops-ai-topline strong {
+.worldops-signal-topline span,
+.worldops-signal-topline strong {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -1928,13 +2067,13 @@ const WORLDOPS_CSS = `
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.worldops-ai-topline span {
+.worldops-signal-topline span {
   color: #67e8f9;
 }
-.worldops-ai-topline strong {
+.worldops-signal-topline strong {
   color: rgba(255,255,255,0.48);
 }
-.worldops-ai-brief h3 {
+.worldops-signal-brief h3 {
   margin: 0;
   color: rgba(255,255,255,0.92);
   font-family: 'Space Grotesk', Inter, sans-serif;
@@ -1942,25 +2081,25 @@ const WORLDOPS_CSS = `
   line-height: 1.22;
   letter-spacing: 0;
 }
-.worldops-ai-meter {
+.worldops-signal-meter {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0.35rem 0.7rem;
   align-items: center;
   margin: 0.82rem 0;
 }
-.worldops-ai-meter span {
+.worldops-signal-meter span {
   color: rgba(255,255,255,0.44);
   font-size: 0.62rem;
   font-weight: 950;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.worldops-ai-meter strong {
+.worldops-signal-meter strong {
   color: #cffafe;
   font-size: 0.76rem;
 }
-.worldops-ai-meter i {
+.worldops-signal-meter i {
   grid-column: 1 / -1;
   height: 6px;
   border-radius: 999px;
@@ -1969,19 +2108,19 @@ const WORLDOPS_CSS = `
     rgba(255,255,255,0.06);
   box-shadow: 0 0 18px rgba(103,232,249,0.24);
 }
-.worldops-ai-grid {
+.worldops-signal-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.46rem;
 }
-.worldops-ai-grid article {
+.worldops-signal-grid article {
   min-height: 84px;
   padding: 0.56rem;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--tone), rgba(255,255,255,0.08) 64%);
   background: color-mix(in srgb, var(--tone), rgba(255,255,255,0.035) 91%);
 }
-.worldops-ai-grid span {
+.worldops-signal-grid span {
   display: block;
   color: rgba(255,255,255,0.44);
   font-size: 0.58rem;
@@ -1989,7 +2128,7 @@ const WORLDOPS_CSS = `
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.worldops-ai-grid strong {
+.worldops-signal-grid strong {
   display: block;
   margin-top: 0.2rem;
   color: var(--tone);
@@ -1997,19 +2136,19 @@ const WORLDOPS_CSS = `
   font-size: 0.92rem;
   line-height: 1.1;
 }
-.worldops-ai-grid small {
+.worldops-signal-grid small {
   display: block;
   margin-top: 0.32rem;
   color: rgba(255,255,255,0.48);
   font-size: 0.61rem;
   line-height: 1.28;
 }
-.worldops-ai-bullets {
+.worldops-signal-bullets {
   display: grid;
   gap: 0.34rem;
   margin-top: 0.74rem;
 }
-.worldops-ai-bullets p {
+.worldops-signal-bullets p {
   margin: 0;
   padding-left: 0.62rem;
   border-left: 2px solid color-mix(in srgb, var(--accent), rgba(255,255,255,0.18) 38%);
@@ -2017,7 +2156,7 @@ const WORLDOPS_CSS = `
   font-size: 0.68rem;
   line-height: 1.4;
 }
-.worldops-ai-brief footer {
+.worldops-signal-brief footer {
   margin-top: 0.68rem;
   padding-top: 0.56rem;
   border-top: 1px solid rgba(255,255,255,0.08);
@@ -2345,9 +2484,18 @@ const WORLDOPS_CSS = `
   0% { transform: translateY(0); }
   100% { transform: translateY(310%); }
 }
+@keyframes worldops-card-rise {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes worldops-preview-drift {
+  from { background-position: center; transform: scale(1.01); }
+  to { background-position: 52% 49%; transform: scale(1.045); }
+}
 @media (max-width: 1180px) {
   .worldops-left,
-  .worldops-right {
+  .worldops-right,
+  .worldops-selected-card {
     width: min(330px, calc(100vw - 36px));
   }
   .worldops-command-strip {
@@ -2374,6 +2522,7 @@ const WORLDOPS_CSS = `
   .worldops-command-strip,
   .worldops-left,
   .worldops-right,
+  .worldops-selected-card,
   .worldops-timeline {
     position: relative;
     left: auto;
@@ -2385,7 +2534,8 @@ const WORLDOPS_CSS = `
     margin: 0.8rem auto;
   }
   .worldops-left,
-  .worldops-right {
+  .worldops-right,
+  .worldops-selected-card {
     max-height: none;
     overflow: visible;
   }

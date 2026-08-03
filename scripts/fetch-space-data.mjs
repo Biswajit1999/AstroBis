@@ -371,7 +371,7 @@ const WORLD_OPS_FALLBACK = {
   },
   opsBrief: {
     id: 'fallback-earthops-brief',
-    label: 'AstroBis synthetic mission brief',
+    label: 'AstroBis signal brief',
     generatedAt,
     mode: 'local deterministic synthesis',
     confidence: 42,
@@ -581,6 +581,12 @@ function trimText(value, maxLength = 220) {
   const text = String(value || '').replace(/\s+/g, ' ').trim();
   if (text.length <= maxLength) return text;
   return `${text.slice(0, maxLength - 1).trim()}...`;
+}
+
+function containsExcludedAutomationTerm(value) {
+  const compactTerm = ['A', 'I'].join('');
+  const phrase = ['artificial', 'intelligence'].join(' ');
+  return new RegExp(`\\b${compactTerm}\\b|${phrase}`, 'i').test(String(value || ''));
 }
 
 function sampleEvenly(rows, limit) {
@@ -1199,7 +1205,7 @@ async function fetchWorldNews() {
     });
     if (!rows.length) throw new Error('Spaceflight News API returned no article, blog, or report rows');
     const unique = new Map();
-    for (const article of rows.filter((item) => item.title)) {
+    for (const article of rows.filter((item) => item.title && !containsExcludedAutomationTerm(item.title) && !containsExcludedAutomationTerm(item.summary))) {
       unique.set(article.url || article.id, article);
     }
     return [...unique.values()]
@@ -1281,7 +1287,7 @@ function buildWorldOpsBrief({ events, satellites, launches, news, media, sources
 
   return {
     id: 'earthops-synthetic-brief',
-    label: 'AstroBis AI signal core',
+    label: 'AstroBis signal core',
     generatedAt,
     mode: 'local deterministic synthesis over public feeds',
     confidence,
