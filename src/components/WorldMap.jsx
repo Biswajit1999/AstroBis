@@ -11,7 +11,9 @@ import {
   Flame,
   Globe2,
   Layers,
+  LocateFixed,
   Map,
+  MapPin,
   Newspaper,
   Orbit,
   Radio,
@@ -150,6 +152,28 @@ const VIEW_MODES = [
   { key: 'globe', label: '3D Globe', icon: Globe2 },
   { key: 'map', label: '2D Ops Map', icon: Map },
   { key: 'shell', label: 'Orbit Shell', icon: Orbit },
+];
+
+const CONSENT_STORAGE_KEY = 'astrobis-earthops-consent-v1';
+
+const GEOGRAPHIC_LABELS = [
+  { name: 'North America', lat: 47, lon: -101, type: 'continent' },
+  { name: 'South America', lat: -16, lon: -59, type: 'continent' },
+  { name: 'Europe', lat: 52, lon: 14, type: 'continent' },
+  { name: 'Africa', lat: 2, lon: 20, type: 'continent' },
+  { name: 'Asia', lat: 43, lon: 86, type: 'continent' },
+  { name: 'Australia', lat: -25, lon: 134, type: 'continent' },
+  { name: 'Antarctica', lat: -78, lon: 30, type: 'continent' },
+  { name: 'Pacific Ocean', lat: 2, lon: -150, type: 'ocean' },
+  { name: 'Atlantic Ocean', lat: 3, lon: -32, type: 'ocean' },
+  { name: 'Indian Ocean', lat: -18, lon: 78, type: 'ocean' },
+  { name: 'Arctic Ocean', lat: 78, lon: 0, type: 'ocean' },
+  { name: 'Cape Canaveral', lat: 28.57, lon: -80.65, type: 'spaceport' },
+  { name: 'Vandenberg', lat: 34.74, lon: -120.57, type: 'spaceport' },
+  { name: 'Kourou', lat: 5.24, lon: -52.77, type: 'spaceport' },
+  { name: 'Baikonur', lat: 45.97, lon: 63.31, type: 'spaceport' },
+  { name: 'Wenchang', lat: 19.61, lon: 110.95, type: 'spaceport' },
+  { name: 'Sriharikota', lat: 13.72, lon: 80.23, type: 'spaceport' },
 ];
 
 const EVENT_COLORS = {
@@ -309,6 +333,7 @@ function statusColor(value) {
 }
 
 function itemColor(kind, item) {
+  if (kind === 'location') return '#86efac';
   if (kind === 'launch') return '#fbbf24';
   if (kind === 'satellite') return SATELLITE_COLORS[item.status] || '#67e8f9';
   if (kind === 'news') return '#93c5fd';
@@ -533,6 +558,24 @@ function orbitPath(satellite, samples = 180) {
   return points;
 }
 
+function makeRoundPointTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const context = canvas.getContext('2d');
+  const gradient = context.createRadialGradient(32, 32, 0, 32, 32, 31);
+  gradient.addColorStop(0, 'rgba(255,255,255,1)');
+  gradient.addColorStop(0.38, 'rgba(255,255,255,0.9)');
+  gradient.addColorStop(0.72, 'rgba(255,255,255,0.28)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 64, 64);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
 function eventIsVisible(event, layers) {
   if (event.source?.includes('NASA') || ['wildfires', 'volcanoes', 'severeStorms', 'seaLakeIce', 'dustHaze', 'nasa-event'].includes(event.type)) {
     return layers.nasaEvents;
@@ -586,7 +629,7 @@ async function refreshLiveLayers() {
   };
 }
 
-function OpsProjectionMap({ events, launches, satellites, layers, selected, onSelect }) {
+function OpsProjectionMap({ events, launches, satellites, layers, selected, onSelect, userLocation }) {
   const subsolar = subsolarPoint(new Date());
   const satellitePoints = useMemo(() => {
     const visible = satellites
@@ -654,6 +697,34 @@ function OpsProjectionMap({ events, launches, satellites, layers, selected, onSe
           title={launch.name}
         />
       ))}
+
+      {GEOGRAPHIC_LABELS.map((label) => {
+        const point = projectLatLon(label.lat, label.lon);
+        return (
+          <span
+            key={label.name}
+            className={`worldops-projection-label ${label.type}`}
+            style={{ left: `${point.x}%`, top: `${point.y}%` }}
+          >
+            {label.name}
+          </span>
+        );
+      })}
+
+      {userLocation && (
+        <button
+          type="button"
+          className="worldops-projection-user"
+          style={{
+            left: `${projectLatLon(userLocation.lat, userLocation.lon).x}%`,
+            top: `${projectLatLon(userLocation.lat, userLocation.lon).y}%`,
+          }}
+          onClick={() => onSelect({ kind: 'location', item: userLocation })}
+          title="Your approximate location"
+        >
+          <LocateFixed size={14} />
+        </button>
+      )}
 
       <div className="worldops-map-legend">
         <span><i style={{ '--dot-color': '#67e8f9' }} /> satellites</span>
@@ -762,6 +833,8 @@ function EarthGlobe({ layers, markerCount, shellMode = false }) {
     [earthDay, earthLights, earthClouds].forEach((texture) => {
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.anisotropy = 16;
+      texture.minFilter = THREE.LinearMipmapLinearFilter;
+      texture.magFilter = THREE.LinearFilter;
     });
     earthNormal.anisotropy = 16;
     earthSpecular.anisotropy = 16;
@@ -798,6 +871,44 @@ function EarthGlobe({ layers, markerCount, shellMode = false }) {
       <directionalLight position={sunVector.toArray()} color="#fff7ed" intensity={2.75} />
       <pointLight position={sunVector.toArray()} color="#facc15" intensity={1.1} distance={14} />
     </group>
+  );
+}
+
+function GeographicLabels({ userLocation, onSelect }) {
+  return (
+    <>
+      {GEOGRAPHIC_LABELS.map((label) => {
+        const position = latLonVector(label.lat, label.lon, label.type === 'spaceport' ? 1.035 : 1.022);
+        return (
+          <Billboard key={label.name} position={position}>
+            <Html center distanceFactor={label.type === 'spaceport' ? 5.9 : 7.2}>
+              <div className={`worldops-earth-label ${label.type}`}>
+                {label.type === 'spaceport' && <MapPin size={10} />}
+                <span>{label.name}</span>
+              </div>
+            </Html>
+          </Billboard>
+        );
+      })}
+      {userLocation && (
+        <Billboard position={latLonVector(userLocation.lat, userLocation.lon, 1.055)}>
+          <Html center distanceFactor={5.2}>
+            <button
+              type="button"
+              className="worldops-user-label"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelect({ kind: 'location', item: userLocation });
+              }}
+              title="Your approximate browser location"
+            >
+              <LocateFixed size={13} />
+              <span>Your location</span>
+            </button>
+          </Html>
+        </Billboard>
+      )}
+    </>
   );
 }
 
@@ -864,9 +975,10 @@ function OrbitBands({ selected }) {
   );
 }
 
-function SatelliteField({ satellites, layers, mode = 'globe' }) {
+function SatelliteField({ satellites, layers, mode = 'globe', selected, onSelect }) {
   const geometryRef = useRef();
   const lastUpdate = useRef(0);
+  const pointTexture = useMemo(() => makeRoundPointTexture(), []);
   const visible = useMemo(() => satellites.filter((satellite) => (
     satellite.status === 'debris' ? layers.debris : layers.satellites
   )).slice(0, 760), [satellites, layers.debris, layers.satellites]);
@@ -903,12 +1015,31 @@ function SatelliteField({ satellites, layers, mode = 'globe' }) {
 
   if (!visible.length) return null;
   return (
-    <points key={`satellite-cloud-${visible.length}`}>
+    <points
+      key={`satellite-cloud-${visible.length}`}
+      onPointerDown={(event) => {
+        if (typeof event.index !== 'number') return;
+        const satellite = visible[event.index];
+        if (!satellite) return;
+        event.stopPropagation();
+        onSelect({ kind: 'satellite', item: satellite });
+      }}
+    >
       <bufferGeometry ref={geometryRef} key={`satellite-geometry-${visible.length}`}>
         <bufferAttribute attach="attributes-position" array={buffers.positions} count={visible.length} itemSize={3} />
         <bufferAttribute attach="attributes-color" array={buffers.colors} count={visible.length} itemSize={3} />
       </bufferGeometry>
-      <pointsMaterial vertexColors size={mode === 'shell' ? 0.022 : 0.010} transparent opacity={mode === 'shell' ? 0.72 : 0.38} sizeAttenuation depthWrite={false} />
+      <pointsMaterial
+        map={pointTexture}
+        alphaMap={pointTexture}
+        alphaTest={0.03}
+        vertexColors
+        size={mode === 'shell' ? 0.018 : 0.0075}
+        transparent
+        opacity={mode === 'shell' ? 0.58 : 0.26}
+        sizeAttenuation
+        depthWrite={false}
+      />
     </points>
   );
 }
@@ -938,7 +1069,7 @@ function SelectedSatelliteMarker({ selected, onSelect }) {
   );
 }
 
-function WorldScene({ events, launches, satellites, layers, selected, onSelect, mode = 'globe' }) {
+function WorldScene({ events, launches, satellites, layers, selected, onSelect, mode = 'globe', userLocation }) {
   const launchMarkers = launches.filter((launch) => Number.isFinite(launch.lat) && Number.isFinite(launch.lon));
   const markerCount = events.length + launchMarkers.length + satellites.length;
   return (
@@ -947,14 +1078,15 @@ function WorldScene({ events, launches, satellites, layers, selected, onSelect, 
       <Stars radius={220} depth={90} count={9000} factor={3.1} saturation={0.18} fade speed={0.08} />
       <EarthGlobe layers={layers} markerCount={markerCount} shellMode={mode === 'shell'} />
       {layers.orbitTrails && <OrbitBands selected={selected} />}
-      <SatelliteField satellites={satellites} layers={layers} mode={mode} />
+      <SatelliteField satellites={satellites} layers={layers} mode={mode} selected={selected} onSelect={onSelect} />
       <SelectedSatelliteMarker selected={selected} onSelect={onSelect} />
+      <GeographicLabels userLocation={userLocation} onSelect={onSelect} />
       {events.map((event) => <SurfaceMarker key={event.id} item={event} kind="event" selected={selected} onSelect={onSelect} />)}
       {layers.launches && launchMarkers.map((launch) => <SurfaceMarker key={launch.id} item={launch} kind="launch" selected={selected} onSelect={onSelect} />)}
       <EffectComposer>
         <Bloom luminanceThreshold={0.3} luminanceSmoothing={0.82} intensity={1.15} radius={0.62} />
       </EffectComposer>
-      <OrbitControls enableDamping dampingFactor={0.06} minDistance={1.25} maxDistance={8.7} />
+      <OrbitControls enableDamping dampingFactor={0.06} minDistance={1.42} maxDistance={8.7} />
     </>
   );
 }
@@ -1002,7 +1134,7 @@ function ViewModeButton({ mode, active, onSelect }) {
   );
 }
 
-function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveStatus, visibleCounts, onSelect, satellites, events, launches, selected, viewMode, setViewMode }) {
+function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveStatus, visibleCounts, onSelect, satellites, events, launches, selected, viewMode, setViewMode, userLocation }) {
   const prioritySatellites = satellites
     .filter((satellite) => satellite.status === 'station' || satellite.status === 'recent-object')
     .slice(0, 8);
@@ -1036,6 +1168,7 @@ function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveS
             layers={layers}
             selected={selected}
             onSelect={onSelect}
+            userLocation={userLocation}
           />
         </div>
       )}
@@ -1219,7 +1352,9 @@ function SelectedSourceCard({ selected, payload, sourceMode }) {
         ? item.group
         : kind === 'media'
           ? 'Public media source'
-          : item.site;
+          : kind === 'location'
+            ? 'Visitor location'
+            : item.site;
 
   return (
     <aside className="worldops-panel worldops-selected-card" style={{ '--accent': color }}>
@@ -1278,9 +1413,20 @@ function SelectedSourceCard({ selected, payload, sourceMode }) {
         ]} />
       )}
 
-      <a className="worldops-source-link" href={item.url || '#'} target="_blank" rel="noopener noreferrer">
-        Open public source
-      </a>
+      {kind === 'location' && (
+        <DetailRows rows={[
+          ['Latitude', `${item.lat.toFixed(4)} deg`, '#67e8f9'],
+          ['Longitude', `${item.lon.toFixed(4)} deg`, '#67e8f9'],
+          ['Accuracy', item.accuracy ? `about ${Math.round(item.accuracy).toLocaleString()} m` : 'browser estimate'],
+          ['Permission', 'stored on this device only', '#86efac'],
+        ]} />
+      )}
+
+      {kind !== 'location' && (
+        <a className="worldops-source-link" href={item.url || '#'} target="_blank" rel="noopener noreferrer">
+          Open public source
+        </a>
+      )}
 
       <div className="worldops-method-note">
         {sourceMode === 'live'
@@ -1291,7 +1437,7 @@ function SelectedSourceCard({ selected, payload, sourceMode }) {
   );
 }
 
-function MiniMap({ events, launches, satellites = [], layers = DEFAULT_LAYERS, selected, onSelect }) {
+function MiniMap({ events, launches, satellites = [], layers = DEFAULT_LAYERS, selected, onSelect, userLocation }) {
   const subsolar = subsolarPoint(new Date());
   const plottedEvents = events.slice(0, 180);
   const plottedLaunches = launches.filter((launch) => Number.isFinite(launch.lat) && Number.isFinite(launch.lon)).slice(0, 24);
@@ -1301,6 +1447,7 @@ function MiniMap({ events, launches, satellites = [], layers = DEFAULT_LAYERS, s
   const pointStyle = (item, kind) => ({
     left: `${((item.lon + 180) / 360) * 100}%`,
     top: `${((90 - item.lat) / 180) * 100}%`,
+    '--dot-color': itemColor(kind, item),
     background: itemColor(kind, item),
     boxShadow: `0 0 12px ${itemColor(kind, item)}`,
   });
@@ -1348,6 +1495,29 @@ function MiniMap({ events, launches, satellites = [], layers = DEFAULT_LAYERS, s
           title={launch.name}
         />
       ))}
+      {GEOGRAPHIC_LABELS.filter((label) => label.type !== 'ocean').map((label) => {
+        const point = projectLatLon(label.lat, label.lon);
+        return (
+          <span
+            key={label.name}
+            className={`worldops-mini-place-label ${label.type}`}
+            style={{ left: `${point.x}%`, top: `${point.y}%` }}
+          >
+            {label.name}
+          </span>
+        );
+      })}
+      {userLocation && (
+        <button
+          type="button"
+          className="worldops-map-dot user"
+          style={pointStyle(userLocation, 'location')}
+          onClick={() => onSelect({ kind: 'location', item: userLocation })}
+          title="Your approximate location"
+        >
+          <LocateFixed size={10} />
+        </button>
+      )}
       <div className="worldops-mini-label">
         <strong>2D tactical inset</strong>
         <span>signals, orbits, launch sites, terminator</span>
@@ -1424,6 +1594,36 @@ function LoadingFallback() {
   );
 }
 
+function ConsentPanel({ visible, locationEnabled, setLocationEnabled, onSave, onUseNecessary, onRejectOptional, locationStatus }) {
+  if (!visible) return null;
+  return (
+    <section className="worldops-consent" aria-label="Privacy preferences">
+      <div>
+        <span><LocateFixed size={13} /> Privacy and location</span>
+        <h2>Choose your EarthOps preferences</h2>
+        <p>
+          AstroBis uses necessary browser storage for interface choices. Optional location places
+          a marker for you on this map only when you allow it.
+        </p>
+        {locationStatus && <small>{locationStatus}</small>}
+      </div>
+      <label className="worldops-consent-option">
+        <input
+          type="checkbox"
+          checked={locationEnabled}
+          onChange={(event) => setLocationEnabled(event.target.checked)}
+        />
+        <span>Ask for GPS location and show my position on EarthOps</span>
+      </label>
+      <div className="worldops-consent-actions">
+        <button type="button" onClick={onUseNecessary}>Necessary only</button>
+        <button type="button" onClick={onRejectOptional}>Reject optional</button>
+        <button type="button" className="primary" onClick={onSave}>Save selected</button>
+      </div>
+    </section>
+  );
+}
+
 function CommandStrip({ payload, viewMode, visibleCounts, sourceMode }) {
   const utc = new Date().toISOString().replace('T', ' ').slice(0, 19);
   const generated = payload.generatedAt ? new Date(payload.generatedAt).toISOString().replace('T', ' ').slice(0, 16) : 'snapshot pending';
@@ -1448,6 +1648,10 @@ export default function WorldMap() {
   const [layers, setLayers] = useState(DEFAULT_LAYERS);
   const [viewMode, setViewMode] = useState('globe');
   const [selected, setSelected] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
+  const [showConsent, setShowConsent] = useState(false);
+  const [locationEnabled, setLocationEnabled] = useState(false);
+  const [locationStatus, setLocationStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sourceMode, setSourceMode] = useState('snapshot');
@@ -1477,6 +1681,58 @@ export default function WorldMap() {
       });
     return () => { alive = false; };
   }, []);
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(CONSENT_STORAGE_KEY) || 'null');
+      if (!stored) {
+        setShowConsent(true);
+        return;
+      }
+      setLocationEnabled(Boolean(stored.location));
+      if (stored.location) requestVisitorLocation(false);
+    } catch {
+      setShowConsent(true);
+    }
+  }, []);
+
+  function saveConsent(next) {
+    localStorage.setItem(CONSENT_STORAGE_KEY, JSON.stringify({
+      necessary: true,
+      location: Boolean(next.location),
+      savedAt: new Date().toISOString(),
+    }));
+    setShowConsent(false);
+  }
+
+  function requestVisitorLocation(selectAfter = true) {
+    if (!navigator.geolocation) {
+      setLocationStatus('Location is not available in this browser.');
+      return;
+    }
+    setLocationStatus('Waiting for browser location permission...');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const next = {
+          id: 'visitor-location',
+          title: 'Your approximate location',
+          lat: position.coords.latitude,
+          lon: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          timestamp: new Date(position.timestamp).toISOString(),
+          source: 'Browser geolocation',
+          summary: 'Approximate visitor position shown only in this browser session.',
+        };
+        setUserLocation(next);
+        setLocationStatus('Location marker enabled for this browser.');
+        if (selectAfter) setSelected({ kind: 'location', item: next });
+      },
+      () => {
+        setLocationStatus('Location permission was not granted. The map still works normally.');
+      },
+      { enableHighAccuracy: true, maximumAge: 120000, timeout: 12000 },
+    );
+  }
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -1534,9 +1790,14 @@ export default function WorldMap() {
             layers={layers}
             selected={selected}
             onSelect={setSelected}
+            userLocation={userLocation}
           />
         ) : (
-          <Canvas camera={{ position: viewMode === 'shell' ? [0.18, 0.2, 5.05] : [0.18, 0.32, 3.35], fov: viewMode === 'shell' ? 48 : 44 }} dpr={[1, 1.75]}>
+          <Canvas
+            camera={{ position: viewMode === 'shell' ? [0.18, 0.2, 5.05] : [0.18, 0.32, 3.35], fov: viewMode === 'shell' ? 48 : 44 }}
+            dpr={[1.25, 2]}
+            raycaster={{ params: { Points: { threshold: 0.055 } } }}
+          >
             <Suspense fallback={null}>
               <WorldScene
                 events={visibleEvents}
@@ -1546,6 +1807,7 @@ export default function WorldMap() {
                 selected={selected}
                 onSelect={setSelected}
                 mode={viewMode}
+                userLocation={userLocation}
               />
             </Suspense>
           </Canvas>
@@ -1573,10 +1835,30 @@ export default function WorldMap() {
         selected={selected}
         viewMode={viewMode}
         setViewMode={setViewMode}
+        userLocation={userLocation}
       />
 
       <SignalPanel payload={payload} sourceMode={sourceMode} brief={opsBrief} />
       <SelectedSourceCard selected={selected} payload={payload} sourceMode={sourceMode} />
+      <ConsentPanel
+        visible={showConsent}
+        locationEnabled={locationEnabled}
+        setLocationEnabled={setLocationEnabled}
+        locationStatus={locationStatus}
+        onUseNecessary={() => {
+          setLocationEnabled(false);
+          saveConsent({ location: false });
+        }}
+        onRejectOptional={() => {
+          setLocationEnabled(false);
+          setUserLocation(null);
+          saveConsent({ location: false });
+        }}
+        onSave={() => {
+          saveConsent({ location: locationEnabled });
+          if (locationEnabled) requestVisitorLocation(true);
+        }}
+      />
 
       <TimelineRail launches={visibleLaunches} events={visibleEvents} news={payload.news} media={payload.media || []} layers={layers} onSelect={setSelected} />
     </div>
@@ -2189,6 +2471,43 @@ const WORLDOPS_CSS = `
   line-height: 1.16;
   margin-top: 0.16rem;
 }
+.worldops-earth-label,
+.worldops-user-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.24rem;
+  min-height: 20px;
+  padding: 0.18rem 0.38rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(3,7,18,0.56);
+  color: rgba(255,255,255,0.7);
+  font-family: 'Space Grotesk', Inter, sans-serif;
+  font-size: 0.56rem;
+  font-weight: 900;
+  text-shadow: 0 1px 5px rgba(0,0,0,0.9);
+  white-space: nowrap;
+  pointer-events: auto;
+}
+.worldops-earth-label.continent {
+  color: rgba(255,255,255,0.76);
+}
+.worldops-earth-label.ocean {
+  color: rgba(125,211,252,0.58);
+  font-style: italic;
+}
+.worldops-earth-label.spaceport {
+  color: rgba(254,240,138,0.82);
+  background: rgba(36,24,4,0.62);
+  border-color: rgba(251,191,36,0.24);
+}
+.worldops-user-label {
+  border-color: rgba(134,239,172,0.42);
+  background: rgba(5,46,22,0.82);
+  color: #dcfce7;
+  cursor: pointer;
+  box-shadow: 0 0 0 8px rgba(34,197,94,0.12), 0 0 22px rgba(34,197,94,0.34);
+}
 .worldops-projection-map {
   position: absolute;
   inset: 0;
@@ -2247,10 +2566,24 @@ const WORLDOPS_CSS = `
   padding: 0;
 }
 .worldops-projection-dot.orbital {
-  width: 4px;
-  height: 4px;
+  width: 16px;
+  height: 16px;
   opacity: 0.86;
   border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.worldops-projection-dot.orbital::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--dot-color);
+  box-shadow: 0 0 10px var(--dot-color);
+  transform: translate(-50%, -50%);
 }
 .worldops-projection-dot.debris {
   opacity: 0.72;
@@ -2271,6 +2604,43 @@ const WORLDOPS_CSS = `
   width: 16px;
   height: 16px;
   z-index: 8;
+}
+.worldops-projection-label {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -50%);
+  color: rgba(255,255,255,0.58);
+  font-family: 'Space Grotesk', Inter, sans-serif;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.85), 0 0 12px rgba(0,0,0,0.85);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.worldops-projection-label.ocean {
+  color: rgba(125,211,252,0.46);
+  font-style: italic;
+}
+.worldops-projection-label.spaceport {
+  color: rgba(254,240,138,0.72);
+  font-size: 0.56rem;
+  text-transform: uppercase;
+}
+.worldops-projection-user {
+  position: absolute;
+  z-index: 12;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.78);
+  background: rgba(34,197,94,0.86);
+  color: #031008;
+  box-shadow: 0 0 0 8px rgba(34,197,94,0.2), 0 0 24px rgba(34,197,94,0.56);
+  transform: translate(-50%, -50%);
+  cursor: pointer;
 }
 .worldops-map-legend {
   position: absolute;
@@ -2352,10 +2722,24 @@ const WORLDOPS_CSS = `
   height: 9px;
 }
 .worldops-map-dot.satellite {
-  width: 3px;
-  height: 3px;
+  width: 13px;
+  height: 13px;
   border: 0;
   opacity: 0.9;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.worldops-map-dot.satellite::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--dot-color, currentColor);
+  box-shadow: 0 0 8px var(--dot-color, currentColor);
+  transform: translate(-50%, -50%);
 }
 .worldops-map-dot.satellite.debris {
   opacity: 0.66;
@@ -2364,6 +2748,30 @@ const WORLDOPS_CSS = `
   width: 14px;
   height: 14px;
   z-index: 4;
+}
+.worldops-map-dot.user {
+  z-index: 8;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  color: #031008;
+  border: 1px solid rgba(255,255,255,0.86);
+  background: #86efac;
+}
+.worldops-mini-place-label {
+  position: absolute;
+  z-index: 3;
+  transform: translate(-50%, -50%);
+  color: rgba(255,255,255,0.58);
+  font-size: 0.52rem;
+  font-weight: 900;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.92);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.worldops-mini-place-label.spaceport {
+  color: rgba(254,240,138,0.72);
 }
 .worldops-mini-label {
   position: absolute;
@@ -2398,6 +2806,7 @@ const WORLDOPS_CSS = `
   border-radius: 22px;
   padding: 0.72rem;
   box-shadow: 0 24px 90px rgba(0,0,0,0.44);
+  pointer-events: none;
 }
 .worldops-timeline-group header {
   display: flex;
@@ -2409,6 +2818,10 @@ const WORLDOPS_CSS = `
   letter-spacing: 0.08em;
   text-transform: uppercase;
   margin: 0 0 0.5rem;
+}
+.worldops-timeline-scroll,
+.worldops-timeline button {
+  pointer-events: auto;
 }
 .worldops-timeline-scroll {
   display: grid;
@@ -2473,6 +2886,97 @@ const WORLDOPS_CSS = `
   z-index: 20;
   color: rgba(255,255,255,0.32);
   font-size: 0.68rem;
+}
+.worldops-consent {
+  position: fixed;
+  z-index: 60;
+  left: 50%;
+  bottom: 18px;
+  width: min(720px, calc(100vw - 24px));
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.8rem 1rem;
+  align-items: end;
+  padding: 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(134,239,172,0.24);
+  background:
+    linear-gradient(180deg, rgba(4,8,18,0.94), rgba(4,7,17,0.86)),
+    radial-gradient(circle at 0 0, rgba(103,232,249,0.18), transparent 42%);
+  box-shadow: 0 24px 90px rgba(0,0,0,0.55);
+  backdrop-filter: blur(18px);
+  color: rgba(255,255,255,0.76);
+}
+.worldops-consent span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #86efac;
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.worldops-consent h2 {
+  margin: 0.36rem 0 0.24rem;
+  color: white;
+  font-family: 'Space Grotesk', Inter, sans-serif;
+  font-size: 1.08rem;
+  line-height: 1.1;
+}
+.worldops-consent p,
+.worldops-consent small {
+  display: block;
+  margin: 0;
+  color: rgba(255,255,255,0.56);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+.worldops-consent small {
+  margin-top: 0.32rem;
+  color: #bfdbfe;
+}
+.worldops-consent-option {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.58rem;
+  min-height: 38px;
+  padding: 0.58rem 0.7rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.09);
+  background: rgba(255,255,255,0.04);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+.worldops-consent-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: #67e8f9;
+}
+.worldops-consent-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.48rem;
+}
+.worldops-consent-actions button {
+  min-height: 38px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.055);
+  color: rgba(255,255,255,0.78);
+  padding: 0 0.82rem;
+  font-size: 0.74rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+.worldops-consent-actions button.primary {
+  border-color: rgba(103,232,249,0.36);
+  background: linear-gradient(135deg, #67e8f9, #86efac);
+  color: #031014;
 }
 .worldops-spin {
   animation: worldops-spin 1.1s linear infinite;
@@ -2541,6 +3045,13 @@ const WORLDOPS_CSS = `
   }
   .worldops-timeline {
     grid-template-columns: 1fr;
+  }
+  .worldops-consent {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .worldops-consent-actions {
+    justify-content: flex-start;
   }
   .worldops-layer-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

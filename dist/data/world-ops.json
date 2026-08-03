@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-03T21:34:05.228Z",
+  "generatedAt": "2026-08-03T22:23:15.930Z",
   "sources": [
     {
       "id": "eonet",
@@ -153,13 +153,40 @@
   ],
   "events": [
     {
+      "id": "usgs-us6000thvj",
+      "type": "earthquake",
+      "title": "M 4.8 - 198 km SE of Severo-Kuril’sk, Russia",
+      "lat": 49.3075,
+      "lon": 157.899,
+      "severity": "low",
+      "timestamp": "2026-08-03T21:42:13.648Z",
+      "source": "USGS Earthquake Hazards Program",
+      "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us6000thvj",
+      "summary": "Magnitude 4.8 earthquake at 198 km SE of Severo-Kuril’sk, Russia; depth 10 km.",
+      "magnitude": 4.8,
+      "depthKm": 10
+    },
+    {
+      "id": "gdacs-TC-1001297-32",
+      "type": "cyclone",
+      "title": "Tropical Cyclone DOLPHIN-26",
+      "lat": 25.1,
+      "lon": 144.2,
+      "severity": "green",
+      "timestamp": "2026-08-03T21:22:44.000Z",
+      "source": "GDACS",
+      "url": "https://www.gdacs.org/report.aspx?eventid=1001297&episodeid=32&eventtype=TC",
+      "summary": "Green Tropical Cyclone DOLPHIN-26 in Marshall Islands, Japan from: 27 Jul 2026 to: 03 Aug 2026 .",
+      "country": "Marshall Islands, Japan"
+    },
+    {
       "id": "gdacs-WF-1029628-32",
       "type": "disaster",
       "title": "Forest fires in France",
       "lat": 44.8462656528215,
       "lon": -1.0329110267930726,
       "severity": "red",
-      "timestamp": "2026-08-03T20:30:18.000Z",
+      "timestamp": "2026-08-03T21:20:15.000Z",
       "source": "GDACS",
       "url": "https://www.gdacs.org/report.aspx?eventid=1029628&episodeid=32&eventtype=WF",
       "summary": "Red Forest fires in France from: 22 Jul 2026 to: 01 Aug 2026.",
@@ -172,24 +199,11 @@
       "lat": 35.16840400166546,
       "lon": 24.46251368828937,
       "severity": "orange",
-      "timestamp": "2026-08-03T20:30:17.000Z",
+      "timestamp": "2026-08-03T21:20:14.000Z",
       "source": "GDACS",
       "url": "https://www.gdacs.org/report.aspx?eventid=1029958&episodeid=4&eventtype=WF",
       "summary": "Orange Forest fires in Greece from: 30 Jul 2026 to: 01 Aug 2026.",
       "country": "Greece"
-    },
-    {
-      "id": "gdacs-TC-1001297-32",
-      "type": "cyclone",
-      "title": "Tropical Cyclone DOLPHIN-26",
-      "lat": 25.1,
-      "lon": 144.2,
-      "severity": "green",
-      "timestamp": "2026-08-03T20:22:49.000Z",
-      "source": "GDACS",
-      "url": "https://www.gdacs.org/report.aspx?eventid=1001297&episodeid=32&eventtype=TC",
-      "summary": "Green Tropical Cyclone DOLPHIN-26 in Marshall Islands, Japan from: 27 Jul 2026 to: 03 Aug 2026 .",
-      "country": "Marshall Islands, Japan"
     },
     {
       "id": "usgs-us6000thv7",
@@ -851,6 +865,18 @@
       "summary": "Severe Storms"
     },
     {
+      "id": "eonet-EONET_22101",
+      "type": "wildfires",
+      "title": "Wildfire Middle Coulee, Chouteau, Montana",
+      "lat": 47.733335,
+      "lon": -110.990383,
+      "severity": "active",
+      "timestamp": "2026-08-02T22:17:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-MTLG19-000260",
+      "summary": "4 Miles N from Carter, MT"
+    },
+    {
       "id": "gdacs-WF-1029621-14",
       "type": "disaster",
       "title": "Forest fires in The Democratic Republic of Congo",
@@ -960,6 +986,18 @@
       "depthKm": 10
     },
     {
+      "id": "eonet-EONET_22108",
+      "type": "wildfires",
+      "title": "Wildfire Antelope Creek, Elko, Nevada",
+      "lat": 41.049033,
+      "lon": -116.543867,
+      "severity": "medium",
+      "timestamp": "2026-08-02T14:31:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-NVEKD-010378",
+      "summary": "25 Miles N from Dunphy, NV"
+    },
+    {
       "id": "usgs-us6000thm6",
       "type": "earthquake",
       "title": "M 4.6 - 65 km NW of Ende, Indonesia",
@@ -1012,6 +1050,18 @@
       "url": "https://www.gdacs.org/report.aspx?eventid=1555442&episodeid=1722229&eventtype=EQ",
       "summary": "Green M 5.5 Earthquake in Japan at: 01 Aug 2026 02:48:01.",
       "country": "Japan"
+    },
+    {
+      "id": "eonet-EONET_22105",
+      "type": "wildfires",
+      "title": "Wildfire Bluegill, Miami-Dade, Florida",
+      "lat": 25.75775,
+      "lon": -80.606167,
+      "severity": "active",
+      "timestamp": "2026-08-02T12:47:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-FLEVP-002390",
+      "summary": "7 Miles W from Miami, FL"
     },
     {
       "id": "usgs-us6000thly",
@@ -1182,6 +1232,54 @@
       "depthKm": 35
     },
     {
+      "id": "eonet-EONET_22107",
+      "type": "wildfires",
+      "title": "Wildfire MITRE ROCK, Stevens, Washington",
+      "lat": 47.911635,
+      "lon": -118.328486,
+      "severity": "active",
+      "timestamp": "2026-08-01T21:42:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-WASPA-001868",
+      "summary": "19 Miles NW from Davenport, WA"
+    },
+    {
+      "id": "eonet-EONET_22109",
+      "type": "wildfires",
+      "title": "Wildfire Johnson Canyon, Box Elder, Utah",
+      "lat": 41.874782,
+      "lon": -112.304918,
+      "severity": "medium",
+      "timestamp": "2026-08-01T21:07:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-UTBRS-200554",
+      "summary": "13 Miles NW from Tremonton, UT"
+    },
+    {
+      "id": "eonet-EONET_22127",
+      "type": "wildfires",
+      "title": "Wildfire Semi 270, Woodward, Oklahoma",
+      "lat": 36.5143333,
+      "lon": -99.5161667,
+      "severity": "active",
+      "timestamp": "2026-08-01T20:51:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-OKOKS-260786",
+      "summary": "8 Miles NW from Woodward, OK"
+    },
+    {
+      "id": "eonet-EONET_22115",
+      "type": "wildfires",
+      "title": "Wildfire Eggo, Wallowa, Oregon",
+      "lat": 45.6696,
+      "lon": -117.0871,
+      "severity": "active",
+      "timestamp": "2026-08-01T20:28:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-OR974S-000423",
+      "summary": "17 Miles NE from Enterprise, OR"
+    },
+    {
       "id": "usgs-us6000thhr",
       "type": "earthquake",
       "title": "M 5.2 - 160 km SSW of Severo-Kuril’sk, Russia",
@@ -1196,6 +1294,18 @@
       "depthKm": 49.724
     },
     {
+      "id": "eonet-EONET_22125",
+      "type": "wildfires",
+      "title": "Wildfire HUDSPETH, Stevens, Washington",
+      "lat": 48.08845,
+      "lon": -118.158917,
+      "severity": "active",
+      "timestamp": "2026-08-01T19:32:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-WANES-001860",
+      "summary": "3 Miles SE from HUNTERS, WA"
+    },
+    {
       "id": "usgs-us6000thhk",
       "type": "earthquake",
       "title": "M 5.2 - 48 km ESE of Tsunō, Japan",
@@ -1208,6 +1318,66 @@
       "summary": "Magnitude 5.2 earthquake at 48 km ESE of Tsunō, Japan; depth 26.229 km.",
       "magnitude": 5.2,
       "depthKm": 26.229
+    },
+    {
+      "id": "eonet-EONET_22104",
+      "type": "wildfires",
+      "title": "Wildfire AUTUMN LANE, Spokane, Washington",
+      "lat": 47.7945,
+      "lon": -117.612833,
+      "severity": "active",
+      "timestamp": "2026-08-01T18:49:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-WANES-001857",
+      "summary": "7 Miles NW from Spokane, WA"
+    },
+    {
+      "id": "eonet-EONET_22110",
+      "type": "wildfires",
+      "title": "Wildfire FELIZ, Mendocino, California",
+      "lat": 38.99246,
+      "lon": -123.16114,
+      "severity": "active",
+      "timestamp": "2026-08-01T18:39:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-CAMEU-008929",
+      "summary": "4 Miles NW from Hopland, CA"
+    },
+    {
+      "id": "eonet-EONET_22119",
+      "type": "wildfires",
+      "title": "Wildfire 0658 ROUND BUTTE, Jefferson, Oregon",
+      "lat": 44.600111,
+      "lon": -121.224778,
+      "severity": "active",
+      "timestamp": "2026-08-01T18:32:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-OROCF-000658",
+      "summary": "10 Miles W from Madras, OR"
+    },
+    {
+      "id": "eonet-EONET_22111",
+      "type": "wildfires",
+      "title": "Wildfire FAIRVIEW, Spokane, Washington",
+      "lat": 47.750926,
+      "lon": -117.3577,
+      "severity": "active",
+      "timestamp": "2026-08-01T17:42:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-WANES-001852",
+      "summary": "2 Miles NE from SPOKANE, WA"
+    },
+    {
+      "id": "eonet-EONET_22116",
+      "type": "wildfires",
+      "title": "Wildfire Sand Creek, Beaverhead, Montana",
+      "lat": 45.554667,
+      "lon": -113.325667,
+      "severity": "active",
+      "timestamp": "2026-08-01T16:39:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-MTBDF-266319",
+      "summary": "5 Miles E from Wisdom, MT"
     },
     {
       "id": "usgs-us6000thgz",
@@ -1238,6 +1408,18 @@
       "depthKm": 69.752
     },
     {
+      "id": "eonet-EONET_22112",
+      "type": "wildfires",
+      "title": "Wildfire OLD TRAILS, Spokane, Washington",
+      "lat": 47.683851,
+      "lon": -117.533414,
+      "severity": "active",
+      "timestamp": "2026-08-01T15:11:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-WANES-001845",
+      "summary": "3 Miles W from SPOKANE, WA"
+    },
+    {
       "id": "gdacs-WF-1029778-8",
       "type": "disaster",
       "title": "Forest fires in Zambia",
@@ -1263,6 +1445,18 @@
       "summary": "Magnitude 4.9 earthquake at 3 km W of Matsubase, Japan; depth 10 km.",
       "magnitude": 4.9,
       "depthKm": 10
+    },
+    {
+      "id": "eonet-EONET_22128",
+      "type": "wildfires",
+      "title": "Wildfire Potato Creek, Jackson, South Dakota",
+      "lat": 43.563356,
+      "lon": -102.07303,
+      "severity": "medium",
+      "timestamp": "2026-08-01T12:10:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-SDPRA-260748",
+      "summary": "Wildfires"
     },
     {
       "id": "usgs-us6000thg5",
@@ -1499,6 +1693,18 @@
       "depthKm": 10
     },
     {
+      "id": "eonet-EONET_22106",
+      "type": "wildfires",
+      "title": "Wildfire Big Rock, Jefferson, Idaho",
+      "lat": 43.63805,
+      "lon": -111.664267,
+      "severity": "active",
+      "timestamp": "2026-07-31T20:27:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-IDIFD-000152",
+      "summary": "20 Miles E from Idaho Falls, ID"
+    },
+    {
       "id": "usgs-us6000thbq",
       "type": "earthquake",
       "title": "M 5.3 - 140 km ENE of Masohi, Indonesia",
@@ -1527,6 +1733,18 @@
       "depthKm": 77.66
     },
     {
+      "id": "eonet-EONET_22121",
+      "type": "wildfires",
+      "title": "Wildfire Bobcat Lakes, Beaverhead, Montana",
+      "lat": 45.636817,
+      "lon": -113.203883,
+      "severity": "active",
+      "timestamp": "2026-07-31T18:29:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-MTBDF-266313",
+      "summary": "12 Miles E from Wisdom, MT"
+    },
+    {
       "id": "usgs-us6000th96",
       "type": "earthquake",
       "title": "M 5.0 - 76 km W of Coquimbo, Chile",
@@ -1539,6 +1757,30 @@
       "summary": "Magnitude 5 earthquake at 76 km W of Coquimbo, Chile; depth 11.851 km.",
       "magnitude": 5,
       "depthKm": 11.851
+    },
+    {
+      "id": "eonet-EONET_22100",
+      "type": "wildfires",
+      "title": "Wildfire Lumin, Sheridan, Wyoming",
+      "lat": 44.8235,
+      "lon": -106.4085,
+      "severity": "medium",
+      "timestamp": "2026-07-31T17:46:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-WYSHX-000363",
+      "summary": "22 Miles E from Sheridan, WY"
+    },
+    {
+      "id": "eonet-EONET_22114",
+      "type": "wildfires",
+      "title": "Wildfire Ant Park, Meagher, Montana",
+      "lat": 46.7365,
+      "lon": -110.639667,
+      "severity": "active",
+      "timestamp": "2026-07-31T17:46:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-MTHLF-000529",
+      "summary": "15 Miles NE from White Sulphur Springs, MT"
     },
     {
       "id": "usgs-us6000th8n",
@@ -1569,18 +1811,16 @@
       "depthKm": 10
     },
     {
-      "id": "usgs-us6000th7y",
-      "type": "earthquake",
-      "title": "M 4.6 - 95 km WNW of Amagi, Japan",
-      "lat": 28.2012,
-      "lon": 128.0296,
-      "severity": "low",
-      "timestamp": "2026-07-31T12:58:40.829Z",
-      "source": "USGS Earthquake Hazards Program",
-      "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us6000th7y",
-      "summary": "Magnitude 4.6 earthquake at 95 km WNW of Amagi, Japan; depth 10 km.",
-      "magnitude": 4.6,
-      "depthKm": 10
+      "id": "eonet-EONET_22103",
+      "type": "wildfires",
+      "title": "Wildfire Ward, White Pine, Nevada",
+      "lat": 39.103167,
+      "lon": -114.89485,
+      "severity": "medium",
+      "timestamp": "2026-07-31T14:03:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-NVHTF-040303",
+      "summary": "10 Miles S from Ely, NV"
     },
     {
       "id": "usgs-us6000th68",
@@ -1665,6 +1905,18 @@
       "summary": "Magnitude 5.1 earthquake at 67 km E of Petropavlovsk-Kamchatsky, Russia; depth 63.921 km.",
       "magnitude": 5.1,
       "depthKm": 63.921
+    },
+    {
+      "id": "eonet-EONET_22120",
+      "type": "wildfires",
+      "title": "Wildfire Black Canyon, Sanpete, Utah",
+      "lat": 39.383,
+      "lon": -111.307967,
+      "severity": "active",
+      "timestamp": "2026-07-30T21:26:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-UTMLF-005244",
+      "summary": "29 Miles SW from Price, UT"
     },
     {
       "id": "usgs-us6000th30",
@@ -1945,6 +2197,18 @@
       "depthKm": 11.68
     },
     {
+      "id": "eonet-EONET_22123",
+      "type": "wildfires",
+      "title": "Wildfire Skillet, Lincoln, Montana",
+      "lat": 48.491333,
+      "lon": -114.86665,
+      "severity": "active",
+      "timestamp": "2026-07-29T18:55:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-MTFNF-000306",
+      "summary": "15 Miles W from Olney, MT"
+    },
+    {
       "id": "eonet-EONET_21968",
       "type": "wildfires",
       "title": "Wildfire Duhamel, Pennington, South Dakota",
@@ -2053,18 +2317,6 @@
       "summary": "Magnitude 5 earthquake at 4 km NNE of Balangonan, Philippines; depth 54.238 km.",
       "magnitude": 5,
       "depthKm": 54.238
-    },
-    {
-      "id": "eonet-EONET_21399",
-      "type": "severeStorms",
-      "title": "Hurricane Fausto",
-      "lat": 23.8,
-      "lon": -155.6,
-      "severity": "active",
-      "timestamp": "2026-07-29T12:00:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://www.metoc.navy.mil/jtwc/products/ep0626.tcw",
-      "summary": "Severe Storms"
     },
     {
       "id": "usgs-us6000tgm6",
@@ -2259,6 +2511,18 @@
       "summary": "Magnitude 5 earthquake at 82 km SW of Kirakira, Solomon Islands; depth 10 km.",
       "magnitude": 5,
       "depthKm": 10
+    },
+    {
+      "id": "eonet-EONET_22118",
+      "type": "wildfires",
+      "title": "Wildfire Rio Blanco, Archuleta, Colorado",
+      "lat": 37.124649,
+      "lon": -106.985207,
+      "severity": "active",
+      "timestamp": "2026-07-28T17:28:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-COSJF-000806",
+      "summary": "10 Miles S from Pagosa Springs, CO"
     },
     {
       "id": "usgs-us6000tget",
@@ -2651,6 +2915,18 @@
       "summary": ""
     },
     {
+      "id": "eonet-EONET_22122",
+      "type": "wildfires",
+      "title": "Wildfire Moose, Granite, Montana",
+      "lat": 46.0722,
+      "lon": -113.69075,
+      "severity": "active",
+      "timestamp": "2026-07-26T18:07:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-MTBDF-266293",
+      "summary": "24 Miles SW from Philipsburg, MT"
+    },
+    {
       "id": "eonet-EONET_21821",
       "type": "wildfires",
       "title": "Wildfire SINLAHEKIN, Okanogan, Washington",
@@ -2891,6 +3167,18 @@
       "summary": "3 Miles S from Kennewick, WA"
     },
     {
+      "id": "eonet-EONET_22098",
+      "type": "wildfires",
+      "title": "Wildfire Doublesprings, Custer, Idaho",
+      "lat": 44.325217,
+      "lon": -113.859033,
+      "severity": "active",
+      "timestamp": "2026-07-24T20:46:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-IDSCF-260103",
+      "summary": "31 Miles NW from Mackay, ID"
+    },
+    {
       "id": "eonet-EONET_21844",
       "type": "wildfires",
       "title": "Wildfire Second Flat, Harney, Oregon",
@@ -2961,6 +3249,18 @@
       "source": "NASA EONET",
       "url": "https://irwin.doi.gov/observer/incidents/2026-OR954S-000699",
       "summary": "Wildfires"
+    },
+    {
+      "id": "eonet-EONET_22102",
+      "type": "wildfires",
+      "title": "Wildfire MOUSE MEADOW, Nye, Nevada",
+      "lat": 37.2667,
+      "lon": -116.157567,
+      "severity": "medium",
+      "timestamp": "2026-07-24T16:39:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-NVNAFQ-500729",
+      "summary": "35 Miles SW from Rachel, NV"
     },
     {
       "id": "eonet-EONET_21843",
@@ -3155,6 +3455,18 @@
       "summary": "Wildfires"
     },
     {
+      "id": "eonet-EONET_22130",
+      "type": "wildfires",
+      "title": "Wildfire RAILROAD, Grant, Washington",
+      "lat": 46.839052,
+      "lon": -119.939349,
+      "severity": "medium",
+      "timestamp": "2026-07-23T10:05:00.000Z",
+      "source": "NASA EONET",
+      "url": "https://irwin.doi.gov/observer/incidents/2026-WASPD-260500",
+      "summary": "9 Miles N from Mattawa, WA"
+    },
+    {
       "id": "eonet-EONET_21838",
       "type": "wildfires",
       "title": "Wildfire Crater, Harney, Oregon",
@@ -3249,318 +3561,6 @@
       "source": "NASA EONET",
       "url": "https://irwin.doi.gov/observer/incidents/2026-COMFX-000964",
       "summary": "3 Miles SW from Craig, CO"
-    },
-    {
-      "id": "eonet-EONET_21596",
-      "type": "wildfires",
-      "title": "Wildfire 716 Complex 2, Treasure, Montana",
-      "lat": 46.28964,
-      "lon": -107.48896,
-      "severity": "active",
-      "timestamp": "2026-07-21T18:04:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-MTLG33-260834",
-      "summary": "Wildfires"
-    },
-    {
-      "id": "eonet-EONET_21595",
-      "type": "wildfires",
-      "title": "Wildfire Keystone, Rio Blanco, Colorado",
-      "lat": 40.220533,
-      "lon": -108.178133,
-      "severity": "active",
-      "timestamp": "2026-07-21T14:14:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-COWRD-000957",
-      "summary": "45 Miles NE from Meeker, CO"
-    },
-    {
-      "id": "eonet-EONET_21583",
-      "type": "wildfires",
-      "title": "Wildfire ROCK, Inyo, California",
-      "lat": 36.916815,
-      "lon": -118.241189,
-      "severity": "medium",
-      "timestamp": "2026-07-20T19:34:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-CABDU-011136",
-      "summary": "10 Miles N from Independence, CA"
-    },
-    {
-      "id": "eonet-EONET_21403",
-      "type": "wildfires",
-      "title": "Wildfire Big Gulch, Moffat, Colorado",
-      "lat": 40.681667,
-      "lon": -107.671833,
-      "severity": "active",
-      "timestamp": "2026-07-19T21:36:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-COMFX-000934",
-      "summary": "8 Miles NW from Craig, CO"
-    },
-    {
-      "id": "eonet-EONET_21594",
-      "type": "wildfires",
-      "title": "Wildfire 518 SULLY, Gilliam, Oregon",
-      "lat": 45.745867,
-      "lon": -120.021548,
-      "severity": "active",
-      "timestamp": "2026-07-18T21:19:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-ORPRD-000518",
-      "summary": "8 Miles W from BOARDMAN, OR"
-    },
-    {
-      "id": "eonet-EONET_21421",
-      "type": "wildfires",
-      "title": "Wildfire BROOK, Shasta, California",
-      "lat": 40.698456,
-      "lon": -122.197625,
-      "severity": "active",
-      "timestamp": "2026-07-18T19:12:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-CASHU-008640",
-      "summary": "10 Miles NE from REDDING, CA 10 Miles NE from REDDING, CA"
-    },
-    {
-      "id": "eonet-EONET_21404",
-      "type": "wildfires",
-      "title": "Wildfire Horse Island, Berkeley, South Carolina",
-      "lat": 33.188917,
-      "lon": -79.662533,
-      "severity": "active",
-      "timestamp": "2026-07-18T17:43:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-SCFMF-000363",
-      "summary": "2 Miles W from Shullerville, SC"
-    },
-    {
-      "id": "eonet-EONET_21402",
-      "type": "wildfires",
-      "title": "Wildfire Ohio, Blaine, Idaho",
-      "lat": 43.588417,
-      "lon": -114.31795,
-      "severity": "active",
-      "timestamp": "2026-07-18T15:52:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-IDEIS-000139",
-      "summary": "5 Miles E from Hailey, ID"
-    },
-    {
-      "id": "eonet-EONET_21420",
-      "type": "wildfires",
-      "title": "Wildfire BISCAR, Lassen, California",
-      "lat": 40.618167,
-      "lon": -120.303833,
-      "severity": "medium",
-      "timestamp": "2026-07-18T14:11:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-CANOD-004474",
-      "summary": "40 Miles NE from SUSANVILLE, CA"
-    },
-    {
-      "id": "eonet-EONET_21416",
-      "type": "wildfires",
-      "title": "Wildfire 0512 BOX SPRINGS, Jefferson, Oregon",
-      "lat": 44.635333,
-      "lon": -120.4985,
-      "severity": "active",
-      "timestamp": "2026-07-17T21:13:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-OR951S-000512",
-      "summary": "18 Miles W from MITCHELL, OR"
-    },
-    {
-      "id": "eonet-EONET_21433",
-      "type": "wildfires",
-      "title": "Wildfire WALLACE WALKER, Franklin, Washington",
-      "lat": 46.576482,
-      "lon": -118.567968,
-      "severity": "active",
-      "timestamp": "2026-07-17T19:33:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-WAWFS-260455",
-      "summary": "5 Miles SW from Kahlotus, WA"
-    },
-    {
-      "id": "eonet-EONET_21426",
-      "type": "wildfires",
-      "title": "Wildfire DEVIL&#039;S CANYON, Franklin, Washington",
-      "lat": 46.600003,
-      "lon": -118.548791,
-      "severity": "active",
-      "timestamp": "2026-07-17T19:31:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-WAWFS-260454",
-      "summary": "4 Miles S from Kahlotus, WA"
-    },
-    {
-      "id": "eonet-EONET_21415",
-      "type": "wildfires",
-      "title": "Wildfire BERGER (50), Palm Beach, Florida",
-      "lat": 26.4466667,
-      "lon": -80.8444444,
-      "severity": "medium",
-      "timestamp": "2026-07-17T19:18:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-FLFLS-261800112",
-      "summary": "10 Miles N from FLORIDA, FL"
-    },
-    {
-      "id": "eonet-EONET_21410",
-      "type": "wildfires",
-      "title": "Incident Complex HAY CREEK COMPLEX, Gilliam, Oregon",
-      "lat": 45.26602,
-      "lon": -120.435846,
-      "severity": "high",
-      "timestamp": "2026-07-17T17:16:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-ORPRD-000511",
-      "summary": "5 Miles W from Condon, OR"
-    },
-    {
-      "id": "eonet-EONET_21579",
-      "type": "wildfires",
-      "title": "Wildfire Burnt Creek, Wallowa, Oregon",
-      "lat": 45.76802,
-      "lon": -117.25321,
-      "severity": "active",
-      "timestamp": "2026-07-17T17:00:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-ORWWF-000342",
-      "summary": "23 Miles N from Enterprise, OR"
-    },
-    {
-      "id": "eonet-EONET_21425",
-      "type": "wildfires",
-      "title": "Wildfire NEFF JONES, Franklin, Washington",
-      "lat": 46.45851,
-      "lon": -118.65817,
-      "severity": "medium",
-      "timestamp": "2026-07-17T14:34:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-WAWFS-260423",
-      "summary": "17 Miles S from Kahlotus, WA"
-    },
-    {
-      "id": "eonet-EONET_21427",
-      "type": "wildfires",
-      "title": "Wildfire Modrite, Ferry, Washington",
-      "lat": 48.069,
-      "lon": -118.312583,
-      "severity": "medium",
-      "timestamp": "2026-07-17T13:59:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-WANES-260149",
-      "summary": "17 Miles SW from Inchelium, WA"
-    },
-    {
-      "id": "eonet-EONET_21588",
-      "type": "wildfires",
-      "title": "Wildfire PTARMIGAN, Okanogan, Washington",
-      "lat": 48.942,
-      "lon": -120.6095,
-      "severity": "active",
-      "timestamp": "2026-07-17T13:09:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-WAOWF-260448",
-      "summary": "25 Miles NW from Mazama, WA"
-    },
-    {
-      "id": "eonet-EONET_21591",
-      "type": "wildfires",
-      "title": "Wildfire 0501 PAT&#039;S CABIN, Wheeler, Oregon",
-      "lat": 44.72533,
-      "lon": -120.33328,
-      "severity": "active",
-      "timestamp": "2026-07-17T11:19:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-ORPRD-000501",
-      "summary": "1 Miles E from town, OR"
-    },
-    {
-      "id": "eonet-EONET_21412",
-      "type": "wildfires",
-      "title": "Wildfire POWDER RIVER, Baker, Oregon",
-      "lat": 44.75525,
-      "lon": -117.277667,
-      "severity": "medium",
-      "timestamp": "2026-07-17T07:27:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-ORVAD-260173",
-      "summary": "4 Miles SW from RICHLAND, OR"
-    },
-    {
-      "id": "eonet-EONET_21590",
-      "type": "wildfires",
-      "title": "Wildfire 0502, Wheeler, Oregon",
-      "lat": 44.829331,
-      "lon": -120.297013,
-      "severity": "active",
-      "timestamp": "2026-07-17T00:48:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-ORPRD-000502",
-      "summary": "null Miles null from null,"
-    },
-    {
-      "id": "eonet-EONET_21408",
-      "type": "wildfires",
-      "title": "Wildfire 0462, Sherman, Oregon",
-      "lat": 45.184333,
-      "lon": -120.495333,
-      "severity": "medium",
-      "timestamp": "2026-07-17T00:37:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-ORPRD-000462",
-      "summary": "5 Miles E from Kent, OR"
-    },
-    {
-      "id": "eonet-EONET_21589",
-      "type": "wildfires",
-      "title": "Wildfire 0432, Wasco, Oregon",
-      "lat": 45.000137,
-      "lon": -120.759188,
-      "severity": "active",
-      "timestamp": "2026-07-16T22:52:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-ORPRD-000432",
-      "summary": "null Miles null from null,"
-    },
-    {
-      "id": "eonet-EONET_21422",
-      "type": "wildfires",
-      "title": "Wildfire COLUMBIA COUNTY, Columbia, Washington",
-      "lat": 46.542667,
-      "lon": -118.103667,
-      "severity": "active",
-      "timestamp": "2026-07-16T22:12:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-WACCDN-260456",
-      "summary": "Wildfires"
-    },
-    {
-      "id": "eonet-EONET_21580",
-      "type": "wildfires",
-      "title": "Wildfire Horse Ridge, Umatilla, Oregon",
-      "lat": 45.541808,
-      "lon": -118.345971,
-      "severity": "active",
-      "timestamp": "2026-07-16T22:09:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-ORUMF-000315",
-      "summary": "25 Miles E from Pendleton, OR"
-    },
-    {
-      "id": "eonet-EONET_21974",
-      "type": "wildfires",
-      "title": "Wildfire Border 2, Whatcom, Washington",
-      "lat": 48.9982,
-      "lon": -121.027683,
-      "severity": "active",
-      "timestamp": "2026-07-16T21:37:00.000Z",
-      "source": "NASA EONET",
-      "url": "https://irwin.doi.gov/observer/incidents/2026-WANCP-000266",
-      "summary": "36 Miles NE from Marblemount, WA"
     }
   ],
   "satellites": [
@@ -21137,6 +21137,16 @@
   ],
   "news": [
     {
+      "id": "news-article-39307",
+      "lane": "article",
+      "title": "Launch Preview: Starlink, AST SpaceMobile, and Chinese missions fill launch manifest",
+      "site": "NASASpaceflight",
+      "publishedAt": "2026-08-03T21:24:28.000Z",
+      "url": "https://www.nasaspaceflight.com/2026/08/launch-preview-080326/",
+      "summary": "The first full week of August is shaping up to be another busy period for… The post Launch Preview: Starlink, AST SpaceMobile, and Chinese missions fill launch manifest appeared first on NASASpaceFlight.com.",
+      "imageUrl": "https://www.nasaspaceflight.com/wp-content/uploads/2026/08/IMG_1145-scaled.jpeg"
+    },
+    {
       "id": "news-blog-2403",
       "lane": "blog",
       "title": "Spacewalk Preps, Health Research on Station as NASA Introduces SpaceX Crew-13",
@@ -21495,16 +21505,6 @@
       "url": "https://science.nasa.gov/blog/curiosity-blog-sols-4961-4967-approaching-a-break-in-the-rock-record/",
       "summary": "Written by Abigail Fraeman, Deputy Project Scientist, Jet Propulsion Laboratory, California Institute of Technology Earth planning date: Friday, July 24, 2026 Curiosity spent the week continuing to climb her way up through the layers of Mount Sharp, exploring...",
       "imageUrl": "https://assets.science.nasa.gov/dynamicimage/assets/science/missions/msl/2026/curiosity-rover-updates/july/https___mars.nasa.gov_msl-raw-images_proj_msl_redops_ods_surface_sol_04963_opgs_edr_ncam_NLB_838089704EDR_F1232544NCAM00266M_.jpg"
-    },
-    {
-      "id": "news-article-39270",
-      "lane": "article",
-      "title": "NASA’s Roman Telescope to Carry 1.35 Million Names to Deep Space",
-      "site": "NASA",
-      "publishedAt": "2026-07-31T14:11:34.000Z",
-      "url": "https://www.nasa.gov/image-article/nasas-roman-telescope-to-carry-1-35-million-names-to-deep-space/",
-      "summary": "On July 27, technicians at NASA’s Kennedy Space Center in Florida installed a memory card containing 1,350,144 names as part of a commemorative plaque on the Nancy Grace Roman Space Telescope. The names were submitted by people globally, including astronauts...",
-      "imageUrl": "https://images-assets.nasa.gov/image/KSC-20260727-PH-JMT01_0001/KSC-20260727-PH-JMT01_0001~large.jpg"
     },
     {
       "id": "news-blog-2401",
@@ -21960,108 +21960,108 @@
     }
   ],
   "spaceWeather": {
-    "observedAt": "2026-08-03T20:31:00.000Z",
-    "kp": 2,
-    "label": "2Z",
+    "observedAt": "2026-08-03T21:20:00.000Z",
+    "kp": 2.33,
+    "label": "2P",
     "status": "quiet",
-    "summary": "Latest NOAA SWPC planetary K index is 2.0 (quiet).",
+    "summary": "Latest NOAA SWPC planetary K index is 2.3 (quiet).",
     "samples": [
       {
-        "observedAt": "2026-08-03T20:31:00.000Z",
-        "kp": 2,
-        "label": "2Z"
-      },
-      {
-        "observedAt": "2026-08-03T20:30:00.000Z",
-        "kp": 2,
-        "label": "2Z"
-      },
-      {
-        "observedAt": "2026-08-03T20:29:00.000Z",
-        "kp": 2.67,
-        "label": "3M"
-      },
-      {
-        "observedAt": "2026-08-03T20:28:00.000Z",
-        "kp": 3,
-        "label": "3Z"
-      },
-      {
-        "observedAt": "2026-08-03T20:27:00.000Z",
-        "kp": 3,
-        "label": "3Z"
-      },
-      {
-        "observedAt": "2026-08-03T20:26:00.000Z",
-        "kp": 3,
-        "label": "3Z"
-      },
-      {
-        "observedAt": "2026-08-03T20:25:00.000Z",
-        "kp": 3,
-        "label": "3Z"
-      },
-      {
-        "observedAt": "2026-08-03T20:24:00.000Z",
-        "kp": 3,
-        "label": "3Z"
-      },
-      {
-        "observedAt": "2026-08-03T20:23:00.000Z",
-        "kp": 2.67,
-        "label": "3M"
-      },
-      {
-        "observedAt": "2026-08-03T20:22:00.000Z",
-        "kp": 2.67,
-        "label": "3M"
-      },
-      {
-        "observedAt": "2026-08-03T20:21:00.000Z",
+        "observedAt": "2026-08-03T21:20:00.000Z",
         "kp": 2.33,
         "label": "2P"
       },
       {
-        "observedAt": "2026-08-03T20:20:00.000Z",
+        "observedAt": "2026-08-03T21:19:00.000Z",
         "kp": 2.33,
         "label": "2P"
       },
       {
-        "observedAt": "2026-08-03T20:19:00.000Z",
-        "kp": 2,
-        "label": "2Z"
+        "observedAt": "2026-08-03T21:18:00.000Z",
+        "kp": 2.67,
+        "label": "3M"
       },
       {
-        "observedAt": "2026-08-03T20:18:00.000Z",
-        "kp": 1.67,
-        "label": "2M"
+        "observedAt": "2026-08-03T21:17:00.000Z",
+        "kp": 2.67,
+        "label": "3M"
       },
       {
-        "observedAt": "2026-08-03T20:17:00.000Z",
-        "kp": 1.67,
-        "label": "2M"
+        "observedAt": "2026-08-03T21:16:00.000Z",
+        "kp": 3,
+        "label": "3Z"
       },
       {
-        "observedAt": "2026-08-03T20:16:00.000Z",
-        "kp": 1.67,
-        "label": "2M"
+        "observedAt": "2026-08-03T21:15:00.000Z",
+        "kp": 3.33,
+        "label": "3P"
       },
       {
-        "observedAt": "2026-08-03T20:15:00.000Z",
-        "kp": 1.33,
-        "label": "1P"
+        "observedAt": "2026-08-03T21:14:00.000Z",
+        "kp": 3.67,
+        "label": "4M"
       },
       {
-        "observedAt": "2026-08-03T20:14:00.000Z",
-        "kp": 1,
-        "label": "1Z"
+        "observedAt": "2026-08-03T21:13:00.000Z",
+        "kp": 3.67,
+        "label": "4M"
+      },
+      {
+        "observedAt": "2026-08-03T21:12:00.000Z",
+        "kp": 3.67,
+        "label": "4M"
+      },
+      {
+        "observedAt": "2026-08-03T21:11:00.000Z",
+        "kp": 3.67,
+        "label": "4M"
+      },
+      {
+        "observedAt": "2026-08-03T21:10:00.000Z",
+        "kp": 3.67,
+        "label": "4M"
+      },
+      {
+        "observedAt": "2026-08-03T21:09:00.000Z",
+        "kp": 3.67,
+        "label": "4M"
+      },
+      {
+        "observedAt": "2026-08-03T21:08:00.000Z",
+        "kp": 3.67,
+        "label": "4M"
+      },
+      {
+        "observedAt": "2026-08-03T21:07:00.000Z",
+        "kp": 3.67,
+        "label": "4M"
+      },
+      {
+        "observedAt": "2026-08-03T21:06:00.000Z",
+        "kp": 3.67,
+        "label": "4M"
+      },
+      {
+        "observedAt": "2026-08-03T21:05:00.000Z",
+        "kp": 3.67,
+        "label": "4M"
+      },
+      {
+        "observedAt": "2026-08-03T21:04:00.000Z",
+        "kp": 3.67,
+        "label": "4M"
+      },
+      {
+        "observedAt": "2026-08-03T21:03:00.000Z",
+        "kp": 3.67,
+        "label": "4M"
       }
     ]
   },
   "opsBrief": {
     "id": "earthops-synthetic-brief",
     "label": "AstroBis signal core",
-    "generatedAt": "2026-08-03T21:34:05.228Z",
+    "generatedAt": "2026-08-03T22:23:15.930Z",
     "mode": "local deterministic synthesis over public feeds",
     "confidence": 87,
     "headline": "260 Earth signals, 1,042 orbital objects, 64 launches, 71 news items fused into one public snapshot.",
@@ -22070,7 +22070,7 @@
         "label": "Hazard load",
         "value": "168 active",
         "tone": "#fb7185",
-        "summary": "9 high-severity public-feed items are flagged."
+        "summary": "8 high-severity public-feed items are flagged."
       },
       {
         "label": "Orbit traffic",
@@ -22086,13 +22086,13 @@
       },
       {
         "label": "Space weather",
-        "value": "Kp 2.0 quiet",
+        "value": "Kp 2.3 quiet",
         "tone": "#86efac",
-        "summary": "Latest NOAA SWPC planetary K index is 2.0 (quiet)."
+        "summary": "Latest NOAA SWPC planetary K index is 2.3 (quiet)."
       },
       {
         "label": "News velocity",
-        "value": "14 recent",
+        "value": "15 recent",
         "tone": "#93c5fd",
         "summary": "71 article, blog, and report cards are available from the public spaceflight feed."
       },
