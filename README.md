@@ -19,7 +19,7 @@ Technical report: [docs/AstroBis-Ecosystem-Report.md](docs/AstroBis-Ecosystem-Re
 
 ## Overview
 
-AstroBis currently contains eight major modules:
+AstroBis currently contains nine major modules:
 
 | Module | Description |
 | --- | --- |
@@ -31,6 +31,7 @@ AstroBis currently contains eight major modules:
 | Small-Body Watch | Near-Earth object monitoring and interstellar visitor records |
 | 3D Stellar Atlas | Interactive stellar reference field using astronomical coordinates |
 | NASA APOD | Astronomy Picture of the Day integration |
+| Data Quality Console | Snapshot freshness, row-count, field-coverage, and provenance audit for bundled public datasets |
 
 ## Solar System Atlas
 
@@ -148,6 +149,17 @@ AstroBis integrates public astronomical and Earth-facing datasets from:
 * Public astronomical catalogues and reference datasets
 
 Build-time snapshots are generated automatically to keep the site functional when third-party APIs are unavailable.
+
+## Data Quality Console
+
+The Data Quality Console audits the same local snapshot files that power the deployed AstroBis pages. It reports snapshot age, row counts, field counts, basic completeness metrics, source labels, and load errors for the main public-data products.
+
+The application now follows a snapshot-first data policy:
+
+* Public archive data are cached as transparent JSON snapshots.
+* Live API calls are optional and fall back to the bundled public snapshot.
+* Synthetic or illustrative visual layers are labelled separately from measured catalogue rows.
+* The exoplanet helper no longer silently returns invented demonstration planets when the NASA Archive is unavailable.
 
 ## Technology Stack
 

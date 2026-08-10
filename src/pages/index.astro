@@ -51,6 +51,13 @@ const missionTiles = [
     detail: 'Textured 3D Earth, orbit projection, telemetry, and ground track.',
     href: withBase('/iss'),
   },
+  {
+    index: '07',
+    label: 'Quality',
+    value: 'Snapshot audit',
+    detail: 'Data age, row counts, field coverage, and source-provenance checks for local astronomy snapshots.',
+    href: withBase('/quality'),
+  },
 ];
 
 const featureModules = [
@@ -125,6 +132,15 @@ const featureModules = [
     tagCol: '#ec4899',
     href: '#apod',
     cta: 'See Today',
+  },
+  {
+    code: 'DQ',
+    title: 'Data Quality Console',
+    desc: 'Audit the deployed public-data snapshots for freshness, row counts, field coverage, catalogue completeness, and provenance labels.',
+    tag: 'Provenance',
+    tagCol: '#67e8f9',
+    href: withBase('/quality'),
+    cta: 'Audit Data',
   },
 ];
 ---

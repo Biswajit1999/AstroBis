@@ -1,0 +1,12 @@
+---
+import Layout from '../layouts/Layout.astro';
+import DataQualityConsole from '../components/DataQualityConsole';
+---
+
+<Layout
+  title="Data Quality"
+  description="AstroBis data-quality console for auditing astronomy snapshot freshness, completeness, provenance, and catalogue coverage."
+>
+  <DataQualityConsole client:load />
+</Layout>
+
