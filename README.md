@@ -15,7 +15,7 @@ AstroBis is a browser-native astronomy platform developed by **Biswajit Jana**. 
 
 Live website: [https://biswajit1999.github.io/AstroBis/](https://biswajit1999.github.io/AstroBis/)
 
-Project report: [docs/AstroBis-Project-Report.tex](docs/AstroBis-Project-Report.tex)
+Project report: [docs/AstroBis-Project-Report.pdf](docs/AstroBis-Project-Report.pdf)
 
 Technical notes: [docs/AstroBis-Ecosystem-Report.md](docs/AstroBis-Ecosystem-Report.md)
 
