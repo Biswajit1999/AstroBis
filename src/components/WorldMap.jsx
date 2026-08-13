@@ -108,9 +108,9 @@ const FALLBACK_WORLD = {
   },
   opsBrief: {
     id: 'fallback-earthops-brief',
-    label: 'AstroBis signal core',
+    label: 'AstroBis public-source brief',
     generatedAt: '2026-01-01T00:00:00.000Z',
-    mode: 'local deterministic synthesis',
+    mode: 'local public-feed summary',
     confidence: 42,
     headline: 'EarthOps is running on a safe offline reference snapshot.',
     watch: [
@@ -333,6 +333,7 @@ function statusColor(value) {
 }
 
 function itemColor(kind, item) {
+  if (kind === 'event-cluster') return item.color || '#fbbf24';
   if (kind === 'location') return '#86efac';
   if (kind === 'launch') return '#fbbf24';
   if (kind === 'satellite') return SATELLITE_COLORS[item.status] || '#67e8f9';
@@ -342,6 +343,68 @@ function itemColor(kind, item) {
 
 function selectionId(selection) {
   return selection ? `${selection.kind}:${selection.item.id || selection.item.title || selection.item.name}` : '';
+}
+
+function dominantTypeLabel(rows = []) {
+  const counts = new Map();
+  rows.forEach((row) => counts.set(row.type || row.status || 'item', (counts.get(row.type || row.status || 'item') || 0) + 1));
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || 'mixed';
+}
+
+function priorityEventScore(event) {
+  const ageHours = Math.max(0, (Date.now() - Date.parse(event.timestamp || 0)) / 3600000);
+  const recency = Math.max(0, 72 - ageHours) / 72;
+  return severityRank(event) * 100 + recency * 30 + (event.magnitude || 0);
+}
+
+function clusterSurfaceItems(rows, options = {}) {
+  const { cellSize = 10, maxIndividuals = 44 } = options;
+  const valid = rows.filter((row) => Number.isFinite(row.lat) && Number.isFinite(row.lon));
+  const individuals = valid
+    .slice()
+    .sort((a, b) => priorityEventScore(b) - priorityEventScore(a))
+    .slice(0, maxIndividuals);
+  const individualIds = new Set(individuals.map((row) => row.id));
+  const buckets = new Map();
+
+  valid.forEach((row) => {
+    if (individualIds.has(row.id)) return;
+    const key = `${Math.floor((row.lat + 90) / cellSize)}:${Math.floor((normalizeLon(row.lon) + 180) / cellSize)}`;
+    const current = buckets.get(key) || { rows: [], lat: 0, lon: 0 };
+    current.rows.push(row);
+    current.lat += row.lat;
+    current.lon += normalizeLon(row.lon);
+    buckets.set(key, current);
+  });
+
+  const clusters = [...buckets.values()]
+    .filter((bucket) => bucket.rows.length >= 3)
+    .map((bucket, index) => {
+      const rowsInBucket = bucket.rows.sort((a, b) => priorityEventScore(b) - priorityEventScore(a));
+      const dominant = dominantTypeLabel(rowsInBucket);
+      const highCount = rowsInBucket.filter((row) => severityRank(row) >= 3).length;
+      const color = EVENT_COLORS[dominant] || itemColor('event', rowsInBucket[0]);
+      return {
+        id: `cluster-${index}-${dominant}-${rowsInBucket.length}`,
+        title: `${rowsInBucket.length.toLocaleString()} ${dominant.replace(/([A-Z])/g, ' $1').toLowerCase()} records`,
+        type: dominant,
+        lat: bucket.lat / rowsInBucket.length,
+        lon: normalizeLon(bucket.lon / rowsInBucket.length),
+        severity: highCount ? 'high' : rowsInBucket.some((row) => severityRank(row) >= 2) ? 'active' : 'reference',
+        timestamp: rowsInBucket[0]?.timestamp,
+        source: 'clustered public feed records',
+        url: rowsInBucket[0]?.url,
+        summary: `Clustered view of ${rowsInBucket.length.toLocaleString()} nearby public-feed records. Zoom closer or select a timeline item for the original source record.`,
+        count: rowsInBucket.length,
+        highCount,
+        rows: rowsInBucket.slice(0, 10),
+        color,
+      };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 72);
+
+  return { individuals, clusters };
 }
 
 function severityRank(event) {
@@ -377,9 +440,9 @@ function buildDisplayBrief(payload, visibleEvents, visibleSatellites, visibleLau
   const recentNews = countRecent(news, 'publishedAt', 24);
   return {
     id: 'earthops-client-brief',
-    label: 'AstroBis signal core',
+    label: 'AstroBis public-source brief',
     generatedAt: payload.generatedAt,
-    mode: 'client synthesis over loaded public snapshot',
+    mode: 'client public-feed summary',
     confidence: 58,
     headline: `${visibleEvents.length.toLocaleString()} visible Earth signals and ${visibleSatellites.length.toLocaleString()} orbital objects are active in the current layer stack.`,
     watch: [
@@ -945,14 +1008,40 @@ function SurfaceMarker({ item, kind, selected, onSelect }) {
   const color = itemColor(kind, item);
   const surface = latLonVector(item.lat, item.lon, 1.006);
   const position = latLonVector(item.lat, item.lon, kind === 'launch' ? 1.048 : 1.032);
-  const size = kind === 'launch' ? 0.024 : active ? 0.023 : 0.016;
-  const opacity = active ? 0.95 : kind === 'launch' ? 0.62 : 0.46;
+  const isCluster = kind === 'event-cluster';
+  const clusterScale = isCluster ? clamp(Math.sqrt(item.count || 1) * 0.006, 0.022, 0.06) : 0;
+  const size = isCluster ? clusterScale : kind === 'launch' ? 0.024 : active ? 0.023 : 0.014;
+  const opacity = active ? 0.95 : isCluster ? 0.52 : kind === 'launch' ? 0.58 : 0.34;
 
   return (
     <group position={position} onClick={(event) => { event.stopPropagation(); onSelect({ kind, item }); }}>
       <Line points={[surface.clone().sub(position), new THREE.Vector3(0, 0, 0)]} color={color} transparent opacity={active ? 0.56 : 0.22} lineWidth={active ? 1.15 : 0.62} />
       <Billboard>
-        {kind === 'launch' ? (
+        {isCluster ? (
+          <>
+            <mesh>
+              <circleGeometry args={[size, 36]} />
+              <meshBasicMaterial color={color} transparent opacity={0.18} depthWrite={false} />
+            </mesh>
+            <mesh>
+              <ringGeometry args={[size * 0.72, size, 40]} />
+              <meshBasicMaterial color={color} transparent opacity={opacity} side={THREE.DoubleSide} depthWrite={false} />
+            </mesh>
+            <Html center distanceFactor={4.8}>
+              <button
+                type="button"
+                className="worldops-cluster-chip"
+                style={{ '--cluster-color': color }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelect({ kind, item });
+                }}
+              >
+                {item.count > 999 ? `${Math.round(item.count / 100) / 10}k` : item.count}
+              </button>
+            </Html>
+          </>
+        ) : kind === 'launch' ? (
           <mesh rotation-z={Math.PI / 4}>
             <planeGeometry args={[size * 1.15, size * 1.15]} />
             <meshBasicMaterial color={color} transparent opacity={opacity} depthWrite={false} />
@@ -1008,7 +1097,7 @@ function SatelliteField({ satellites, layers, mode = 'globe', selected, onSelect
   const pointTexture = useMemo(() => makeRoundPointTexture(), []);
   const visible = useMemo(() => satellites.filter((satellite) => (
     satellite.status === 'debris' ? layers.debris : layers.satellites
-  )).slice(0, 760), [satellites, layers.debris, layers.satellites]);
+  )).slice(0, mode === 'shell' ? 9000 : 2600), [satellites, layers.debris, layers.satellites, mode]);
 
   const buffers = useMemo(() => {
     const positions = new Float32Array(Math.max(visible.length, 1) * 3);
@@ -1061,9 +1150,9 @@ function SatelliteField({ satellites, layers, mode = 'globe', selected, onSelect
         alphaMap={pointTexture}
         alphaTest={0.03}
         vertexColors
-        size={mode === 'shell' ? 0.018 : 0.0075}
+        size={mode === 'shell' ? 0.0095 : 0.0048}
         transparent
-        opacity={mode === 'shell' ? 0.58 : 0.26}
+        opacity={mode === 'shell' ? 0.42 : 0.2}
         sizeAttenuation
         depthWrite={false}
       />
@@ -1098,7 +1187,11 @@ function SelectedSatelliteMarker({ selected, onSelect }) {
 
 function WorldScene({ events, launches, satellites, layers, selected, onSelect, mode = 'globe', userLocation }) {
   const launchMarkers = launches.filter((launch) => Number.isFinite(launch.lat) && Number.isFinite(launch.lon));
-  const markerCount = events.length + launchMarkers.length + satellites.length;
+  const { individuals: priorityEvents, clusters: eventClusters } = useMemo(
+    () => clusterSurfaceItems(events, { cellSize: mode === 'shell' ? 14 : 10, maxIndividuals: mode === 'shell' ? 28 : 48 }),
+    [events, mode],
+  );
+  const markerCount = priorityEvents.length + eventClusters.length + launchMarkers.length + satellites.length;
   return (
     <>
       <color attach="background" args={['#01030b']} />
@@ -1108,7 +1201,8 @@ function WorldScene({ events, launches, satellites, layers, selected, onSelect, 
       <SatelliteField satellites={satellites} layers={layers} mode={mode} selected={selected} onSelect={onSelect} />
       <SelectedSatelliteMarker selected={selected} onSelect={onSelect} />
       <GeographicLabels userLocation={userLocation} onSelect={onSelect} />
-      {events.map((event) => <SurfaceMarker key={event.id} item={event} kind="event" selected={selected} onSelect={onSelect} />)}
+      {eventClusters.map((cluster) => <SurfaceMarker key={cluster.id} item={cluster} kind="event-cluster" selected={selected} onSelect={onSelect} />)}
+      {priorityEvents.map((event) => <SurfaceMarker key={event.id} item={event} kind="event" selected={selected} onSelect={onSelect} />)}
       {layers.launches && launchMarkers.map((launch) => <SurfaceMarker key={launch.id} item={launch} kind="launch" selected={selected} onSelect={onSelect} />)}
       <EffectComposer>
         <Bloom luminanceThreshold={0.3} luminanceSmoothing={0.82} intensity={1.15} radius={0.62} />
@@ -1177,13 +1271,21 @@ function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveS
       </p>
 
       <div className="worldops-stat-grid">
-        <StatPill label="events" value={visibleCounts.events} color="#fb923c" />
-        <StatPill label="orbital objects" value={payload.totals?.satellites ?? payload.satellites.length} color="#67e8f9" />
-        <StatPill label="debris sample" value={payload.totals?.debris ?? 0} color="#fb7185" />
-        <StatPill label="launches" value={payload.launches.length} color="#fbbf24" />
-        <StatPill label="news items" value={payload.news?.length || 0} color="#93c5fd" />
+        <StatPill label="events" value={visibleCounts.events.toLocaleString()} color="#fb923c" />
+        <StatPill label="rendered objects" value={(payload.totals?.renderedOrbitalSample ?? payload.totals?.satellites ?? payload.satellites.length).toLocaleString()} color="#67e8f9" />
+        <StatPill label="debris sample" value={(payload.totals?.debris ?? 0).toLocaleString()} color="#fb7185" />
+        <StatPill label="launches" value={payload.launches.length.toLocaleString()} color="#fbbf24" />
+        <StatPill label="news items" value={(payload.news?.length || 0).toLocaleString()} color="#93c5fd" />
         <StatPill label="space weather" value={kp === null ? 'n/a' : `Kp ${kp.toFixed(1)}`} color={kp !== null && kp >= 5 ? '#fb7185' : '#86efac'} />
       </div>
+      {payload.totals?.orbitalCatalogueCount && (
+        <div className="worldops-catalogue-note">
+          <strong>{payload.totals.orbitalCoverageLabel || `${payload.totals.orbitalCatalogueCount.toLocaleString()} catalogue rows`}</strong>
+          <span>
+            Source catalogues are sampled for WebGL rendering so the globe stays responsive.
+          </span>
+        </div>
+      )}
 
       {layers.miniMap && (
         <div className="worldops-control-block worldops-mini-dock">
@@ -1268,7 +1370,7 @@ function SignalBrief({ brief, sourceMode }) {
     <section className="worldops-signal-brief">
       <div className="worldops-signal-scanline" aria-hidden="true" />
       <div className="worldops-signal-topline">
-        <span><Zap size={13} /> Signal core</span>
+        <span><Zap size={13} /> Data health</span>
         <strong>{sourceMode}</strong>
       </div>
       <h3>{brief.headline || 'Public feeds loaded into AstroBis EarthOps.'}</h3>
@@ -1290,7 +1392,7 @@ function SignalBrief({ brief, sourceMode }) {
         {bullets.slice(0, 4).map((bullet) => <p key={bullet}>{bullet}</p>)}
       </div>
       <footer>
-        {brief.mode || 'local deterministic synthesis'} - {brief.sourceHealth?.live ?? 0}/{brief.sourceHealth?.total ?? 0} live source lanes
+        {brief.mode || 'public-feed summary'} - {brief.sourceHealth?.live ?? 0}/{brief.sourceHealth?.total ?? 0} live source lanes
       </footer>
     </section>
   );
@@ -1299,7 +1401,7 @@ function SignalBrief({ brief, sourceMode }) {
 function SignalPanel({ sourceMode, brief }) {
   return (
     <aside className="worldops-panel worldops-right" style={{ '--accent': '#67e8f9' }}>
-      <div className="worldops-kicker"><Crosshair size={14} /> Source console</div>
+      <div className="worldops-kicker"><Crosshair size={14} /> Source Console</div>
       <SignalBrief brief={brief} sourceMode={sourceMode} />
       <div className="worldops-method-note">
         {sourceMode === 'live'
@@ -1373,6 +1475,8 @@ function SelectedSourceCard({ selected, payload, sourceMode }) {
   const title = item.title || item.name;
   const label = kind === 'event'
     ? item.source
+    : kind === 'event-cluster'
+      ? 'Clustered Earth records'
     : kind === 'launch'
       ? 'Upcoming launch'
       : kind === 'satellite'
@@ -1400,6 +1504,26 @@ function SelectedSourceCard({ selected, payload, sourceMode }) {
           ['Position', `${item.lat.toFixed(2)}, ${item.lon.toFixed(2)}`],
           ['Updated', formatDate(item.timestamp)],
         ]} />
+      )}
+
+      {kind === 'event-cluster' && (
+        <>
+          <DetailRows rows={[
+            ['Records', item.count?.toLocaleString(), color],
+            ['Dominant layer', item.type, color],
+            ['High-severity', item.highCount ? item.highCount.toLocaleString() : 'none', item.highCount ? '#fb7185' : '#86efac'],
+            ['Cluster centre', `${item.lat.toFixed(2)}, ${item.lon.toFixed(2)}`],
+          ]} />
+          <div className="worldops-cluster-list">
+            {(item.rows || []).slice(0, 6).map((row) => (
+              <a key={row.id} href={row.url || '#'} target="_blank" rel="noopener noreferrer">
+                <span>{row.source}</span>
+                <strong>{row.title}</strong>
+                <small>{row.severity} - {formatDate(row.timestamp)}</small>
+              </a>
+            ))}
+          </div>
+        </>
       )}
 
       {kind === 'launch' && (
@@ -1466,10 +1590,13 @@ function SelectedSourceCard({ selected, payload, sourceMode }) {
 
 function MiniMap({ events, launches, satellites = [], layers = DEFAULT_LAYERS, selected, onSelect, userLocation }) {
   const subsolar = subsolarPoint(new Date());
-  const plottedEvents = events.slice(0, 180);
-  const plottedLaunches = launches.filter((launch) => Number.isFinite(launch.lat) && Number.isFinite(launch.lon)).slice(0, 24);
+  const { individuals: plottedEvents, clusters: plottedClusters } = useMemo(
+    () => clusterSurfaceItems(events, { cellSize: 14, maxIndividuals: 48 }),
+    [events],
+  );
+  const plottedLaunches = launches.filter((launch) => Number.isFinite(launch.lat) && Number.isFinite(launch.lon)).slice(0, 18);
   const plottedSatellites = (layers.satellites || layers.debris)
-    ? satellites.filter((satellite) => satellite.status === 'debris' ? layers.debris : layers.satellites).slice(0, 240)
+    ? satellites.filter((satellite) => satellite.status === 'debris' ? layers.debris : layers.satellites).slice(0, 180)
     : [];
   const pointStyle = (item, kind) => ({
     left: `${((item.lon + 180) / 360) * 100}%`,
@@ -1512,6 +1639,18 @@ function MiniMap({ events, launches, satellites = [], layers = DEFAULT_LAYERS, s
           title={event.title}
         />
       ))}
+      {plottedClusters.map((cluster) => (
+        <button
+          key={cluster.id}
+          type="button"
+          className={`worldops-map-dot cluster ${selectionId(selected) === selectionId({ kind: 'event-cluster', item: cluster }) ? 'is-active' : ''}`}
+          style={pointStyle(cluster, 'event-cluster')}
+          onClick={() => onSelect({ kind: 'event-cluster', item: cluster })}
+          title={cluster.title}
+        >
+          <span>{cluster.count > 99 ? '99+' : cluster.count}</span>
+        </button>
+      ))}
       {plottedLaunches.map((launch) => (
         <button
           key={launch.id}
@@ -1522,7 +1661,7 @@ function MiniMap({ events, launches, satellites = [], layers = DEFAULT_LAYERS, s
           title={launch.name}
         />
       ))}
-      {GEOGRAPHIC_LABELS.filter((label) => label.type !== 'ocean').map((label) => {
+      {GEOGRAPHIC_LABELS.filter((label) => label.type === 'spaceport').map((label) => {
         const point = projectLatLon(label.lat, label.lon);
         return (
           <span
@@ -1661,6 +1800,9 @@ function CommandStrip({ payload, viewMode, visibleCounts, sourceMode }) {
       <span><Globe2 size={13} /> {viewMode === 'map' ? '2D ops projection' : viewMode === 'shell' ? 'orbital-shell view' : '3D globe view'}</span>
       <span><Activity size={13} /> {visibleCounts.events.toLocaleString()} signals</span>
       <span><Satellite size={13} /> {visibleCounts.satellites.toLocaleString()} objects</span>
+      {payload.totals?.orbitalCatalogueCount && (
+        <span><Layers size={13} /> {payload.totals.orbitalCatalogueCount.toLocaleString()} catalogue rows</span>
+      )}
       <span><Zap size={13} /> {kp === null ? 'Kp n/a' : `Kp ${kp.toFixed(1)}`}</span>
       <span><Newspaper size={13} /> {payload.news?.length || 0} news</span>
       <span><Eye size={13} /> {payload.media?.length || 0} public media</span>
@@ -2046,6 +2188,28 @@ const WORLDOPS_CSS = `
   color: rgba(255,255,255,0.44);
   font-size: 0.73rem;
 }
+.worldops-catalogue-note {
+  margin: -0.18rem 0 0.92rem;
+  padding: 0.72rem 0.78rem;
+  border-radius: 13px;
+  border: 1px solid rgba(103,232,249,0.18);
+  background: linear-gradient(135deg, rgba(103,232,249,0.08), rgba(255,255,255,0.025));
+}
+.worldops-catalogue-note strong,
+.worldops-catalogue-note span {
+  display: block;
+}
+.worldops-catalogue-note strong {
+  color: #67e8f9;
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+.worldops-catalogue-note span {
+  margin-top: 0.18rem;
+  color: rgba(255,255,255,0.48);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
 .worldops-control-block {
   border-top: 1px solid rgba(255,255,255,0.08);
   padding-top: 0.85rem;
@@ -2262,6 +2426,41 @@ const WORLDOPS_CSS = `
   font-size: 0.67rem;
   line-height: 1.35;
   border-top: 1px solid rgba(255,255,255,0.08);
+}
+.worldops-cluster-list {
+  display: grid;
+  gap: 0.42rem;
+  margin-top: 0.82rem;
+}
+.worldops-cluster-list a {
+  display: block;
+  padding: 0.55rem 0.62rem;
+  border-radius: 11px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  text-decoration: none;
+  color: rgba(255,255,255,0.76);
+}
+.worldops-cluster-list span {
+  display: block;
+  color: var(--accent);
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.worldops-cluster-list strong {
+  display: block;
+  margin-top: 0.15rem;
+  color: white;
+  font-size: 0.72rem;
+  line-height: 1.22;
+}
+.worldops-cluster-list small {
+  display: block;
+  margin-top: 0.16rem;
+  color: rgba(255,255,255,0.42);
+  font-size: 0.62rem;
 }
 .worldops-location-snapshot {
   position: relative;
@@ -2531,6 +2730,19 @@ const WORLDOPS_CSS = `
   background: rgba(36,24,4,0.28);
   border-color: rgba(251,191,36,0.1);
 }
+.worldops-cluster-chip {
+  min-width: 24px;
+  height: 20px;
+  padding: 0 0.38rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--cluster-color), rgba(255,255,255,0.2) 35%);
+  background: rgba(3,7,18,0.66);
+  color: color-mix(in srgb, var(--cluster-color), white 32%);
+  font-size: 0.52rem;
+  font-weight: 950;
+  cursor: pointer;
+  box-shadow: 0 0 20px color-mix(in srgb, var(--cluster-color), transparent 54%);
+}
 .worldops-user-label {
   border-color: rgba(134,239,172,0.42);
   background: rgba(5,46,22,0.82);
@@ -2788,6 +3000,21 @@ const WORLDOPS_CSS = `
   color: #031008;
   border: 1px solid rgba(255,255,255,0.86);
   background: #86efac;
+}
+.worldops-map-dot.cluster {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border-color: color-mix(in srgb, var(--dot-color), rgba(255,255,255,0.75) 45%);
+  background: color-mix(in srgb, var(--dot-color), rgba(3,7,18,0.82) 38%);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--dot-color), transparent 52%);
+}
+.worldops-map-dot.cluster span {
+  color: white;
+  font-size: 0.42rem;
+  font-weight: 950;
+  line-height: 1;
 }
 .worldops-mini-place-label {
   position: absolute;

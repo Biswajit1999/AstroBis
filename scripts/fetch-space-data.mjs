@@ -371,9 +371,9 @@ const WORLD_OPS_FALLBACK = {
   },
   opsBrief: {
     id: 'fallback-earthops-brief',
-    label: 'AstroBis signal brief',
+    label: 'AstroBis public-source brief',
     generatedAt,
-    mode: 'local deterministic synthesis',
+    mode: 'local public-feed summary',
     confidence: 42,
     headline: 'EarthOps is running on a safe offline reference snapshot.',
     watch: [
@@ -404,19 +404,24 @@ const GDACS_TYPE_LABELS = {
 
 const CELESTRAK_WORLD_GROUPS = [
   { id: 'stations', label: 'Space stations', status: 'station', limit: 22 },
-  { id: 'last-30-days', label: 'Recent launches', status: 'recent-object', limit: 120 },
-  { id: 'geo', label: 'Geostationary belt', status: 'satellite', limit: 120 },
-  { id: 'weather', label: 'Weather satellites', status: 'satellite', limit: 80 },
-  { id: 'science', label: 'Science missions', status: 'satellite', limit: 70 },
+  { id: 'last-30-days', label: 'Recent launches', status: 'recent-object', limit: 180 },
+  { id: 'active', label: 'Active satellites catalogue sample', status: 'satellite', limit: 760 },
+  { id: 'geo', label: 'Geostationary belt', status: 'satellite', limit: 260 },
+  { id: 'intelsat', label: 'Intelsat fleet', status: 'satellite', limit: 100 },
+  { id: 'weather', label: 'Weather satellites', status: 'satellite', limit: 150 },
+  { id: 'science', label: 'Science missions', status: 'satellite', limit: 140 },
   { id: 'gps-ops', label: 'GPS operational constellation', status: 'satellite', limit: 44 },
   { id: 'glo-ops', label: 'GLONASS operational constellation', status: 'satellite', limit: 36 },
   { id: 'galileo', label: 'Galileo constellation', status: 'satellite', limit: 42 },
   { id: 'beidou', label: 'BeiDou constellation', status: 'satellite', limit: 54 },
-  { id: 'starlink', label: 'Starlink constellation sample', status: 'satellite', limit: 260 },
-  { id: 'oneweb', label: 'OneWeb constellation sample', status: 'satellite', limit: 110 },
-  { id: 'cosmos-2251-debris', label: 'Cosmos 2251 debris sample', status: 'debris', limit: 170 },
-  { id: 'fengyun-1c-debris', label: 'Fengyun 1C debris sample', status: 'debris', limit: 190 },
-  { id: 'iridium-33-debris', label: 'Iridium 33 debris sample', status: 'debris', limit: 130 },
+  { id: 'starlink', label: 'Starlink constellation sample', status: 'satellite', limit: 900 },
+  { id: 'oneweb', label: 'OneWeb constellation sample', status: 'satellite', limit: 260 },
+  { id: 'planet', label: 'Planet Labs constellation sample', status: 'satellite', limit: 240 },
+  { id: 'iridium-NEXT', label: 'Iridium NEXT constellation', status: 'satellite', limit: 90 },
+  { id: 'cosmos-2251-debris', label: 'Cosmos 2251 debris sample', status: 'debris', limit: 420 },
+  { id: 'fengyun-1c-debris', label: 'Fengyun 1C debris sample', status: 'debris', limit: 520 },
+  { id: 'iridium-33-debris', label: 'Iridium 33 debris sample', status: 'debris', limit: 360 },
+  { id: 'cosmos-1408-debris', label: 'Cosmos 1408 debris sample', status: 'debris', limit: 360 },
 ];
 
 const LAUNCH_SITE_COORDINATES = [
@@ -549,7 +554,68 @@ const WORLD_OPS_MEDIA = [
     embedUrl: '',
     summary: 'NASA/JPL public visualization portal for Solar System missions, spacecraft, planetary context, and exploration timelines.',
   },
+  {
+    id: 'nasa-image-video-library',
+    type: 'imagery-directory',
+    title: 'NASA Image and Video Library',
+    provider: 'NASA',
+    status: 'official public media archive',
+    url: 'https://images.nasa.gov/',
+    embedUrl: '',
+    summary: 'NASA public imagery and video archive for launches, missions, Earth science, exploration, and agency events.',
+  },
+  {
+    id: 'eumetsat-view',
+    type: 'earth-imagery',
+    title: 'EUMETSAT View',
+    provider: 'EUMETSAT',
+    status: 'public meteorological imagery',
+    url: 'https://view.eumetsat.int/',
+    embedUrl: '',
+    summary: 'European meteorological satellite viewer with near-real-time Earth observation products.',
+  },
+  {
+    id: 'usgs-earthquake-map',
+    type: 'hazard-map',
+    title: 'USGS Latest Earthquakes',
+    provider: 'USGS',
+    status: 'official public earthquake map',
+    url: 'https://earthquake.usgs.gov/earthquakes/map/',
+    embedUrl: '',
+    summary: 'Interactive USGS earthquake browser for magnitude, depth, regional filtering, and recent global seismicity.',
+  },
 ];
+
+function createReferenceOrbitalShell() {
+  const groups = [
+    { label: 'LEO infrastructure reference shell', status: 'satellite', count: 360, meanMotion: 15.05, altitudeKm: 550, inclination: 53.2, noradBase: 910000 },
+    { label: 'Polar observation reference shell', status: 'satellite', count: 120, meanMotion: 14.2, altitudeKm: 720, inclination: 97.6, noradBase: 920000 },
+    { label: 'MEO navigation reference shell', status: 'satellite', count: 96, meanMotion: 2.0, altitudeKm: 20200, inclination: 55, noradBase: 930000 },
+    { label: 'Geostationary reference belt', status: 'satellite', count: 144, meanMotion: 1.0027, altitudeKm: 35786, inclination: 0.08, noradBase: 940000 },
+    { label: 'Debris reference cloud', status: 'debris', count: 420, meanMotion: 14.5, altitudeKm: 780, inclination: 82, noradBase: 950000 },
+  ];
+  return groups.flatMap((group, groupIndex) => Array.from({ length: group.count }, (_, index) => {
+    const phase = (index / group.count) * 360;
+    const wobble = Math.sin((index + 1) * 12.9898 + groupIndex * 78.233);
+    return {
+      id: `reference-orbit-${groupIndex}-${index}`,
+      name: `${group.label.replace(' reference ', ' ')} ${String(index + 1).padStart(3, '0')}`,
+      noradId: group.noradBase + index,
+      objectId: 'reference-shell',
+      group: group.label,
+      status: group.status,
+      epoch: generatedAt,
+      meanMotion: group.meanMotion,
+      eccentricity: group.status === 'debris' ? 0.006 + Math.abs(wobble) * 0.018 : 0.0008 + Math.abs(wobble) * 0.003,
+      inclination: group.inclination + wobble * (group.status === 'debris' ? 18 : 3.5),
+      raan: (phase * (groupIndex + 1.618)) % 360,
+      argumentOfPerigee: (phase * 0.73 + groupIndex * 37) % 360,
+      meanAnomaly: (phase * 2.17 + groupIndex * 19) % 360,
+      altitudeKm: group.altitudeKm,
+      reference: true,
+    };
+  }));
+}
 
 function todayISO() {
   const date = new Date();
@@ -1162,17 +1228,26 @@ async function fetchWorldSatellites() {
     const url = `https://celestrak.org/NORAD/elements/gp.php?GROUP=${group.id}&FORMAT=json`;
     try {
       const payload = await fetchJson(url, `CelesTrak ${group.id}`);
+      const sourceCount = Array.isArray(payload) ? payload.length : 0;
       const rows = sampleEvenly(payload, group.limit)
         .map((row) => normalizeSatellite(row, group))
         .filter((satellite) => satellite.name && satellite.meanMotion);
       satellites.push(...rows);
-      sources.push(sourceRecord(`celestrak-${group.id}`, `CelesTrak ${group.label}`, url, 'live', rows.length));
+      sources.push({
+        ...sourceRecord(`celestrak-${group.id}`, `CelesTrak ${group.label}`, url, 'live', rows.length),
+        catalogueCount: sourceCount,
+        sampleLimit: group.limit,
+      });
     } catch (error) {
       sources.push(sourceRecord(`celestrak-${group.id}`, `CelesTrak ${group.label}`, url, 'fallback', 0, error));
     }
   }
 
-  if (!satellites.length) satellites.push(...WORLD_OPS_FALLBACK.satellites);
+  if (!satellites.length) {
+    const referenceShell = createReferenceOrbitalShell();
+    satellites.push(...WORLD_OPS_FALLBACK.satellites, ...referenceShell);
+    sources.push(sourceRecord('orbital-reference-shell', 'AstroBis orbital reference shell', 'public data fallback', 'static', referenceShell.length));
+  }
   return { data: satellites, sources };
 }
 
@@ -1287,9 +1362,9 @@ function buildWorldOpsBrief({ events, satellites, launches, news, media, sources
 
   return {
     id: 'earthops-synthetic-brief',
-    label: 'AstroBis signal core',
+    label: 'AstroBis public-source brief',
     generatedAt,
-    mode: 'local deterministic synthesis over public feeds',
+    mode: 'public-feed summary over loaded source lanes',
     confidence,
     headline: `${events.length.toLocaleString()} Earth signals, ${satellites.length.toLocaleString()} orbital objects, ${launches.length.toLocaleString()} launches, ${news.length.toLocaleString()} news items fused into one public snapshot.`,
     watch: [
@@ -1334,7 +1409,7 @@ function buildWorldOpsBrief({ events, satellites, launches, news, media, sources
       dominantEvent ? `Priority Earth signal: ${dominantEvent.title} (${dominantEvent.source}, ${dominantEvent.severity}).` : 'No Earth-event item is currently prioritized.',
       nextLaunch ? `Next launch window: ${nextLaunch.name} from ${nextLaunch.location}.` : 'Launch Library cards are waiting for the next successful snapshot.',
       fallbackSources ? `${fallbackSources} source lane(s) used fallback handling; the UI keeps those uncertainty labels visible.` : 'All queried source lanes returned live data during the build.',
-      'This panel is a transparent AstroBis synthesis layer over public feeds, not a private prediction or official impact assessment.',
+      'This panel is a transparent AstroBis summary over public feeds, not a private prediction or official impact assessment.',
     ],
     sourceHealth: { live: liveSources, fallback: fallbackSources, total: sourceTotal },
   };
@@ -1356,6 +1431,8 @@ async function fetchWorldOps() {
       .filter((event) => Number.isFinite(event.lat) && Number.isFinite(event.lon))
       .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
     const satellites = satelliteBundle.data;
+    const orbitalCatalogueCount = satelliteBundle.sources.reduce((total, source) => total + (source.catalogueCount || source.count || 0), 0);
+    const orbitalCoverageLabel = `${orbitalCatalogueCount.toLocaleString()} public catalogue rows`;
     const sources = [
       eonet.source,
       usgs.source,
@@ -1398,6 +1475,9 @@ async function fetchWorldOps() {
         nasaEvents: eonet.data.length,
         earthquakes: usgs.data.length,
         disasters: gdacs.data.length,
+        orbitalCatalogueCount,
+        orbitalCoverageLabel,
+        renderedOrbitalSample: satellites.length,
       },
       notes: {
         scope: 'AstroBis EarthOps is space-first: orbital infrastructure, launches, Earth hazards, and spaceflight context. It is not a broad conflict or political OSINT clone.',
