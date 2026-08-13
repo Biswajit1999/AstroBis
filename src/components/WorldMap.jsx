@@ -424,12 +424,31 @@ function countRecent(rows, field, hours) {
   }).length;
 }
 
-function buildDisplayBrief(payload, visibleEvents, visibleSatellites, visibleLaunches) {
-  if (payload.opsBrief?.watch?.length) return payload.opsBrief;
+function spaceWeatherDisplay(spaceWeather) {
+  const kp = finiteNumber(spaceWeather?.kp);
+  const status = String(spaceWeather?.status || '').toLowerCase();
+  const observedAt = Date.parse(spaceWeather?.observedAt);
+  const stale = !Number.isFinite(observedAt) || Date.now() - observedAt > 12 * 3600000;
 
+  if (kp === null || status === 'fallback' || stale) {
+    return {
+      value: 'Kp n/a',
+      color: '#93c5fd',
+      summary: 'NOAA SWPC Kp feed is unavailable or stale in this public snapshot.',
+    };
+  }
+
+  return {
+    value: kp < 1 ? 'Kp quiet' : `Kp ${kp.toFixed(1)}`,
+    color: kp >= 5 ? '#fb7185' : '#86efac',
+    summary: spaceWeather?.summary || `NOAA SWPC planetary K index is ${kp.toFixed(1)}.`,
+  };
+}
+
+function buildDisplayBrief(payload, visibleEvents, visibleSatellites, visibleLaunches) {
   const news = payload.news || [];
   const media = payload.media || [];
-  const kp = finiteNumber(payload.spaceWeather?.kp);
+  const spaceWeather = spaceWeatherDisplay(payload.spaceWeather);
   const activeEvents = visibleEvents.filter((event) => severityRank(event) >= 2).length;
   const highEvents = visibleEvents.filter((event) => severityRank(event) >= 3).length;
   const debris = visibleSatellites.filter((satellite) => satellite.status === 'debris').length;
@@ -443,13 +462,13 @@ function buildDisplayBrief(payload, visibleEvents, visibleSatellites, visibleLau
     label: 'AstroBis public-source brief',
     generatedAt: payload.generatedAt,
     mode: 'client public-feed summary',
-    confidence: 58,
+    confidence: payload.opsBrief?.confidence || 58,
     headline: `${visibleEvents.length.toLocaleString()} visible Earth signals and ${visibleSatellites.length.toLocaleString()} orbital objects are active in the current layer stack.`,
     watch: [
       { label: 'Hazard load', value: `${activeEvents} active`, tone: highEvents ? '#fb7185' : '#fbbf24', summary: highEvents ? `${highEvents} high-severity items visible.` : 'No high-severity visible item dominates.' },
       { label: 'Orbit traffic', value: `${visibleSatellites.length.toLocaleString()} tracked`, tone: '#67e8f9', summary: `${debris.toLocaleString()} debris objects are visible with the current filters.` },
       { label: 'Launch tempo', value: `${nextLaunches7d} in 7d`, tone: '#fbbf24', summary: `${visibleLaunches.length.toLocaleString()} launch cards are loaded.` },
-      { label: 'Space weather', value: kp === null ? 'Kp n/a' : `Kp ${kp.toFixed(1)}`, tone: kp !== null && kp >= 5 ? '#fb7185' : '#86efac', summary: payload.spaceWeather?.summary || 'NOAA Kp context is unavailable.' },
+      { label: 'Space weather', value: spaceWeather.value, tone: spaceWeather.color, summary: spaceWeather.summary },
       { label: 'News velocity', value: `${recentNews} recent`, tone: '#93c5fd', summary: `${news.length.toLocaleString()} public news items are loaded.` },
       { label: 'Media ops', value: `${media.length} sources`, tone: '#c4b5fd', summary: 'Public video, imagery, and mission-source links are available.' },
     ],
@@ -457,7 +476,7 @@ function buildDisplayBrief(payload, visibleEvents, visibleSatellites, visibleLau
       'This client brief is computed locally from loaded public data.',
       'Uncertainty labels remain visible because public feeds are not official impact predictions.',
     ],
-    sourceHealth: { live: 0, fallback: 0, total: payload.sources?.length || 0 },
+    sourceHealth: payload.opsBrief?.sourceHealth || { live: 0, fallback: 0, total: payload.sources?.length || 0 },
   };
 }
 
@@ -1020,26 +1039,17 @@ function SurfaceMarker({ item, kind, selected, onSelect }) {
         {isCluster ? (
           <>
             <mesh>
-              <circleGeometry args={[size, 36]} />
-              <meshBasicMaterial color={color} transparent opacity={0.18} depthWrite={false} />
+              <circleGeometry args={[size * 1.35, 36]} />
+              <meshBasicMaterial color={color} transparent opacity={0.11} depthWrite={false} />
             </mesh>
             <mesh>
               <ringGeometry args={[size * 0.72, size, 40]} />
-              <meshBasicMaterial color={color} transparent opacity={opacity} side={THREE.DoubleSide} depthWrite={false} />
+              <meshBasicMaterial color={color} transparent opacity={Math.min(opacity + 0.12, 0.82)} side={THREE.DoubleSide} depthWrite={false} />
             </mesh>
-            <Html center distanceFactor={4.8}>
-              <button
-                type="button"
-                className="worldops-cluster-chip"
-                style={{ '--cluster-color': color }}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onSelect({ kind, item });
-                }}
-              >
-                {item.count > 999 ? `${Math.round(item.count / 100) / 10}k` : item.count}
-              </button>
-            </Html>
+            <mesh>
+              <circleGeometry args={[size * 0.32, 18]} />
+              <meshBasicMaterial color="#f8fafc" transparent opacity={0.54} depthWrite={false} />
+            </mesh>
           </>
         ) : kind === 'launch' ? (
           <mesh rotation-z={Math.PI / 4}>
@@ -1097,7 +1107,7 @@ function SatelliteField({ satellites, layers, mode = 'globe', selected, onSelect
   const pointTexture = useMemo(() => makeRoundPointTexture(), []);
   const visible = useMemo(() => satellites.filter((satellite) => (
     satellite.status === 'debris' ? layers.debris : layers.satellites
-  )).slice(0, mode === 'shell' ? 9000 : 2600), [satellites, layers.debris, layers.satellites, mode]);
+  )).slice(0, mode === 'shell' ? 12000 : 5200), [satellites, layers.debris, layers.satellites, mode]);
 
   const buffers = useMemo(() => {
     const positions = new Float32Array(Math.max(visible.length, 1) * 3);
@@ -1188,7 +1198,7 @@ function SelectedSatelliteMarker({ selected, onSelect }) {
 function WorldScene({ events, launches, satellites, layers, selected, onSelect, mode = 'globe', userLocation }) {
   const launchMarkers = launches.filter((launch) => Number.isFinite(launch.lat) && Number.isFinite(launch.lon));
   const { individuals: priorityEvents, clusters: eventClusters } = useMemo(
-    () => clusterSurfaceItems(events, { cellSize: mode === 'shell' ? 14 : 10, maxIndividuals: mode === 'shell' ? 28 : 48 }),
+    () => clusterSurfaceItems(events, { cellSize: mode === 'shell' ? 12 : 8, maxIndividuals: mode === 'shell' ? 48 : 80 }),
     [events, mode],
   );
   const markerCount = priorityEvents.length + eventClusters.length + launchMarkers.length + satellites.length;
@@ -1255,11 +1265,11 @@ function ViewModeButton({ mode, active, onSelect }) {
   );
 }
 
-function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveStatus, visibleCounts, onSelect, satellites, events, launches, selected, viewMode, setViewMode, userLocation }) {
+function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveStatus, visibleCounts, onSelect, satellites, events, launches, selected, viewMode, setViewMode, userLocation, onLocate }) {
   const prioritySatellites = satellites
     .filter((satellite) => satellite.status === 'station' || satellite.status === 'recent-object')
     .slice(0, 8);
-  const kp = finiteNumber(payload.spaceWeather?.kp);
+  const spaceWeather = spaceWeatherDisplay(payload.spaceWeather);
 
   return (
     <aside className="worldops-panel worldops-left">
@@ -1276,7 +1286,7 @@ function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveS
         <StatPill label="debris sample" value={(payload.totals?.debris ?? 0).toLocaleString()} color="#fb7185" />
         <StatPill label="launches" value={payload.launches.length.toLocaleString()} color="#fbbf24" />
         <StatPill label="news items" value={(payload.news?.length || 0).toLocaleString()} color="#93c5fd" />
-        <StatPill label="space weather" value={kp === null ? 'n/a' : `Kp ${kp.toFixed(1)}`} color={kp !== null && kp >= 5 ? '#fb7185' : '#86efac'} />
+        <StatPill label="space weather" value={spaceWeather.value} color={spaceWeather.color} />
       </div>
       {payload.totals?.orbitalCatalogueCount && (
         <div className="worldops-catalogue-note">
@@ -1286,6 +1296,11 @@ function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveS
           </span>
         </div>
       )}
+      <button type="button" className="worldops-locate-button" onClick={onLocate}>
+        <LocateFixed size={15} />
+        <span>{userLocation ? 'Update my location' : 'Show my location'}</span>
+        {userLocation && <strong>{userLocation.lat.toFixed(2)}, {userLocation.lon.toFixed(2)}</strong>}
+      </button>
 
       {layers.miniMap && (
         <div className="worldops-control-block worldops-mini-dock">
@@ -1647,9 +1662,7 @@ function MiniMap({ events, launches, satellites = [], layers = DEFAULT_LAYERS, s
           style={pointStyle(cluster, 'event-cluster')}
           onClick={() => onSelect({ kind: 'event-cluster', item: cluster })}
           title={cluster.title}
-        >
-          <span>{cluster.count > 99 ? '99+' : cluster.count}</span>
-        </button>
+        />
       ))}
       {plottedLaunches.map((launch) => (
         <button
@@ -1793,7 +1806,7 @@ function ConsentPanel({ visible, locationEnabled, setLocationEnabled, onSave, on
 function CommandStrip({ payload, viewMode, visibleCounts, sourceMode }) {
   const utc = new Date().toISOString().replace('T', ' ').slice(0, 19);
   const generated = payload.generatedAt ? new Date(payload.generatedAt).toISOString().replace('T', ' ').slice(0, 16) : 'snapshot pending';
-  const kp = finiteNumber(payload.spaceWeather?.kp);
+  const spaceWeather = spaceWeatherDisplay(payload.spaceWeather);
   return (
     <div className="worldops-command-strip">
       <span><Radio size={13} /> UTC {utc}</span>
@@ -1803,7 +1816,7 @@ function CommandStrip({ payload, viewMode, visibleCounts, sourceMode }) {
       {payload.totals?.orbitalCatalogueCount && (
         <span><Layers size={13} /> {payload.totals.orbitalCatalogueCount.toLocaleString()} catalogue rows</span>
       )}
-      <span><Zap size={13} /> {kp === null ? 'Kp n/a' : `Kp ${kp.toFixed(1)}`}</span>
+      <span><Zap size={13} /> {spaceWeather.value}</span>
       <span><Newspaper size={13} /> {payload.news?.length || 0} news</span>
       <span><Eye size={13} /> {payload.media?.length || 0} public media</span>
       <span><RefreshCw size={13} /> {sourceMode}</span>
@@ -1901,6 +1914,12 @@ export default function WorldMap() {
       },
       { enableHighAccuracy: true, maximumAge: 120000, timeout: 12000 },
     );
+  }
+
+  function handleLocateMe() {
+    setLocationEnabled(true);
+    saveConsent({ location: true });
+    requestVisitorLocation(true);
   }
 
   async function handleRefresh() {
@@ -2005,6 +2024,7 @@ export default function WorldMap() {
         viewMode={viewMode}
         setViewMode={setViewMode}
         userLocation={userLocation}
+        onLocate={handleLocateMe}
       />
 
       <SignalPanel payload={payload} sourceMode={sourceMode} brief={opsBrief} />
@@ -2209,6 +2229,38 @@ const WORLDOPS_CSS = `
   color: rgba(255,255,255,0.48);
   font-size: 0.68rem;
   line-height: 1.35;
+}
+.worldops-locate-button {
+  width: 100%;
+  min-height: 42px;
+  margin: 0.7rem 0 0.2rem;
+  border-radius: 14px;
+  border: 1px solid rgba(134,239,172,0.24);
+  background: linear-gradient(135deg, rgba(20,83,45,0.34), rgba(8,47,73,0.2));
+  color: rgba(255,255,255,0.84);
+  display: flex;
+  align-items: center;
+  gap: 0.48rem;
+  padding: 0.55rem 0.68rem;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+.worldops-locate-button svg {
+  color: #86efac;
+  flex: 0 0 auto;
+}
+.worldops-locate-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.worldops-locate-button strong {
+  margin-left: auto;
+  color: #67e8f9;
+  font-size: 0.68rem;
+  white-space: nowrap;
 }
 .worldops-control-block {
   border-top: 1px solid rgba(255,255,255,0.08);
@@ -2730,19 +2782,6 @@ const WORLDOPS_CSS = `
   background: rgba(36,24,4,0.28);
   border-color: rgba(251,191,36,0.1);
 }
-.worldops-cluster-chip {
-  min-width: 24px;
-  height: 20px;
-  padding: 0 0.38rem;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--cluster-color), rgba(255,255,255,0.2) 35%);
-  background: rgba(3,7,18,0.66);
-  color: color-mix(in srgb, var(--cluster-color), white 32%);
-  font-size: 0.52rem;
-  font-weight: 950;
-  cursor: pointer;
-  box-shadow: 0 0 20px color-mix(in srgb, var(--cluster-color), transparent 54%);
-}
 .worldops-user-label {
   border-color: rgba(134,239,172,0.42);
   background: rgba(5,46,22,0.82);
@@ -3002,19 +3041,21 @@ const WORLDOPS_CSS = `
   background: #86efac;
 }
 .worldops-map-dot.cluster {
-  width: 16px;
-  height: 16px;
-  display: grid;
-  place-items: center;
-  border-color: color-mix(in srgb, var(--dot-color), rgba(255,255,255,0.75) 45%);
-  background: color-mix(in srgb, var(--dot-color), rgba(3,7,18,0.82) 38%);
-  box-shadow: 0 0 16px color-mix(in srgb, var(--dot-color), transparent 52%);
+  width: 12px;
+  height: 12px;
+  border-color: color-mix(in srgb, var(--dot-color), rgba(255,255,255,0.82) 40%);
+  background: var(--dot-color);
+  opacity: 0.72;
+  box-shadow: 0 0 15px color-mix(in srgb, var(--dot-color), transparent 46%);
 }
-.worldops-map-dot.cluster span {
-  color: white;
-  font-size: 0.42rem;
-  font-weight: 950;
-  line-height: 1;
+.worldops-map-dot.cluster::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+  border: 1px solid color-mix(in srgb, var(--dot-color), transparent 38%);
+  opacity: 0.65;
+  pointer-events: none;
 }
 .worldops-mini-place-label {
   position: absolute;
