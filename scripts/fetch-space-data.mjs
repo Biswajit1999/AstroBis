@@ -361,6 +361,28 @@ const WORLD_OPS_FALLBACK = {
     },
   ],
   media: [],
+  stormWatch: {
+    generatedAt,
+    status: 'fallback',
+    radar: {
+      source: 'RainViewer public weather maps',
+      host: 'https://tilecache.rainviewer.com',
+      past: [],
+      nowcast: [],
+      latest: null,
+    },
+    satellite: {
+      source: 'NASA GIBS public imagery reference',
+      status: 'reference',
+      product: 'near-real-time satellite imagery tiles',
+      url: 'https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api',
+      summary: 'NASA GIBS provides near-real-time global satellite imagery layers that can support future deeper tile overlays.',
+    },
+    advisories: [],
+    notes: [
+      'Storm Watch uses public near-real-time feeds where available; public radar/satellite products may be delayed.',
+    ],
+  },
   spaceWeather: {
     observedAt: generatedAt,
     kp: null,
@@ -1317,6 +1339,91 @@ async function fetchWorldSpaceWeather() {
   }, WORLD_OPS_FALLBACK.spaceWeather);
 }
 
+function normalizeRainViewerFrame(frame) {
+  const time = finiteNumber(frame?.time);
+  if (!time) return null;
+  return {
+    time,
+    observedAt: new Date(time * 1000).toISOString(),
+    path: frame.path || '',
+  };
+}
+
+function stormCandidateScore(event) {
+  const type = String(event?.type || '').toLowerCase();
+  const title = String(event?.title || '').toLowerCase();
+  const stormType = type.includes('storm')
+    || type.includes('cyclone')
+    || type.includes('flood')
+    || title.includes('storm')
+    || title.includes('cyclone')
+    || title.includes('hurricane')
+    || title.includes('typhoon')
+    || title.includes('rain')
+    || title.includes('flood');
+  if (!stormType) return -1;
+  return eventSeverityRank(event) * 100 + Math.max(0, 96 - ((Date.now() - Date.parse(event.timestamp || 0)) / 3600000));
+}
+
+function buildStormAdvisories(events, radarData) {
+  return events
+    .filter((event) => stormCandidateScore(event) >= 0)
+    .sort((a, b) => stormCandidateScore(b) - stormCandidateScore(a))
+    .slice(0, 80)
+    .map((event) => ({
+      id: `storm-${event.id}`,
+      type: event.type,
+      title: event.title,
+      lat: event.lat,
+      lon: event.lon,
+      severity: event.severity,
+      timestamp: event.timestamp,
+      source: event.source,
+      url: event.url,
+      summary: trimText(`${event.summary || 'Public storm-related event.'} Radar animation context: ${radarData?.latest?.observedAt ? `latest public frame ${radarData.latest.observedAt}` : 'public radar frame unavailable during build'}.`, 280),
+    }));
+}
+
+async function fetchWorldStormWatch(events = []) {
+  const url = 'https://api.rainviewer.com/public/weather-maps.json';
+  return loadSource('rainviewer-weather-maps', 'RainViewer public radar frames', url, async (sourceUrl) => {
+    const payload = await fetchJson(sourceUrl, 'RainViewer weather maps');
+    const host = payload.host || 'https://tilecache.rainviewer.com';
+    const past = (payload.radar?.past || []).map(normalizeRainViewerFrame).filter(Boolean).slice(-12);
+    const nowcast = (payload.radar?.nowcast || []).map(normalizeRainViewerFrame).filter(Boolean).slice(0, 6);
+    const latest = [...past].sort((a, b) => b.time - a.time)[0] || null;
+    const radar = {
+      source: 'RainViewer public weather maps',
+      host,
+      past,
+      nowcast,
+      latest,
+      tileTemplate: latest ? `${host}${latest.path}/256/{z}/{x}/{y}/2/1_1.png` : '',
+      animationFrameCount: past.length + nowcast.length,
+    };
+    return {
+      generatedAt,
+      status: latest ? 'live' : 'partial',
+      radar,
+      satellite: {
+        source: 'NASA GIBS public imagery reference',
+        status: 'reference',
+        product: 'near-real-time global satellite imagery layers',
+        url: 'https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api',
+        summary: 'NASA GIBS/Worldview provides public near-real-time satellite imagery products; AstroBis v1.2 uses this as documented context while radar frames animate from RainViewer metadata.',
+      },
+      advisories: buildStormAdvisories(events, { latest }),
+      notes: [
+        'RainViewer frames are public radar-map tiles and can be minutes behind observation time depending on coverage.',
+        'Storm markers are derived from public NASA EONET and GDACS storm/flood/cyclone records.',
+      ],
+    };
+  }, {
+    ...WORLD_OPS_FALLBACK.stormWatch,
+    advisories: buildStormAdvisories(events, WORLD_OPS_FALLBACK.stormWatch?.radar || {}),
+  });
+}
+
 function eventSeverityRank(event) {
   const value = String(event?.severity || '').toLowerCase();
   if (['red', 'high', 'major', 'critical'].includes(value)) return 3;
@@ -1430,6 +1537,7 @@ async function fetchWorldOps() {
     const events = [...eonet.data, ...usgs.data, ...gdacs.data]
       .filter((event) => Number.isFinite(event.lat) && Number.isFinite(event.lon))
       .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+    const stormWatch = await fetchWorldStormWatch(events);
     const satellites = satelliteBundle.data;
     const orbitalCatalogueCount = satelliteBundle.sources.reduce((total, source) => total + (source.catalogueCount || source.count || 0), 0);
     const orbitalCoverageLabel = `${orbitalCatalogueCount.toLocaleString()} public catalogue rows`;
@@ -1441,6 +1549,7 @@ async function fetchWorldOps() {
       launches.source,
       news.source,
       spaceWeather.source,
+      stormWatch.source,
       sourceRecord('media-directory', 'Curated public media directory', 'https://www.nasa.gov/live/', 'static', WORLD_OPS_MEDIA.length),
     ];
     const opsBrief = buildWorldOpsBrief({
@@ -1463,6 +1572,7 @@ async function fetchWorldOps() {
       news: news.data,
       media: WORLD_OPS_MEDIA,
       spaceWeather: spaceWeather.data,
+      stormWatch: stormWatch.data,
       opsBrief,
       totals: {
         events: events.length,
@@ -1472,6 +1582,8 @@ async function fetchWorldOps() {
         news: news.data.length,
         media: WORLD_OPS_MEDIA.length,
         spaceWeather: spaceWeather.data ? 1 : 0,
+        stormAdvisories: stormWatch.data?.advisories?.length || 0,
+        radarFrames: stormWatch.data?.radar?.animationFrameCount || 0,
         nasaEvents: eonet.data.length,
         earthquakes: usgs.data.length,
         disasters: gdacs.data.length,

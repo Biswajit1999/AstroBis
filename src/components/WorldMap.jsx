@@ -106,6 +106,27 @@ const FALLBACK_WORLD = {
     summary: 'Space-weather context is unavailable in the offline fallback snapshot.',
     samples: [],
   },
+  stormWatch: {
+    generatedAt: '2026-01-01T00:00:00.000Z',
+    status: 'fallback',
+    radar: {
+      source: 'RainViewer public weather maps',
+      host: 'https://tilecache.rainviewer.com',
+      past: [],
+      nowcast: [],
+      latest: null,
+      animationFrameCount: 0,
+    },
+    satellite: {
+      source: 'NASA GIBS public imagery reference',
+      status: 'reference',
+      product: 'near-real-time satellite imagery tiles',
+      url: 'https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api',
+      summary: 'NASA GIBS public satellite imagery context is documented for future deeper tile overlays.',
+    },
+    advisories: [],
+    notes: ['Storm Watch uses public near-real-time feeds where available; public radar/satellite products may be delayed.'],
+  },
   opsBrief: {
     id: 'fallback-earthops-brief',
     label: 'AstroBis public-source brief',
@@ -122,7 +143,7 @@ const FALLBACK_WORLD = {
     ],
     sourceHealth: { live: 0, fallback: 1, total: 1 },
   },
-  totals: { events: 1, satellites: 1, debris: 0, launches: 0, news: 0, media: 2, spaceWeather: 0 },
+  totals: { events: 1, satellites: 1, debris: 0, launches: 0, news: 0, media: 2, spaceWeather: 0, stormAdvisories: 0, radarFrames: 0 },
 };
 
 const GDACS_TYPE_LABELS = {
@@ -139,6 +160,7 @@ const LAYER_CONFIG = [
   { key: 'nasaEvents', label: 'NASA Events', icon: Flame, color: '#fb923c' },
   { key: 'earthquakes', label: 'Earthquakes', icon: Activity, color: '#f472b6' },
   { key: 'disasters', label: 'Disasters', icon: Waves, color: '#a78bfa' },
+  { key: 'storms', label: 'Storm Watch', icon: Cloud, color: '#60a5fa' },
   { key: 'news', label: 'Space News', icon: Newspaper, color: '#93c5fd' },
   { key: 'clouds', label: 'Clouds', icon: Cloud, color: '#e0f2fe' },
   { key: 'cityLights', label: 'City Lights', icon: Eye, color: '#fde68a' },
@@ -335,6 +357,7 @@ function statusColor(value) {
 function itemColor(kind, item) {
   if (kind === 'event-cluster') return item.color || '#fbbf24';
   if (kind === 'location') return '#86efac';
+  if (kind === 'storm') return item?.severity === 'red' || item?.severity === 'high' ? '#f472b6' : '#60a5fa';
   if (kind === 'launch') return '#fbbf24';
   if (kind === 'satellite') return SATELLITE_COLORS[item.status] || '#67e8f9';
   if (kind === 'news') return '#93c5fd';
@@ -449,6 +472,9 @@ function buildDisplayBrief(payload, visibleEvents, visibleSatellites, visibleLau
   const news = payload.news || [];
   const media = payload.media || [];
   const spaceWeather = spaceWeatherDisplay(payload.spaceWeather);
+  const stormWatch = payload.stormWatch || {};
+  const stormAdvisories = stormWatch.advisories || buildStormAdvisories(payload.events || [], stormWatch);
+  const radarFrames = stormWatch.radar?.animationFrameCount || ((stormWatch.radar?.past?.length || 0) + (stormWatch.radar?.nowcast?.length || 0));
   const activeEvents = visibleEvents.filter((event) => severityRank(event) >= 2).length;
   const highEvents = visibleEvents.filter((event) => severityRank(event) >= 3).length;
   const debris = visibleSatellites.filter((satellite) => satellite.status === 'debris').length;
@@ -469,8 +495,8 @@ function buildDisplayBrief(payload, visibleEvents, visibleSatellites, visibleLau
       { label: 'Orbit traffic', value: `${visibleSatellites.length.toLocaleString()} tracked`, tone: '#67e8f9', summary: `${debris.toLocaleString()} debris objects are visible with the current filters.` },
       { label: 'Launch tempo', value: `${nextLaunches7d} in 7d`, tone: '#fbbf24', summary: `${visibleLaunches.length.toLocaleString()} launch cards are loaded.` },
       { label: 'Space weather', value: spaceWeather.value, tone: spaceWeather.color, summary: spaceWeather.summary },
+      { label: 'Storm Watch', value: `${stormAdvisories.length} advisories`, tone: '#60a5fa', summary: `${radarFrames} public radar animation frame(s) loaded from the weather-map lane.` },
       { label: 'News velocity', value: `${recentNews} recent`, tone: '#93c5fd', summary: `${news.length.toLocaleString()} public news items are loaded.` },
-      { label: 'Media ops', value: `${media.length} sources`, tone: '#c4b5fd', summary: 'Public video, imagery, and mission-source links are available.' },
     ],
     bullets: [
       'This client brief is computed locally from loaded public data.',
@@ -666,6 +692,56 @@ function eventIsVisible(event, layers) {
   return layers.disasters;
 }
 
+function stormIsVisible(storm, layers) {
+  return layers.storms && Number.isFinite(storm?.lat) && Number.isFinite(storm?.lon);
+}
+
+function normalizeRainViewerFrame(frame) {
+  const time = finiteNumber(frame?.time);
+  if (!time) return null;
+  return {
+    time,
+    observedAt: new Date(time * 1000).toISOString(),
+    path: frame.path || '',
+  };
+}
+
+function stormCandidateScore(event) {
+  const type = String(event?.type || '').toLowerCase();
+  const title = String(event?.title || '').toLowerCase();
+  const stormType = type.includes('storm')
+    || type.includes('cyclone')
+    || type.includes('flood')
+    || title.includes('storm')
+    || title.includes('cyclone')
+    || title.includes('hurricane')
+    || title.includes('typhoon')
+    || title.includes('rain')
+    || title.includes('flood');
+  if (!stormType) return -1;
+  return severityRank(event) * 100 + Math.max(0, 96 - ((Date.now() - Date.parse(event.timestamp || 0)) / 3600000));
+}
+
+function buildStormAdvisories(events = [], stormWatch = {}) {
+  const latestFrame = stormWatch.radar?.latest;
+  return events
+    .filter((event) => stormCandidateScore(event) >= 0)
+    .sort((a, b) => stormCandidateScore(b) - stormCandidateScore(a))
+    .slice(0, 80)
+    .map((event) => ({
+      id: `storm-${event.id}`,
+      type: event.type,
+      title: event.title,
+      lat: event.lat,
+      lon: event.lon,
+      severity: event.severity,
+      timestamp: event.timestamp,
+      source: event.source,
+      url: event.url,
+      summary: `${event.summary || 'Public storm-related event.'} Radar context: ${latestFrame?.observedAt ? `latest public frame ${formatDate(latestFrame.observedAt)}` : 'frame metadata unavailable'}.`,
+    }));
+}
+
 function sampleEvenly(rows, limit) {
   if (!Array.isArray(rows) || rows.length <= limit) return rows || [];
   const step = Math.max(1, Math.ceil(rows.length / limit));
@@ -685,12 +761,13 @@ async function fetchJson(url) {
 }
 
 async function refreshLiveLayers() {
-  const [eonet, usgs, gdacs, stations, recent] = await Promise.allSettled([
+  const [eonet, usgs, gdacs, stations, recent, rainviewer] = await Promise.allSettled([
     fetchJson('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=90'),
     fetchJson('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_week.geojson'),
     fetchJson(`https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP?eventlist=EQ%2CTC%2CFL%2CVO&fromdate=${new Date(Date.now() - 45 * 86400000).toISOString().slice(0, 10)}&todate=${new Date().toISOString().slice(0, 10)}`),
     fetchJson('https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=json'),
     fetchJson('https://celestrak.org/NORAD/elements/gp.php?GROUP=last-30-days&FORMAT=json'),
+    fetchJson('https://api.rainviewer.com/public/weather-maps.json'),
   ]);
 
   const events = [
@@ -703,15 +780,41 @@ async function refreshLiveLayers() {
     ...(stations.status === 'fulfilled' ? stations.value.map((row) => normalizeCelesTrak(row, { id: 'stations', label: 'Space stations', status: 'station' })) : []),
     ...(recent.status === 'fulfilled' ? sampleEvenly(recent.value, 80).map((row) => normalizeCelesTrak(row, { id: 'last-30-days', label: 'Recent launches', status: 'recent-object' })) : []),
   ].filter((satellite) => satellite.name && satellite.meanMotion);
+  const rain = rainviewer.status === 'fulfilled' ? rainviewer.value : null;
+  const rainPast = (rain?.radar?.past || []).map(normalizeRainViewerFrame).filter(Boolean).slice(-12);
+  const rainNowcast = (rain?.radar?.nowcast || []).map(normalizeRainViewerFrame).filter(Boolean).slice(0, 6);
+  const latest = [...rainPast].sort((a, b) => b.time - a.time)[0] || null;
+  const stormWatch = rain ? {
+    generatedAt: new Date().toISOString(),
+    status: latest ? 'live' : 'partial',
+    radar: {
+      source: 'RainViewer public weather maps',
+      host: rain.host || 'https://tilecache.rainviewer.com',
+      past: rainPast,
+      nowcast: rainNowcast,
+      latest,
+      animationFrameCount: rainPast.length + rainNowcast.length,
+    },
+    satellite: {
+      source: 'NASA GIBS public imagery reference',
+      status: 'reference',
+      product: 'near-real-time global satellite imagery layers',
+      url: 'https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api',
+      summary: 'NASA GIBS provides public near-real-time satellite imagery context; this browser refresh animates RainViewer radar metadata where available.',
+    },
+    advisories: buildStormAdvisories(events, { radar: { latest } }),
+    notes: ['Browser Storm Watch refresh uses CORS-friendly public metadata and may be delayed by feed coverage.'],
+  } : null;
 
   return {
     events,
     satellites,
-    statuses: { eonet: eonet.status, usgs: usgs.status, gdacs: gdacs.status, stations: stations.status, recent: recent.status },
+    stormWatch,
+    statuses: { eonet: eonet.status, usgs: usgs.status, gdacs: gdacs.status, stations: stations.status, recent: recent.status, radar: rainviewer.status },
   };
 }
 
-function OpsProjectionMap({ events, launches, satellites, layers, selected, onSelect, userLocation }) {
+function OpsProjectionMap({ events, launches, storms, satellites, layers, selected, onSelect, userLocation }) {
   const subsolar = subsolarPoint(new Date());
   const satellitePoints = useMemo(() => {
     const visible = satellites
@@ -727,6 +830,7 @@ function OpsProjectionMap({ events, launches, satellites, layers, selected, onSe
       .filter(Boolean);
   }, [satellites, layers.debris, layers.satellites]);
   const eventPoints = events.slice(0, 260).map((event) => ({ event, ...projectLatLon(event.lat, event.lon) }));
+  const stormPoints = (layers.storms ? storms : []).slice(0, 90).map((storm) => ({ storm, ...projectLatLon(storm.lat, storm.lon) }));
   const launchPoints = launches
     .filter((launch) => Number.isFinite(launch.lat) && Number.isFinite(launch.lon))
     .slice(0, 48)
@@ -766,6 +870,17 @@ function OpsProjectionMap({ events, launches, satellites, layers, selected, onSe
           style={{ left: `${x}%`, top: `${y}%`, '--dot-color': itemColor('event', event) }}
           onClick={() => onSelect({ kind: 'event', item: event })}
           title={event.title}
+        />
+      ))}
+
+      {stormPoints.map(({ storm, x, y }) => (
+        <button
+          key={storm.id}
+          type="button"
+          className={`worldops-projection-dot storm ${selectionId(selected) === selectionId({ kind: 'storm', item: storm }) ? 'is-active' : ''}`}
+          style={{ left: `${x}%`, top: `${y}%`, '--dot-color': itemColor('storm', storm) }}
+          onClick={() => onSelect({ kind: 'storm', item: storm })}
+          title={storm.title}
         />
       ))}
 
@@ -812,6 +927,7 @@ function OpsProjectionMap({ events, launches, satellites, layers, selected, onSe
         <span><i style={{ '--dot-color': '#67e8f9' }} /> satellites</span>
         <span><i style={{ '--dot-color': '#fb7185' }} /> debris</span>
         <span><i style={{ '--dot-color': '#fb923c' }} /> events</span>
+        <span><i style={{ '--dot-color': '#60a5fa' }} /> storms</span>
         <span><i style={{ '--dot-color': '#fbbf24' }} /> launches</span>
       </div>
     </div>
@@ -1026,11 +1142,11 @@ function SurfaceMarker({ item, kind, selected, onSelect }) {
   const active = selectionId(selected) === selectionId({ kind, item });
   const color = itemColor(kind, item);
   const surface = latLonVector(item.lat, item.lon, 1.006);
-  const position = latLonVector(item.lat, item.lon, kind === 'launch' ? 1.048 : 1.032);
+  const position = latLonVector(item.lat, item.lon, kind === 'launch' ? 1.048 : kind === 'storm' ? 1.054 : 1.032);
   const isCluster = kind === 'event-cluster';
   const clusterScale = isCluster ? clamp(Math.sqrt(item.count || 1) * 0.006, 0.022, 0.06) : 0;
-  const size = isCluster ? clusterScale : kind === 'launch' ? 0.024 : active ? 0.023 : 0.014;
-  const opacity = active ? 0.95 : isCluster ? 0.52 : kind === 'launch' ? 0.58 : 0.34;
+  const size = isCluster ? clusterScale : kind === 'launch' ? 0.024 : kind === 'storm' ? (active ? 0.032 : 0.022) : active ? 0.023 : 0.014;
+  const opacity = active ? 0.95 : isCluster ? 0.52 : kind === 'storm' ? 0.64 : kind === 'launch' ? 0.58 : 0.34;
 
   return (
     <group position={position} onClick={(event) => { event.stopPropagation(); onSelect({ kind, item }); }}>
@@ -1049,6 +1165,17 @@ function SurfaceMarker({ item, kind, selected, onSelect }) {
             <mesh>
               <circleGeometry args={[size * 0.32, 18]} />
               <meshBasicMaterial color="#f8fafc" transparent opacity={0.54} depthWrite={false} />
+            </mesh>
+          </>
+        ) : kind === 'storm' ? (
+          <>
+            <mesh rotation-z={Math.PI / 8}>
+              <ringGeometry args={[size * 0.58, size * 1.25, 40]} />
+              <meshBasicMaterial color={color} transparent opacity={opacity * 0.72} side={THREE.DoubleSide} depthWrite={false} />
+            </mesh>
+            <mesh rotation-z={-Math.PI / 5}>
+              <ringGeometry args={[size * 0.18, size * 0.72, 32]} />
+              <meshBasicMaterial color="#e0f2fe" transparent opacity={0.42} side={THREE.DoubleSide} depthWrite={false} />
             </mesh>
           </>
         ) : kind === 'launch' ? (
@@ -1073,6 +1200,46 @@ function SurfaceMarker({ item, kind, selected, onSelect }) {
           </mesh>
         )}
       </Billboard>
+    </group>
+  );
+}
+
+function StormBands({ storms = [], enabled, selected, onSelect }) {
+  const group = useRef();
+  const visible = useMemo(() => storms.filter((storm) => stormIsVisible(storm, { storms: enabled })).slice(0, 48), [storms, enabled]);
+
+  useFrame(({ clock }) => {
+    if (group.current) group.current.rotation.y = Math.sin(clock.elapsedTime * 0.18) * 0.006;
+  });
+
+  if (!enabled || !visible.length) return null;
+  return (
+    <group ref={group}>
+      {visible.map((storm, index) => {
+        const active = selectionId(selected) === selectionId({ kind: 'storm', item: storm });
+        const color = itemColor('storm', storm);
+        const position = latLonVector(storm.lat, storm.lon, 1.041 + (index % 3) * 0.002);
+        const scale = storm.severity === 'red' || storm.severity === 'high' ? 0.105 : storm.severity === 'orange' ? 0.086 : 0.066;
+        return (
+          <Billboard key={storm.id} position={position}>
+            <group onClick={(event) => { event.stopPropagation(); onSelect({ kind: 'storm', item: storm }); }}>
+              {[0, 1, 2].map((ring) => (
+                <mesh key={ring} rotation-z={(index * 0.7) + ring * 0.95}>
+                  <ringGeometry args={[scale * (0.42 + ring * 0.19), scale * (0.52 + ring * 0.2), 54]} />
+                  <meshBasicMaterial
+                    color={ring === 1 ? '#e0f2fe' : color}
+                    transparent
+                    opacity={(active ? 0.42 : 0.18) / (ring + 0.8)}
+                    side={THREE.DoubleSide}
+                    depthWrite={false}
+                    blending={THREE.AdditiveBlending}
+                  />
+                </mesh>
+              ))}
+            </group>
+          </Billboard>
+        );
+      })}
     </group>
   );
 }
@@ -1195,24 +1362,27 @@ function SelectedSatelliteMarker({ selected, onSelect }) {
   );
 }
 
-function WorldScene({ events, launches, satellites, layers, selected, onSelect, mode = 'globe', userLocation }) {
+function WorldScene({ events, launches, storms, satellites, layers, selected, onSelect, mode = 'globe', userLocation }) {
   const launchMarkers = launches.filter((launch) => Number.isFinite(launch.lat) && Number.isFinite(launch.lon));
   const { individuals: priorityEvents, clusters: eventClusters } = useMemo(
     () => clusterSurfaceItems(events, { cellSize: mode === 'shell' ? 12 : 8, maxIndividuals: mode === 'shell' ? 48 : 80 }),
     [events, mode],
   );
-  const markerCount = priorityEvents.length + eventClusters.length + launchMarkers.length + satellites.length;
+  const visibleStorms = layers.storms ? storms.filter((storm) => stormIsVisible(storm, layers)) : [];
+  const markerCount = priorityEvents.length + eventClusters.length + visibleStorms.length + launchMarkers.length + satellites.length;
   return (
     <>
       <color attach="background" args={['#01030b']} />
       <Stars radius={220} depth={90} count={9000} factor={3.1} saturation={0.18} fade speed={0.08} />
       <EarthGlobe layers={layers} markerCount={markerCount} shellMode={mode === 'shell'} />
+      <StormBands storms={visibleStorms} enabled={layers.storms && mode !== 'shell'} selected={selected} onSelect={onSelect} />
       {layers.orbitTrails && <OrbitBands selected={selected} />}
       <SatelliteField satellites={satellites} layers={layers} mode={mode} selected={selected} onSelect={onSelect} />
       <SelectedSatelliteMarker selected={selected} onSelect={onSelect} />
       <GeographicLabels userLocation={userLocation} onSelect={onSelect} />
       {eventClusters.map((cluster) => <SurfaceMarker key={cluster.id} item={cluster} kind="event-cluster" selected={selected} onSelect={onSelect} />)}
       {priorityEvents.map((event) => <SurfaceMarker key={event.id} item={event} kind="event" selected={selected} onSelect={onSelect} />)}
+      {visibleStorms.slice(0, mode === 'shell' ? 28 : 54).map((storm) => <SurfaceMarker key={storm.id} item={storm} kind="storm" selected={selected} onSelect={onSelect} />)}
       {layers.launches && launchMarkers.map((launch) => <SurfaceMarker key={launch.id} item={launch} kind="launch" selected={selected} onSelect={onSelect} />)}
       <EffectComposer>
         <Bloom luminanceThreshold={0.3} luminanceSmoothing={0.82} intensity={1.15} radius={0.62} />
@@ -1265,7 +1435,7 @@ function ViewModeButton({ mode, active, onSelect }) {
   );
 }
 
-function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveStatus, visibleCounts, onSelect, satellites, events, launches, selected, viewMode, setViewMode, userLocation, onLocate }) {
+function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveStatus, visibleCounts, onSelect, satellites, events, launches, storms, selected, viewMode, setViewMode, userLocation, onLocate }) {
   const prioritySatellites = satellites
     .filter((satellite) => satellite.status === 'station' || satellite.status === 'recent-object')
     .slice(0, 8);
@@ -1285,6 +1455,7 @@ function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveS
         <StatPill label="rendered objects" value={(payload.totals?.renderedOrbitalSample ?? payload.totals?.satellites ?? payload.satellites.length).toLocaleString()} color="#67e8f9" />
         <StatPill label="debris sample" value={(payload.totals?.debris ?? 0).toLocaleString()} color="#fb7185" />
         <StatPill label="launches" value={payload.launches.length.toLocaleString()} color="#fbbf24" />
+        <StatPill label="storm watch" value={visibleCounts.storms.toLocaleString()} color="#60a5fa" />
         <StatPill label="news items" value={(payload.news?.length || 0).toLocaleString()} color="#93c5fd" />
         <StatPill label="space weather" value={spaceWeather.value} color={spaceWeather.color} />
       </div>
@@ -1308,6 +1479,7 @@ function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveS
           <MiniMap
             events={events}
             launches={launches}
+            storms={storms}
             satellites={satellites}
             layers={layers}
             selected={selected}
@@ -1494,6 +1666,8 @@ function SelectedSourceCard({ selected, payload, sourceMode }) {
       ? 'Clustered Earth records'
     : kind === 'launch'
       ? 'Upcoming launch'
+      : kind === 'storm'
+        ? 'Storm Watch'
       : kind === 'satellite'
         ? item.group
         : kind === 'media'
@@ -1518,6 +1692,17 @@ function SelectedSourceCard({ selected, payload, sourceMode }) {
           ['Severity', item.severity, statusColor(item.severity)],
           ['Position', `${item.lat.toFixed(2)}, ${item.lon.toFixed(2)}`],
           ['Updated', formatDate(item.timestamp)],
+        ]} />
+      )}
+
+      {kind === 'storm' && (
+        <DetailRows rows={[
+          ['Layer', item.type, color],
+          ['Severity', item.severity, statusColor(item.severity)],
+          ['Position', `${item.lat.toFixed(2)}, ${item.lon.toFixed(2)}`],
+          ['Updated', formatDate(item.timestamp)],
+          ['Radar source', 'RainViewer public metadata', '#60a5fa'],
+          ['Satellite context', 'NASA GIBS reference', '#93c5fd'],
         ]} />
       )}
 
@@ -1603,13 +1788,16 @@ function SelectedSourceCard({ selected, payload, sourceMode }) {
   );
 }
 
-function MiniMap({ events, launches, satellites = [], layers = DEFAULT_LAYERS, selected, onSelect, userLocation }) {
+function MiniMap({ events, launches, storms = [], satellites = [], layers = DEFAULT_LAYERS, selected, onSelect, userLocation }) {
   const subsolar = subsolarPoint(new Date());
   const { individuals: plottedEvents, clusters: plottedClusters } = useMemo(
     () => clusterSurfaceItems(events, { cellSize: 14, maxIndividuals: 48 }),
     [events],
   );
   const plottedLaunches = launches.filter((launch) => Number.isFinite(launch.lat) && Number.isFinite(launch.lon)).slice(0, 18);
+  const plottedStorms = (layers.storms ? storms : [])
+    .filter((storm) => Number.isFinite(storm.lat) && Number.isFinite(storm.lon))
+    .slice(0, 42);
   const plottedSatellites = (layers.satellites || layers.debris)
     ? satellites.filter((satellite) => satellite.status === 'debris' ? layers.debris : layers.satellites).slice(0, 180)
     : [];
@@ -1664,6 +1852,16 @@ function MiniMap({ events, launches, satellites = [], layers = DEFAULT_LAYERS, s
           title={cluster.title}
         />
       ))}
+      {plottedStorms.map((storm) => (
+        <button
+          key={storm.id}
+          type="button"
+          className={`worldops-map-dot storm ${selectionId(selected) === selectionId({ kind: 'storm', item: storm }) ? 'is-active' : ''}`}
+          style={pointStyle(storm, 'storm')}
+          onClick={() => onSelect({ kind: 'storm', item: storm })}
+          title={storm.title}
+        />
+      ))}
       {plottedLaunches.map((launch) => (
         <button
           key={launch.id}
@@ -1705,8 +1903,9 @@ function MiniMap({ events, launches, satellites = [], layers = DEFAULT_LAYERS, s
   );
 }
 
-function TimelineRail({ launches, events, news, media, layers, onSelect }) {
+function TimelineRail({ launches, events, storms, news, media, layers, onSelect }) {
   const eventItems = events.slice(0, 9);
+  const stormItems = (layers.storms ? storms : []).slice(0, 9);
   const launchItems = launches.slice().sort((a, b) => Date.parse(a.net) - Date.parse(b.net)).slice(0, 8);
   const newsItems = layers.news ? news.slice(0, 10) : [];
   const mediaItems = media.slice(0, 9);
@@ -1720,6 +1919,18 @@ function TimelineRail({ launches, events, news, media, layers, onSelect }) {
               <span>{relativeTime(launch.net)}</span>
               <strong>{launch.name}</strong>
               <small>{launch.location}</small>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="worldops-timeline-group">
+        <header><Cloud size={14} /> Storm Watch</header>
+        <div className="worldops-timeline-scroll">
+          {stormItems.map((storm) => (
+            <button key={storm.id} type="button" onClick={() => onSelect({ kind: 'storm', item: storm })}>
+              <span>{storm.source}</span>
+              <strong>{storm.title}</strong>
+              <small>{storm.severity} - {formatDate(storm.timestamp)}</small>
             </button>
           ))}
         </div>
@@ -1932,10 +2143,13 @@ export default function WorldMap() {
           ...current,
           events: live.events.length ? live.events : current.events,
           satellites: live.satellites.length ? [...live.satellites, ...staticSatellites] : current.satellites,
+          stormWatch: live.stormWatch || current.stormWatch,
           totals: {
             ...current.totals,
             events: live.events.length || current.events.length,
             satellites: live.satellites.length ? live.satellites.length + staticSatellites.length : current.satellites.length,
+            stormAdvisories: live.stormWatch?.advisories?.length ?? current.totals?.stormAdvisories,
+            radarFrames: live.stormWatch?.radar?.animationFrameCount ?? current.totals?.radarFrames,
           },
         };
         return next;
@@ -1954,13 +2168,19 @@ export default function WorldMap() {
     satellite.status === 'debris' ? layers.debris : layers.satellites
   )), [payload.satellites, layers.debris, layers.satellites]);
   const visibleLaunches = useMemo(() => (layers.launches ? payload.launches : []), [payload.launches, layers.launches]);
+  const visibleStorms = useMemo(() => (
+    layers.storms
+      ? ((payload.stormWatch?.advisories?.length ? payload.stormWatch.advisories : buildStormAdvisories(payload.events, payload.stormWatch)).filter((storm) => stormIsVisible(storm, layers)))
+      : []
+  ), [payload.stormWatch, payload.events, layers]);
   const visibleCounts = useMemo(() => ({
     events: visibleEvents.length,
     satellites: visibleSatellites.length,
     launches: visibleLaunches.length,
+    storms: visibleStorms.length,
     news: payload.news?.length || 0,
     media: payload.media?.length || 0,
-  }), [visibleEvents.length, visibleSatellites.length, visibleLaunches.length, payload.news, payload.media]);
+  }), [visibleEvents.length, visibleSatellites.length, visibleLaunches.length, visibleStorms.length, payload.news, payload.media]);
   const opsBrief = useMemo(
     () => buildDisplayBrief(payload, visibleEvents, visibleSatellites, visibleLaunches),
     [payload, visibleEvents, visibleSatellites, visibleLaunches],
@@ -1974,6 +2194,7 @@ export default function WorldMap() {
           <OpsProjectionMap
             events={visibleEvents}
             launches={visibleLaunches}
+            storms={visibleStorms}
             satellites={payload.satellites}
             layers={layers}
             selected={selected}
@@ -1990,6 +2211,7 @@ export default function WorldMap() {
               <WorldScene
                 events={visibleEvents}
                 launches={visibleLaunches}
+                storms={visibleStorms}
                 satellites={payload.satellites}
                 layers={layers}
                 selected={selected}
@@ -2020,6 +2242,7 @@ export default function WorldMap() {
         satellites={payload.satellites}
         events={visibleEvents}
         launches={visibleLaunches}
+        storms={visibleStorms}
         selected={selected}
         viewMode={viewMode}
         setViewMode={setViewMode}
@@ -2049,7 +2272,7 @@ export default function WorldMap() {
         }}
       />
 
-      <TimelineRail launches={visibleLaunches} events={visibleEvents} news={payload.news} media={payload.media || []} layers={layers} onSelect={setSelected} />
+      <TimelineRail launches={visibleLaunches} events={visibleEvents} storms={visibleStorms} news={payload.news} media={payload.media || []} layers={layers} onSelect={setSelected} />
     </div>
   );
 }
@@ -2881,6 +3104,22 @@ const WORLDOPS_CSS = `
   border-radius: inherit;
   background: var(--dot-color);
 }
+.worldops-projection-dot.storm {
+  width: 13px;
+  height: 13px;
+  border-color: rgba(224,242,254,0.72);
+  background: color-mix(in srgb, var(--dot-color), transparent 18%);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--dot-color), transparent 28%);
+}
+.worldops-projection-dot.storm::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--dot-color), transparent 42%);
+  border-left-color: transparent;
+  animation: worldops-spin 3.4s linear infinite;
+}
 .worldops-projection-dot.is-active {
   width: 16px;
   height: 16px;
@@ -3002,6 +3241,21 @@ const WORLDOPS_CSS = `
   width: 9px;
   height: 9px;
 }
+.worldops-map-dot.storm {
+  width: 11px;
+  height: 11px;
+  border-color: rgba(224,242,254,0.78);
+  background: color-mix(in srgb, var(--dot-color), transparent 16%);
+}
+.worldops-map-dot.storm::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--dot-color), transparent 36%);
+  border-bottom-color: transparent;
+  pointer-events: none;
+}
 .worldops-map-dot.satellite {
   width: 13px;
   height: 13px;
@@ -3096,7 +3350,7 @@ const WORLDOPS_CSS = `
   transform: none;
   width: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  grid-template-columns: repeat(5, minmax(128px, 1fr));
   gap: 0.72rem;
   border: 1px solid rgba(148,163,184,0.2);
   background: rgba(3,7,18,0.78);
