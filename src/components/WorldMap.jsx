@@ -346,7 +346,7 @@ function selectionId(selection) {
 }
 
 function dominantTypeLabel(rows = []) {
-  const counts = new Map();
+  const counts = new globalThis.Map();
   rows.forEach((row) => counts.set(row.type || row.status || 'item', (counts.get(row.type || row.status || 'item') || 0) + 1));
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || 'mixed';
 }
@@ -364,8 +364,8 @@ function clusterSurfaceItems(rows, options = {}) {
     .slice()
     .sort((a, b) => priorityEventScore(b) - priorityEventScore(a))
     .slice(0, maxIndividuals);
-  const individualIds = new Set(individuals.map((row) => row.id));
-  const buckets = new Map();
+  const individualIds = new globalThis.Set(individuals.map((row) => row.id));
+  const buckets = new globalThis.Map();
 
   valid.forEach((row) => {
     if (individualIds.has(row.id)) return;
