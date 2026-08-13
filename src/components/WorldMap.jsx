@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { Billboard, Html, Line, OrbitControls, Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import {
@@ -851,10 +851,11 @@ function EarthGlobe({ layers, markerCount, shellMode = false }) {
         <meshPhongMaterial
           map={earthDay}
           normalMap={earthNormal}
-          normalScale={new THREE.Vector2(0.22, 0.22)}
+          normalScale={new THREE.Vector2(0.34, 0.34)}
           specularMap={earthSpecular}
-          specular={new THREE.Color('#24465f')}
-          shininess={13}
+          specular={new THREE.Color('#1f3f57')}
+          shininess={9}
+          reflectivity={0.18}
           transparent={shellMode}
           opacity={shellMode ? 0.36 : 1}
         />
@@ -862,40 +863,66 @@ function EarthGlobe({ layers, markerCount, shellMode = false }) {
       {layers.cityLights && !shellMode && <NightLightsLayer texture={earthLights} sunDirection={sunDirection} />}
       {layers.clouds && (
         <mesh ref={clouds}>
-          <sphereGeometry args={[1.011, 160, 160]} />
-          <meshLambertMaterial map={earthClouds} transparent opacity={shellMode ? 0.1 : 0.24} depthWrite={false} />
+          <sphereGeometry args={[1.012, 192, 192]} />
+          <meshLambertMaterial map={earthClouds} transparent opacity={shellMode ? 0.1 : 0.2} depthWrite={false} />
+        </mesh>
+      )}
+      {layers.clouds && !shellMode && (
+        <mesh rotation={[0.02, -0.22, 0.04]}>
+          <sphereGeometry args={[1.018, 128, 128]} />
+          <meshLambertMaterial map={earthClouds} transparent opacity={0.075} depthWrite={false} blending={THREE.AdditiveBlending} />
         </mesh>
       )}
       <AtmosphereShell />
-      <ambientLight intensity={0.12} color="#7dd3fc" />
-      <directionalLight position={sunVector.toArray()} color="#fff7ed" intensity={2.75} />
-      <pointLight position={sunVector.toArray()} color="#facc15" intensity={1.1} distance={14} />
+      <ambientLight intensity={0.09} color="#7dd3fc" />
+      <directionalLight position={sunVector.toArray()} color="#fff7ed" intensity={3.05} />
+      <pointLight position={sunVector.toArray()} color="#facc15" intensity={0.85} distance={14} />
     </group>
   );
 }
 
 function GeographicLabels({ userLocation, onSelect }) {
+  const { camera } = useThree();
+  const [zoomState, setZoomState] = useState({ showPlaces: false, showUser: true, scale: 0.72 });
+
+  useFrame(() => {
+    const distance = camera.position.length();
+    const next = {
+      showPlaces: distance < 2.35,
+      showUser: distance < 3.2,
+      scale: clamp((2.45 - distance) / 0.95, 0.42, 0.82),
+    };
+    setZoomState((current) => (
+      current.showPlaces === next.showPlaces
+      && current.showUser === next.showUser
+      && Math.abs(current.scale - next.scale) < 0.03
+        ? current
+        : next
+    ));
+  });
+
   return (
     <>
-      {GEOGRAPHIC_LABELS.filter((label) => !label.mapOnly).map((label) => {
+      {zoomState.showPlaces && GEOGRAPHIC_LABELS.filter((label) => !label.mapOnly).map((label) => {
         const position = latLonVector(label.lat, label.lon, label.type === 'spaceport' ? 1.035 : 1.022);
         return (
           <Billboard key={label.name} position={position}>
-            <Html center distanceFactor={9.4}>
-              <div className={`worldops-earth-label ${label.type}`}>
-                {label.type === 'spaceport' && <MapPin size={10} />}
+            <Html center distanceFactor={2.2}>
+              <div className={`worldops-earth-label ${label.type}`} style={{ '--label-scale': zoomState.scale }}>
+                {label.type === 'spaceport' && <MapPin size={8} />}
                 <span>{label.name}</span>
               </div>
             </Html>
           </Billboard>
         );
       })}
-      {userLocation && (
+      {userLocation && zoomState.showUser && (
         <Billboard position={latLonVector(userLocation.lat, userLocation.lon, 1.055)}>
-          <Html center distanceFactor={5.2}>
+          <Html center distanceFactor={2.4}>
             <button
               type="button"
               className="worldops-user-label"
+              style={{ '--label-scale': Math.max(0.74, zoomState.scale) }}
               onClick={(event) => {
                 event.stopPropagation();
                 onSelect({ kind: 'location', item: userLocation });
@@ -1086,7 +1113,7 @@ function WorldScene({ events, launches, satellites, layers, selected, onSelect, 
       <EffectComposer>
         <Bloom luminanceThreshold={0.3} luminanceSmoothing={0.82} intensity={1.15} radius={0.62} />
       </EffectComposer>
-      <OrbitControls enableDamping dampingFactor={0.06} minDistance={1.42} maxDistance={8.7} />
+      <OrbitControls enableDamping dampingFactor={0.06} minDistance={1.72} maxDistance={8.7} />
     </>
   );
 }
@@ -2475,19 +2502,22 @@ const WORLDOPS_CSS = `
 .worldops-user-label {
   display: inline-flex;
   align-items: center;
-  gap: 0.18rem;
-  min-height: 16px;
-  padding: 0.12rem 0.28rem;
+  gap: 0.12rem;
+  min-height: 12px;
+  padding: 0.06rem 0.18rem;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(3,7,18,0.42);
-  color: rgba(255,255,255,0.56);
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(3,7,18,0.32);
+  color: rgba(255,255,255,0.48);
   font-family: 'Space Grotesk', Inter, sans-serif;
-  font-size: 0.42rem;
+  font-size: 0.34rem;
   font-weight: 900;
   text-shadow: 0 1px 3px rgba(0,0,0,0.9);
   white-space: nowrap;
   pointer-events: auto;
+  transform: scale(var(--label-scale, 0.64));
+  transform-origin: center;
+  opacity: 0.78;
 }
 .worldops-earth-label.continent {
   color: rgba(255,255,255,0.76);
@@ -2497,9 +2527,9 @@ const WORLDOPS_CSS = `
   font-style: italic;
 }
 .worldops-earth-label.spaceport {
-  color: rgba(254,240,138,0.68);
-  background: rgba(36,24,4,0.42);
-  border-color: rgba(251,191,36,0.14);
+  color: rgba(254,240,138,0.56);
+  background: rgba(36,24,4,0.28);
+  border-color: rgba(251,191,36,0.1);
 }
 .worldops-user-label {
   border-color: rgba(134,239,172,0.42);
