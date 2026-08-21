@@ -12,7 +12,7 @@ import {
   Globe2,
   Layers,
   LocateFixed,
-  Map,
+  Map as MapIcon,
   MapPin,
   Newspaper,
   Orbit,
@@ -20,10 +20,13 @@ import {
   RefreshCw,
   Rocket,
   Satellite,
+  Search,
   Waves,
+  X,
   Zap,
 } from 'lucide-react';
 import * as THREE from 'three';
+import * as satelliteLib from 'satellite.js';
 
 const EARTH_RADIUS_KM = 6371;
 const BASE_PATH = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
@@ -165,16 +168,33 @@ const LAYER_CONFIG = [
   { key: 'clouds', label: 'Clouds', icon: Cloud, color: '#e0f2fe' },
   { key: 'cityLights', label: 'City Lights', icon: Eye, color: '#fde68a' },
   { key: 'orbitTrails', label: 'Orbit Trails', icon: Orbit, color: '#22c55e' },
-  { key: 'miniMap', label: '2D Mini Map', icon: Map, color: '#38bdf8' },
+  { key: 'miniMap', label: '2D Mini Map', icon: MapIcon, color: '#38bdf8' },
 ];
 
 const DEFAULT_LAYERS = Object.fromEntries(LAYER_CONFIG.map((layer) => [layer.key, true]));
 
 const VIEW_MODES = [
   { key: 'globe', label: '3D Globe', icon: Globe2 },
-  { key: 'map', label: '2D Ops Map', icon: Map },
+  { key: 'map', label: '2D Ops Map', icon: MapIcon },
   { key: 'shell', label: 'Orbit Shell', icon: Orbit },
 ];
+
+// History filter for Earth signals/storms -- "all" (the default and prior-only behavior)
+// keeps every record the snapshot has; the others narrow to a rolling window ending now.
+const TIME_WINDOWS = [
+  { key: 'all', label: 'All time', hours: null },
+  { key: '24h', label: 'Last 24h', hours: 24 },
+  { key: '3d', label: 'Last 3d', hours: 72 },
+  { key: '7d', label: 'Last 7d', hours: 168 },
+];
+
+function withinTimeWindow(timestamp, windowKey) {
+  const window = TIME_WINDOWS.find((entry) => entry.key === windowKey);
+  if (!window || window.hours === null) return true;
+  const ts = Date.parse(timestamp);
+  if (!Number.isFinite(ts)) return true;
+  return Date.now() - ts <= window.hours * 3600000;
+}
 
 const CONSENT_STORAGE_KEY = 'astrobis-earthops-consent-v1';
 
@@ -468,10 +488,38 @@ function spaceWeatherDisplay(spaceWeather) {
   };
 }
 
+// Solar flares are classed on a logarithmic scale -- A/B/C are background-level, M is
+// "moderate" (can cause brief radio blackouts), X is the most intense category NASA tracks.
+// Each letter also carries a linear multiplier (e.g. M8.1 is meaningfully stronger than
+// M2.9), so "strongest" needs both parts: letter first, then the number within it.
+function flareClassLetterRank(classType) {
+  const letter = String(classType || '').charAt(0).toUpperCase();
+  return { A: 0, B: 1, C: 2, M: 3, X: 4 }[letter] ?? -1;
+}
+function flareClassRank(classType) {
+  const letter = flareClassLetterRank(classType);
+  const magnitude = parseFloat(String(classType || '').slice(1)) || 0;
+  return letter * 100 + magnitude;
+}
+
+function solarFlareDisplay(recentFlares = []) {
+  if (!recentFlares.length) {
+    return { value: 'No recent flares', color: '#93c5fd', summary: 'NASA DONKI solar flare feed is unavailable or reported no events in the last 7 days.' };
+  }
+  const strongest = [...recentFlares].sort((a, b) => flareClassRank(b.classType) - flareClassRank(a.classType))[0];
+  const rank = flareClassLetterRank(strongest.classType);
+  return {
+    value: `${strongest.classType} class`,
+    color: rank >= 4 ? '#fb7185' : rank >= 3 ? '#fbbf24' : '#86efac',
+    summary: `Strongest flare in the last 7 days: ${strongest.classType} at ${formatDate(strongest.peakTime || strongest.beginTime)}${strongest.sourceLocation ? ` (${strongest.sourceLocation})` : ''}. ${recentFlares.length} total tracked by NASA DONKI.`,
+  };
+}
+
 function buildDisplayBrief(payload, visibleEvents, visibleSatellites, visibleLaunches) {
   const news = payload.news || [];
   const media = payload.media || [];
   const spaceWeather = spaceWeatherDisplay(payload.spaceWeather);
+  const solarFlares = solarFlareDisplay(payload.spaceWeather?.recentFlares);
   const stormWatch = payload.stormWatch || {};
   const stormAdvisories = stormWatch.advisories || buildStormAdvisories(payload.events || [], stormWatch);
   const radarFrames = stormWatch.radar?.animationFrameCount || ((stormWatch.radar?.past?.length || 0) + (stormWatch.radar?.nowcast?.length || 0));
@@ -495,6 +543,7 @@ function buildDisplayBrief(payload, visibleEvents, visibleSatellites, visibleLau
       { label: 'Orbit traffic', value: `${visibleSatellites.length.toLocaleString()} tracked`, tone: '#67e8f9', summary: `${debris.toLocaleString()} debris objects are visible with the current filters.` },
       { label: 'Launch tempo', value: `${nextLaunches7d} in 7d`, tone: '#fbbf24', summary: `${visibleLaunches.length.toLocaleString()} launch cards are loaded.` },
       { label: 'Space weather', value: spaceWeather.value, tone: spaceWeather.color, summary: spaceWeather.summary },
+      { label: 'Solar flares', value: solarFlares.value, tone: solarFlares.color, summary: solarFlares.summary },
       { label: 'Storm Watch', value: `${stormAdvisories.length} advisories`, tone: '#60a5fa', summary: `${radarFrames} public radar animation frame(s) loaded from the weather-map lane.` },
       { label: 'News velocity', value: `${recentNews} recent`, tone: '#93c5fd', summary: `${news.length.toLocaleString()} public news items are loaded.` },
     ],
@@ -601,6 +650,9 @@ function normalizeCelesTrak(row, group) {
     raan: finiteNumber(row.RA_OF_ASC_NODE) ?? 0,
     argumentOfPerigee: finiteNumber(row.ARG_OF_PERICENTER) ?? 0,
     meanAnomaly: finiteNumber(row.MEAN_ANOMALY) ?? 0,
+    bstar: finiteNumber(row.BSTAR) ?? 0,
+    meanMotionDot: finiteNumber(row.MEAN_MOTION_DOT) ?? 0,
+    meanMotionDdot: finiteNumber(row.MEAN_MOTION_DDOT) ?? 0,
     altitudeKm: satelliteAltitudeKm(meanMotion),
   };
 }
@@ -631,7 +683,69 @@ function rotateOrbitalVector(x, y, inclinationDeg, raanDeg, argPerigeeDeg) {
   );
 }
 
-function satelliteVector(satellite, now = Date.now()) {
+// SGP4 satrecs are expensive to initialize but cheap to propagate, so they're built once
+// per satellite and cached here -- keyed by id+epoch so a live-refreshed satellite (new
+// epoch/elements) naturally gets a fresh satrec instead of silently reusing a stale one.
+const satrecCache = new Map();
+
+function getSatrec(satellite) {
+  const key = `${satellite.id || satellite.noradId}:${satellite.epoch || ''}`;
+  if (satrecCache.has(key)) return satrecCache.get(key);
+  let satrec = null;
+  try {
+    if (satellite.noradId && satellite.epoch && Number.isFinite(finiteNumber(satellite.meanMotion))) {
+      const candidate = satelliteLib.json2satrec({
+        NORAD_CAT_ID: satellite.noradId,
+        EPOCH: satellite.epoch,
+        MEAN_MOTION_DOT: satellite.meanMotionDot ?? 0,
+        MEAN_MOTION_DDOT: satellite.meanMotionDdot ?? 0,
+        BSTAR: satellite.bstar ?? 0,
+        INCLINATION: finiteNumber(satellite.inclination) ?? 0,
+        RA_OF_ASC_NODE: finiteNumber(satellite.raan) ?? 0,
+        ECCENTRICITY: finiteNumber(satellite.eccentricity) ?? 0,
+        ARG_OF_PERICENTER: finiteNumber(satellite.argumentOfPerigee) ?? 0,
+        MEAN_ANOMALY: finiteNumber(satellite.meanAnomaly) ?? 0,
+        MEAN_MOTION: finiteNumber(satellite.meanMotion),
+      });
+      if (!candidate.error) satrec = candidate;
+    }
+  } catch (err) {
+    satrec = null;
+  }
+  satrecCache.set(key, satrec);
+  return satrec;
+}
+
+// Real SGP4 propagation (via satellite.js, already a project dependency used by the ISS
+// tracker) instead of the mean-anomaly-only approximation this used to use -- accounts for
+// atmospheric drag (BSTAR) and the actual perturbation model NORAD elements are fit against.
+// Falls back to the old approximation for any record that fails to produce a valid satrec
+// (malformed feed data, decayed objects, etc.) so a single bad row can't blank the field.
+function satelliteVectorPrecise(satellite, now = Date.now()) {
+  const satrec = getSatrec(satellite);
+  if (satrec) {
+    try {
+      const date = new Date(now);
+      const pv = satelliteLib.propagate(satrec, date);
+      const positionEci = pv?.position;
+      if (positionEci && Number.isFinite(positionEci.x)) {
+        const gmst = satelliteLib.gstime(date);
+        const geo = satelliteLib.eciToGeodetic(positionEci, gmst);
+        const latDeg = satelliteLib.degreesLat(geo.latitude);
+        const lonDeg = satelliteLib.degreesLong(geo.longitude);
+        const radius = clamp(1 + geo.height / EARTH_RADIUS_KM, 1.025, 7.2);
+        if (Number.isFinite(latDeg) && Number.isFinite(lonDeg) && Number.isFinite(radius)) {
+          return latLonVector(latDeg, lonDeg, radius);
+        }
+      }
+    } catch (err) {
+      // fall through to the approximation below
+    }
+  }
+  return satelliteVectorApprox(satellite, now);
+}
+
+function satelliteVectorApprox(satellite, now = Date.now()) {
   const radius = radiusForOrbit(satellite);
   const epochMs = Date.parse(satellite.epoch || '');
   const days = Number.isFinite(epochMs) ? (now - epochMs) / 86400000 : 0;
@@ -646,6 +760,10 @@ function satelliteVector(satellite, now = Date.now()) {
     finiteNumber(satellite.raan) ?? 0,
     finiteNumber(satellite.argumentOfPerigee) ?? 0,
   );
+}
+
+function satelliteVector(satellite, now = Date.now()) {
+  return satelliteVectorPrecise(satellite, now);
 }
 
 function orbitPath(satellite, samples = 180) {
@@ -748,7 +866,7 @@ function sampleEvenly(rows, limit) {
   return rows.filter((_, index) => index % step === 0).slice(0, limit);
 }
 
-async function fetchJson(url) {
+async function fetchJsonOnce(url) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
   try {
@@ -757,6 +875,19 @@ async function fetchJson(url) {
     return await response.json();
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+// One retry after a short backoff -- these CORS-friendly feeds are now also polled
+// automatically every 5 minutes (see the auto-refresh effect below), so a single dropped
+// request would otherwise flip that layer's status to "unavailable" for the next 5 minutes
+// over what's often just a momentary blip.
+async function fetchJson(url) {
+  try {
+    return await fetchJsonOnce(url);
+  } catch (error) {
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    return fetchJsonOnce(url);
   }
 }
 
@@ -1435,20 +1566,67 @@ function ViewModeButton({ mode, active, onSelect }) {
   );
 }
 
-function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveStatus, visibleCounts, onSelect, satellites, events, launches, storms, selected, viewMode, setViewMode, userLocation, onLocate }) {
+function SearchResultIcon({ kind }) {
+  const size = 13;
+  if (kind === 'satellite') return <Satellite size={size} />;
+  if (kind === 'launch') return <Rocket size={size} />;
+  if (kind === 'news') return <Newspaper size={size} />;
+  return <AlertTriangle size={size} />;
+}
+
+function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveStatus, visibleCounts, onSelect, satellites, events, launches, storms, selected, viewMode, setViewMode, userLocation, onLocate, searchQuery, setSearchQuery, searchResults, timeWindow, setTimeWindow }) {
   const prioritySatellites = satellites
     .filter((satellite) => satellite.status === 'station' || satellite.status === 'recent-object')
     .slice(0, 8);
   const spaceWeather = spaceWeatherDisplay(payload.spaceWeather);
 
   return (
-    <aside className="worldops-panel worldops-left">
+    <aside className="worldops-panel worldops-left" aria-label="Mission overview, view mode, and layer controls">
       <div className="worldops-kicker"><Radio size={14} /> AstroBis EarthOps</div>
       <h1>AstroBis EarthOps World Map</h1>
       <p>
         Space infrastructure, launch activity, Earth hazards, and spaceflight news in one
         orbital awareness console.
       </p>
+
+      <div className="worldops-control-block worldops-search-block">
+        <label className="worldops-search-field" htmlFor="worldops-search-input">
+          <Search size={14} aria-hidden="true" />
+          <input
+            id="worldops-search-input"
+            type="search"
+            placeholder="Search events, satellites, launches, news..."
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            aria-label="Search events, satellites, launches, and news"
+          />
+          {searchQuery && (
+            <button type="button" onClick={() => setSearchQuery('')} aria-label="Clear search">
+              <X size={13} />
+            </button>
+          )}
+        </label>
+        {searchQuery.trim().length >= 2 && (
+          <div className="worldops-search-results" role="listbox" aria-label="Search results">
+            {searchResults.length ? searchResults.map((result) => (
+              <button
+                key={`${result.kind}-${result.item.id}`}
+                type="button"
+                role="option"
+                onClick={() => onSelect({ kind: result.kind, item: result.item })}
+              >
+                <SearchResultIcon kind={result.kind} />
+                <span>
+                  <strong>{result.label}</strong>
+                  {result.meta && <small>{result.meta}</small>}
+                </span>
+              </button>
+            )) : (
+              <div className="worldops-search-empty">No matches in the currently visible layers.</div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="worldops-stat-grid">
         <StatPill label="events" value={visibleCounts.events.toLocaleString()} color="#fb923c" />
@@ -1475,7 +1653,7 @@ function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveS
 
       {layers.miniMap && (
         <div className="worldops-control-block worldops-mini-dock">
-          <div className="worldops-block-title"><Map size={14} /> 2D tactical inset</div>
+          <div className="worldops-block-title"><MapIcon size={14} /> 2D tactical inset</div>
           <MiniMap
             events={events}
             launches={launches}
@@ -1489,7 +1667,7 @@ function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveS
         </div>
       )}
 
-      <div className="worldops-control-block">
+      <div className="worldops-control-block worldops-viewmode-block">
         <div className="worldops-block-title"><Globe2 size={14} /> View mode</div>
         <div className="worldops-mode-grid">
           {VIEW_MODES.map((mode) => (
@@ -1498,7 +1676,7 @@ function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveS
         </div>
       </div>
 
-      <div className="worldops-control-block">
+      <div className="worldops-control-block worldops-layers-block">
         <div className="worldops-block-title"><Layers size={14} /> Layers</div>
         <div className="worldops-layer-grid">
           {LAYER_CONFIG.map((layer) => (
@@ -1512,7 +1690,25 @@ function MissionPanel({ payload, layers, setLayers, refreshing, onRefresh, liveS
         </div>
       </div>
 
-      <div className="worldops-control-block">
+      <div className="worldops-control-block worldops-timewindow-block">
+        <div className="worldops-block-title"><Activity size={14} /> Earth signal history</div>
+        <div className="worldops-timewindow-grid" role="radiogroup" aria-label="Earth signal and storm history window">
+          {TIME_WINDOWS.map((window) => (
+            <button
+              key={window.key}
+              type="button"
+              role="radio"
+              aria-checked={timeWindow === window.key}
+              className={timeWindow === window.key ? 'is-active' : ''}
+              onClick={() => setTimeWindow(window.key)}
+            >
+              {window.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="worldops-control-block worldops-assets-block">
         <div className="worldops-block-title"><Satellite size={14} /> Priority orbital assets</div>
         <div className="worldops-asset-list">
           {prioritySatellites.map((satellite) => (
@@ -1567,7 +1763,7 @@ function SignalBrief({ brief, sourceMode }) {
         <i />
       </div>
       <div className="worldops-signal-grid">
-        {watch.slice(0, 6).map((item) => (
+        {watch.slice(0, 7).map((item) => (
           <article key={`${item.label}-${item.value}`} style={{ '--tone': item.tone || '#67e8f9' }}>
             <span>{item.label}</span>
             <strong>{item.value}</strong>
@@ -1587,7 +1783,7 @@ function SignalBrief({ brief, sourceMode }) {
 
 function SignalPanel({ sourceMode, brief }) {
   return (
-    <aside className="worldops-panel worldops-right" style={{ '--accent': '#67e8f9' }}>
+    <aside className="worldops-panel worldops-right" style={{ '--accent': '#67e8f9' }} aria-label="Data source health and console">
       <div className="worldops-kicker"><Crosshair size={14} /> Source Console</div>
       <SignalBrief brief={brief} sourceMode={sourceMode} />
       <div className="worldops-method-note">
@@ -1677,7 +1873,7 @@ function SelectedSourceCard({ selected, payload, sourceMode }) {
             : item.site;
 
   return (
-    <aside className="worldops-panel worldops-selected-card" style={{ '--accent': color }}>
+    <aside className="worldops-panel worldops-selected-card" style={{ '--accent': color }} aria-label="Selected item details">
       <div className="worldops-kicker"><Crosshair size={14} /> Selected source</div>
       <div className="worldops-detail-heading">
         <span>{label}</span>
@@ -2049,6 +2245,8 @@ export default function WorldMap() {
   const [refreshing, setRefreshing] = useState(false);
   const [sourceMode, setSourceMode] = useState('snapshot');
   const [liveStatus, setLiveStatus] = useState('snapshot ready');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [timeWindow, setTimeWindow] = useState('all');
 
   useEffect(() => {
     let alive = true;
@@ -2133,7 +2331,14 @@ export default function WorldMap() {
     requestVisitorLocation(true);
   }
 
+  const refreshInFlight = useRef(false);
+
   async function handleRefresh() {
+    // guards against overlapping refreshes -- refreshLiveLayers() fires 6 simultaneous
+    // cross-origin requests, so a rapid double-click (or an auto-refresh tick landing
+    // mid-manual-refresh) could otherwise hammer EONET/USGS/GDACS/CelesTrak/RainViewer at once
+    if (refreshInFlight.current) return;
+    refreshInFlight.current = true;
     setRefreshing(true);
     try {
       const live = await refreshLiveLayers();
@@ -2160,19 +2365,33 @@ export default function WorldMap() {
       setLiveStatus(`refresh held: ${error.message}`);
     } finally {
       setRefreshing(false);
+      refreshInFlight.current = false;
     }
   }
 
-  const visibleEvents = useMemo(() => payload.events.filter((event) => eventIsVisible(event, layers)), [payload.events, layers]);
+  // "Live refresh" was manual-only (a button click) -- for a page framed as an orbital
+  // *awareness* console, layers should stay current on their own. Ticks every 5 minutes and
+  // skips silently while the tab is backgrounded, so a visitor who leaves this open in a
+  // spare tab isn't quietly hammering five external APIs the whole time.
+  useEffect(() => {
+    const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+    const tick = () => {
+      if (document.visibilityState === 'visible') handleRefresh();
+    };
+    const timer = setInterval(tick, AUTO_REFRESH_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, []);
+
+  const visibleEvents = useMemo(() => payload.events.filter((event) => eventIsVisible(event, layers) && withinTimeWindow(event.timestamp, timeWindow)), [payload.events, layers, timeWindow]);
   const visibleSatellites = useMemo(() => payload.satellites.filter((satellite) => (
     satellite.status === 'debris' ? layers.debris : layers.satellites
   )), [payload.satellites, layers.debris, layers.satellites]);
   const visibleLaunches = useMemo(() => (layers.launches ? payload.launches : []), [payload.launches, layers.launches]);
   const visibleStorms = useMemo(() => (
     layers.storms
-      ? ((payload.stormWatch?.advisories?.length ? payload.stormWatch.advisories : buildStormAdvisories(payload.events, payload.stormWatch)).filter((storm) => stormIsVisible(storm, layers)))
+      ? ((payload.stormWatch?.advisories?.length ? payload.stormWatch.advisories : buildStormAdvisories(payload.events, payload.stormWatch)).filter((storm) => stormIsVisible(storm, layers) && withinTimeWindow(storm.timestamp, timeWindow)))
       : []
-  ), [payload.stormWatch, payload.events, layers]);
+  ), [payload.stormWatch, payload.events, layers, timeWindow]);
   const visibleCounts = useMemo(() => ({
     events: visibleEvents.length,
     satellites: visibleSatellites.length,
@@ -2186,10 +2405,47 @@ export default function WorldMap() {
     [payload, visibleEvents, visibleSatellites, visibleLaunches],
   );
 
+  const searchResults = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (query.length < 2) return [];
+    const results = [];
+    visibleEvents.forEach((event) => {
+      if (event.title?.toLowerCase().includes(query)) results.push({ kind: 'event', item: event, label: event.title, meta: event.type });
+    });
+    visibleSatellites.forEach((satellite) => {
+      if (satellite.name?.toLowerCase().includes(query)) results.push({ kind: 'satellite', item: satellite, label: satellite.name, meta: satellite.group });
+    });
+    visibleLaunches.forEach((launch) => {
+      if (launch.name?.toLowerCase().includes(query) || launch.mission?.toLowerCase().includes(query)) {
+        results.push({ kind: 'launch', item: launch, label: launch.name, meta: launch.provider });
+      }
+    });
+    (payload.news || []).forEach((article) => {
+      if (article.title?.toLowerCase().includes(query)) results.push({ kind: 'news', item: article, label: article.title, meta: article.source });
+    });
+    // a short query like "iss" is also a substring of "mission", "Mississippi", etc. --
+    // rank whole-word / starts-with matches above incidental mid-word ones so the obvious
+    // match (e.g. "ISS (ZARYA)") surfaces first instead of getting buried
+    const rank = (label) => {
+      const lower = (label || '').toLowerCase();
+      if (lower === query) return 0;
+      if (lower.startsWith(query)) return 1;
+      if (new RegExp(`\\b${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(lower)) return 2;
+      return 3;
+    };
+    return results
+      .sort((a, b) => rank(a.label) - rank(b.label))
+      .slice(0, 24);
+  }, [searchQuery, visibleEvents, visibleSatellites, visibleLaunches, payload.news]);
+
   return (
     <div className={`worldops-root view-${viewMode}`}>
       <style>{WORLDOPS_CSS}</style>
-      <div className={`worldops-canvas is-${viewMode}`}>
+      <div
+        className={`worldops-canvas is-${viewMode}`}
+        role="img"
+        aria-label="Interactive 3D map of satellites, debris, launches, and Earth hazards. This view is pointer-driven; every item shown here is also reachable and selectable through the list panels beside the map."
+      >
         {viewMode === 'map' ? (
           <OpsProjectionMap
             events={visibleEvents}
@@ -2248,6 +2504,11 @@ export default function WorldMap() {
         setViewMode={setViewMode}
         userLocation={userLocation}
         onLocate={handleLocateMe}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        searchResults={searchResults}
+        timeWindow={timeWindow}
+        setTimeWindow={setTimeWindow}
       />
 
       <SignalPanel payload={payload} sourceMode={sourceMode} brief={opsBrief} />
@@ -2501,6 +2762,99 @@ const WORLDOPS_CSS = `
   text-transform: uppercase;
   margin-bottom: 0.72rem;
 }
+.worldops-search-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.05);
+  padding: 0.5rem 0.65rem;
+  color: rgba(255,255,255,0.6);
+}
+.worldops-search-field:focus-within {
+  border-color: rgba(103,232,249,0.5);
+  background: rgba(103,232,249,0.06);
+}
+.worldops-search-field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: rgba(255,255,255,0.9);
+  font-size: 0.78rem;
+  font-family: inherit;
+}
+.worldops-search-field input::placeholder {
+  color: rgba(255,255,255,0.4);
+}
+.worldops-search-field input::-webkit-search-cancel-button {
+  display: none;
+}
+.worldops-search-field > button {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+}
+.worldops-search-results {
+  margin-top: 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.worldops-search-results button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.035);
+  color: rgba(255,255,255,0.82);
+  padding: 0.42rem 0.58rem;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.72rem;
+}
+.worldops-search-results button:hover,
+.worldops-search-results button:focus-visible {
+  border-color: rgba(103,232,249,0.4);
+  background: rgba(103,232,249,0.08);
+}
+.worldops-search-results button svg {
+  flex: 0 0 auto;
+  color: #67e8f9;
+}
+.worldops-search-results button span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.worldops-search-results button strong {
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.worldops-search-results button small {
+  color: rgba(255,255,255,0.5);
+  font-size: 0.64rem;
+}
+.worldops-search-empty {
+  color: rgba(255,255,255,0.5);
+  font-size: 0.72rem;
+  padding: 0.5rem 0.2rem;
+}
 .worldops-layer-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2531,6 +2885,28 @@ const WORLDOPS_CSS = `
   background: linear-gradient(135deg, #67e8f9, #86efac);
   border-color: rgba(255,255,255,0.28);
   box-shadow: 0 0 22px rgba(103,232,249,0.25);
+}
+.worldops-timewindow-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+.worldops-timewindow-grid button {
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.64);
+  padding: 0.4rem 0.2rem;
+  cursor: pointer;
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-align: center;
+}
+.worldops-timewindow-grid button.is-active {
+  color: #041014;
+  background: linear-gradient(135deg, #67e8f9, #86efac);
+  border-color: rgba(255,255,255,0.28);
+  box-shadow: 0 0 18px rgba(103,232,249,0.22);
 }
 .worldops-layer-button {
   height: 38px;
@@ -2624,7 +3000,7 @@ const WORLDOPS_CSS = `
 }
 .worldops-source-note {
   margin-top: 0.65rem;
-  color: rgba(255,255,255,0.38);
+  color: rgba(255,255,255,0.6);
   font-size: 0.72rem;
   line-height: 1.45;
 }
@@ -2657,7 +3033,7 @@ const WORLDOPS_CSS = `
   font-size: 0.78rem;
 }
 .worldops-detail-rows span {
-  color: rgba(255,255,255,0.42);
+  color: rgba(255,255,255,0.6);
 }
 .worldops-detail-rows strong {
   text-align: right;
@@ -2734,7 +3110,7 @@ const WORLDOPS_CSS = `
 .worldops-cluster-list small {
   display: block;
   margin-top: 0.16rem;
-  color: rgba(255,255,255,0.42);
+  color: rgba(255,255,255,0.6);
   font-size: 0.62rem;
 }
 .worldops-location-snapshot {
@@ -2802,7 +3178,7 @@ const WORLDOPS_CSS = `
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.08);
   background: rgba(255,255,255,0.035);
-  color: rgba(255,255,255,0.45);
+  color: rgba(255,255,255,0.6);
   font-size: 0.72rem;
   line-height: 1.55;
 }
@@ -2872,7 +3248,7 @@ const WORLDOPS_CSS = `
   margin: 0.82rem 0;
 }
 .worldops-signal-meter span {
-  color: rgba(255,255,255,0.44);
+  color: rgba(255,255,255,0.6);
   font-size: 0.62rem;
   font-weight: 950;
   letter-spacing: 0.1em;
@@ -2905,7 +3281,7 @@ const WORLDOPS_CSS = `
 }
 .worldops-signal-grid span {
   display: block;
-  color: rgba(255,255,255,0.44);
+  color: rgba(255,255,255,0.6);
   font-size: 0.58rem;
   font-weight: 950;
   letter-spacing: 0.08em;
@@ -3129,7 +3505,7 @@ const WORLDOPS_CSS = `
   position: absolute;
   z-index: 5;
   transform: translate(-50%, -50%);
-  color: rgba(255,255,255,0.42);
+  color: rgba(255,255,255,0.6);
   font-family: 'Space Grotesk', Inter, sans-serif;
   font-size: 0.54rem;
   font-weight: 900;
@@ -3413,7 +3789,7 @@ const WORLDOPS_CSS = `
 .worldops-timeline button small {
   display: block;
   margin-top: 0.18rem;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.6);
   font-size: 0.66rem;
   line-height: 1.24;
 }
@@ -3436,7 +3812,7 @@ const WORLDOPS_CSS = `
   right: 20px;
   bottom: 12px;
   z-index: 20;
-  color: rgba(255,255,255,0.32);
+  color: rgba(255,255,255,0.6);
   font-size: 0.68rem;
 }
 .worldops-consent {
@@ -3595,6 +3971,31 @@ const WORLDOPS_CSS = `
     max-height: none;
     overflow: visible;
   }
+  /* On desktop this panel scrolls internally within a bounded height, so the JSX order
+     (identity -> stats -> mini-map -> controls) barely matters -- everything is visible
+     at a glance. Once the panel drops into normal page flow below ~1080px, that same
+     order means a visitor has to scroll past the full-height canvas, every stat pill,
+     and the mini-map before reaching the view-mode/layer controls that actually make
+     this page interactive. Reorder just for this breakpoint so controls surface right
+     after the page identity, without touching the desktop layout at all. */
+  .worldops-left {
+    display: flex;
+    flex-direction: column;
+  }
+  .worldops-left > .worldops-kicker { order: 0; }
+  .worldops-left > h1 { order: 1; }
+  .worldops-left > p { order: 2; }
+  .worldops-left > .worldops-search-block { order: 3; }
+  .worldops-left > .worldops-viewmode-block { order: 4; }
+  .worldops-left > .worldops-layers-block { order: 5; }
+  .worldops-left > .worldops-timewindow-block { order: 6; }
+  .worldops-left > .worldops-stat-grid { order: 7; }
+  .worldops-left > .worldops-catalogue-note { order: 8; }
+  .worldops-left > .worldops-locate-button { order: 9; }
+  .worldops-left > .worldops-mini-dock { order: 10; }
+  .worldops-left > .worldops-assets-block { order: 11; }
+  .worldops-left > .worldops-refresh { order: 12; }
+  .worldops-left > .worldops-source-note { order: 13; }
   .worldops-timeline {
     grid-template-columns: 1fr;
   }

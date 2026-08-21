@@ -390,6 +390,7 @@ const WORLD_OPS_FALLBACK = {
     status: 'fallback',
     summary: 'Space-weather context is unavailable in the offline fallback snapshot.',
     samples: [],
+    recentFlares: [],
   },
   opsBrief: {
     id: 'fallback-earthops-brief',
@@ -801,6 +802,12 @@ function normalizeSatellite(row, group) {
     raan: finiteNumber(row.RA_OF_ASC_NODE) ?? 0,
     argumentOfPerigee: finiteNumber(row.ARG_OF_PERICENTER) ?? 0,
     meanAnomaly: finiteNumber(row.MEAN_ANOMALY) ?? 0,
+    // drag/perturbation terms -- needed (alongside the fields above) to build a real SGP4
+    // satrec client-side via satellite.js's json2satrec, not just the simplified
+    // mean-anomaly approximation the map used before
+    bstar: finiteNumber(row.BSTAR) ?? 0,
+    meanMotionDot: finiteNumber(row.MEAN_MOTION_DOT) ?? 0,
+    meanMotionDdot: finiteNumber(row.MEAN_MOTION_DDOT) ?? 0,
     altitudeKm: satelliteAltitudeKm(meanMotion),
   };
 }
@@ -837,7 +844,7 @@ function normalizeNews(article, lane = 'article') {
 }
 
 
-async function fetchJson(url, label) {
+async function fetchJsonOnce(url, label) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 25000);
   try {
@@ -849,6 +856,20 @@ async function fetchJson(url, label) {
     return await response.json();
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+// This build runs once a day via a scheduled workflow (see .github/workflows/deploy.yml) --
+// a single request failing because of a brief network blip or a momentary 5xx from a public
+// feed then means that entire feed shows as "unavailable" to every visitor for a full day,
+// not just a few seconds. One retry after a short backoff meaningfully cuts how often that
+// happens, for every feed that goes through here.
+async function fetchJson(url, label) {
+  try {
+    return await fetchJsonOnce(url, label);
+  } catch (error) {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return fetchJsonOnce(url, label);
   }
 }
 
@@ -1312,31 +1333,66 @@ async function fetchWorldNews() {
   }, WORLD_OPS_FALLBACK.news);
 }
 
+async function fetchSolarFlares() {
+  const end = new Date();
+  const start = new Date(end.getTime() - 7 * 86400000);
+  const toDateParam = (date) => date.toISOString().slice(0, 10);
+  // DEMO_KEY is NASA's public, keyless-equivalent tier (30 req/hour, 50/day) -- this build
+  // runs at most a handful of times a day (the daily schedule, plus the occasional push),
+  // so it stays comfortably inside that limit without needing a registered API key committed
+  // to a public repo.
+  const url = `https://api.nasa.gov/DONKI/FLR?startDate=${toDateParam(start)}&endDate=${toDateParam(end)}&api_key=DEMO_KEY`;
+  return loadSource('nasa-donki-flr', 'NASA DONKI solar flares', url, async (sourceUrl) => {
+    const payload = await fetchJson(sourceUrl, 'NASA DONKI solar flares');
+    const flares = (Array.isArray(payload) ? payload : [])
+      .map((row) => ({
+        id: row.flrID || `${row.beginTime}-${row.classType}`,
+        classType: row.classType || '',
+        beginTime: safeIso(row.beginTime),
+        peakTime: safeIso(row.peakTime),
+        sourceLocation: row.sourceLocation || '',
+        activeRegionNum: finiteNumber(row.activeRegionNum),
+        link: row.link || 'https://www.swpc.noaa.gov/phenomena/solar-flares-radio-blackouts',
+      }))
+      .filter((flare) => flare.classType && flare.beginTime)
+      .sort((a, b) => Date.parse(b.beginTime) - Date.parse(a.beginTime))
+      .slice(0, 12);
+    return flares;
+  }, []);
+}
+
 async function fetchWorldSpaceWeather() {
   const url = 'https://services.swpc.noaa.gov/json/planetary_k_index_1m.json';
-  return loadSource('noaa-swpc-kp', 'NOAA SWPC planetary K index', url, async (sourceUrl) => {
-    const payload = await fetchJson(sourceUrl, 'NOAA SWPC planetary K index');
-    const samples = (payload || [])
-      .map((row) => ({
-        observedAt: safeIso(row.time_tag),
-        kp: finiteNumber(row.estimated_kp ?? row.kp_index),
-        label: row.kp || '',
-      }))
-      .filter((row) => row.kp !== null)
-      .sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt))
-      .slice(0, 18);
-    if (!samples.length) throw new Error('NOAA SWPC Kp feed returned no usable samples');
-    const latest = samples[0];
-    const status = latest.kp >= 7 ? 'storm' : latest.kp >= 5 ? 'active' : latest.kp >= 4 ? 'unsettled' : 'quiet';
-    return {
-      observedAt: latest.observedAt,
-      kp: latest.kp,
-      label: latest.label || `Kp ${latest.kp.toFixed(1)}`,
-      status,
-      summary: `Latest NOAA SWPC planetary K index is ${latest.kp.toFixed(1)} (${status}).`,
-      samples,
-    };
-  }, WORLD_OPS_FALLBACK.spaceWeather);
+  const [kpResult, flareResult] = await Promise.all([
+    loadSource('noaa-swpc-kp', 'NOAA SWPC planetary K index', url, async (sourceUrl) => {
+      const payload = await fetchJson(sourceUrl, 'NOAA SWPC planetary K index');
+      const samples = (payload || [])
+        .map((row) => ({
+          observedAt: safeIso(row.time_tag),
+          kp: finiteNumber(row.estimated_kp ?? row.kp_index),
+          label: row.kp || '',
+        }))
+        .filter((row) => row.kp !== null)
+        .sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt))
+        .slice(0, 18);
+      if (!samples.length) throw new Error('NOAA SWPC Kp feed returned no usable samples');
+      const latest = samples[0];
+      const status = latest.kp >= 7 ? 'storm' : latest.kp >= 5 ? 'active' : latest.kp >= 4 ? 'unsettled' : 'quiet';
+      return {
+        observedAt: latest.observedAt,
+        kp: latest.kp,
+        label: latest.label || `Kp ${latest.kp.toFixed(1)}`,
+        status,
+        summary: `Latest NOAA SWPC planetary K index is ${latest.kp.toFixed(1)} (${status}).`,
+        samples,
+      };
+    }, WORLD_OPS_FALLBACK.spaceWeather),
+    fetchSolarFlares(),
+  ]);
+  return {
+    data: { ...kpResult.data, recentFlares: flareResult.data },
+    sources: [kpResult.source, flareResult.source],
+  };
 }
 
 function normalizeRainViewerFrame(frame) {
@@ -1548,7 +1604,7 @@ async function fetchWorldOps() {
       ...satelliteBundle.sources,
       launches.source,
       news.source,
-      spaceWeather.source,
+      ...spaceWeather.sources,
       stormWatch.source,
       sourceRecord('media-directory', 'Curated public media directory', 'https://www.nasa.gov/live/', 'static', WORLD_OPS_MEDIA.length),
     ];
