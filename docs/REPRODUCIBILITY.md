@@ -34,6 +34,7 @@ the frozen v1.3.0 result unless the changed artifacts are reviewed and committed
 ## Deterministic research products
 
 `scripts/build-neo-sensitivity.mjs` derives JSON, CSV, and SVG products solely
-from the committed JPL CAD JSON bytes. The JSON records the input SHA-256. Check
-mode recomputes all three products in memory and fails if any committed output
-is stale.
+from the committed JPL CAD JSON. The JSON records a canonical-LF SHA-256 so Git
+line-ending conversion cannot make identical JSON appear different across
+Windows and Linux. Check mode recomputes all three products in memory and fails
+if any committed output is stale.

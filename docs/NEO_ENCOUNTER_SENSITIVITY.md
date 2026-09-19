@@ -19,7 +19,7 @@ object's Earth minimum orbit intersection distance (MOID).
 - Source: NASA/JPL SBDB Close Approach Data API, signature version 1.5
 - Query: Earth encounters from 2026-08-13 through 2050-12-31, `dist-max=0.3`,
   date sorted, `limit=7500`, full names and diameters requested
-- Input SHA-256: `e591c822fb70d17b7e5224484c280e2724a59fc3177c0918adce5566d7c182a3`
+- Canonical-LF input SHA-256: `633cee41d8cbab84f8ed037106b15b36088abce4bcca4c767df6e826d8f679b1`
 - Returned: 7,500 of 39,427 matching rows (19.0%)
 - Returned chronological coverage: 2026-Aug-21 through 2030-Jul-15
 

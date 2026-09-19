@@ -16,7 +16,8 @@ const check = process.argv.includes('--check');
 const raw = await readFile(INPUT);
 const payload = JSON.parse(raw);
 const audit = auditCadPayload(payload);
-audit.inputSha256 = createHash('sha256').update(raw).digest('hex');
+const canonicalInput = Buffer.from(raw.toString('utf8').replace(/\r\n/g, '\n'));
+audit.inputSha256 = createHash('sha256').update(canonicalInput).digest('hex');
 
 const json = `${JSON.stringify(audit, null, 2)}\n`;
 const csv = [
