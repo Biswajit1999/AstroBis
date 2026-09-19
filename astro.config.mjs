@@ -1,21 +1,23 @@
 import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
-import tailwind from '@astrojs/tailwind';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   site: 'https://biswajit1999.github.io',
   base: '/AstroBis',
-  integrations: [react(), tailwind()],
+  integrations: [react()],
   output: 'static',
   vite: {
+    plugins: [tailwindcss()],
     build: {
       chunkSizeWarningLimit: 1200,
       rollupOptions: {
         output: {
-          manualChunks: {
-            'three-core':   ['three'],
-            'r3f':          ['@react-three/fiber', '@react-three/drei'],
-            'react-vendor': ['react', 'react-dom'],
+          manualChunks(id) {
+            if (id.includes('/node_modules/three/')) return 'three-core';
+            if (id.includes('/node_modules/@react-three/')) return 'r3f';
+            if (id.includes('/node_modules/react/') || id.includes('/node_modules/react-dom/')) return 'react-vendor';
+            return undefined;
           },
         },
       },

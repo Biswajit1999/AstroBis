@@ -1,35 +1,48 @@
 {
   "name": "astrobis",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "description": "AstroBis - Interactive 3D astronomy platform with an Oort-scale solar-system atlas, EarthOps world map, exoplanets, ISS tracker, small-body watch, and star maps",
   "type": "module",
   "scripts": {
     "dev": "astro dev",
     "fetch:data": "node scripts/fetch-space-data.mjs",
-    "prebuild": "npm run fetch:data",
+    "prebuild": "npm run fetch:data && npm run research:neo",
     "build": "astro build",
+    "build:site": "astro build",
+    "test": "node --test tests/neo-science.test.mjs",
+    "research:neo": "node scripts/build-neo-sensitivity.mjs",
+    "check:research": "node scripts/build-neo-sensitivity.mjs --check",
+    "check": "astro check",
+    "validate": "npm test && npm run check:research && npm run check && npm run build:site",
     "preview": "astro preview",
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/react": "^3.1.0",
-    "@astrojs/tailwind": "^5.1.0",
+    "@astrojs/react": "^6.0.6",
     "@react-three/drei": "^9.102.0",
     "@react-three/fiber": "^8.15.0",
     "@react-three/postprocessing": "2.16",
-    "astro": "^4.5.0",
-    "axios": "^1.6.0",
+    "astro": "^7.3.3",
+    "axios": "^1.20.0",
     "lucide-react": "^1.28.0",
     "postprocessing": "6.35",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "satellite.js": "^6.0.2",
-    "tailwindcss": "^3.4.0",
+    "tailwindcss": "^4.3.3",
     "three": "^0.161.0"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^20.10.0",
-    "@types/react": "^18.2.0",
-    "@types/three": "^0.161.0"
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@types/three": "^0.161.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.0"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }
