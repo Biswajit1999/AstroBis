@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.1 — 2026-09-19
+
+- Make production builds and GitHub Pages deployments consume only reviewed,
+  committed evidence snapshots.
+- Move remote refreshes behind the explicit `npm run refresh:data` command so a
+  deploy cannot silently publish statistics that differ from its source revision.
+- Pin the Pages action to `npm run build:site` as a defence-in-depth release gate.
+
 ## 1.3.0 — 2026-09-19
 
 - Add a deterministic JPL close-approach uncertainty and albedo sensitivity audit.

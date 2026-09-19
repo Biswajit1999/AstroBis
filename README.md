@@ -220,7 +220,7 @@ npm run dev
 Node.js 22.12 or newer is required. For a locked, CI-equivalent installation use
 `npm ci`.
 
-Create a production build:
+Create a production build from the reviewed, committed snapshots:
 
 ```bash
 npm run build
@@ -238,6 +238,12 @@ Regenerate or freshness-check the committed NEO sensitivity evidence:
 ```bash
 npm run research:neo
 npm run check:research
+```
+
+Refresh all remote snapshots only as an intentional evidence-changing action:
+
+```bash
+npm run refresh:data
 ```
 
 Preview production output:

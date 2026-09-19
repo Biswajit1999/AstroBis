@@ -21,15 +21,14 @@ builds all static routes without fetching new remote data.
 ## Refresh data intentionally
 
 ```bash
-npm run fetch:data
-npm run research:neo
+npm run refresh:data
 npm run validate
 ```
 
 A refresh changes the evidence base. Review the source query, row count,
 chronological coverage, API signature, input SHA-256, numerical summaries, and
-rendered figure before committing it. Do not interpret a deploy-time refresh as
-the frozen v1.3.0 result unless the changed artifacts are reviewed and committed.
+rendered figure before committing it. Production builds and deploys consume only
+the reviewed snapshots in the source revision; they never refresh evidence.
 
 ## Deterministic research products
 
