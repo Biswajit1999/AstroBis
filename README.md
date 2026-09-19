@@ -3,7 +3,7 @@
 # AstroBis
 
 [![Live Demo](https://img.shields.io/badge/Live-Demo-0A66C2?style=for-the-badge)](https://biswajit1999.github.io/AstroBis/)
-[![Astro](https://img.shields.io/badge/Astro-4.x-FF5D01?style=for-the-badge&logo=astro)](https://astro.build/)
+[![Astro](https://img.shields.io/badge/Astro-7.x-FF5D01?style=for-the-badge&logo=astro)](https://astro.build/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react)](https://react.dev/)
 [![Three.js](https://img.shields.io/badge/Three.js-WebGL-black?style=for-the-badge&logo=three.js)](https://threejs.org/)
 [![NASA/JPL Data](https://img.shields.io/badge/Data-NASA%20%26%20JPL-0B3D91?style=for-the-badge)](https://www.nasa.gov/)
@@ -18,6 +18,8 @@ Live website: [https://biswajit1999.github.io/AstroBis/](https://biswajit1999.gi
 Project report: [docs/AstroBis-Project-Report.pdf](docs/AstroBis-Project-Report.pdf)
 
 Technical notes: [docs/AstroBis-Ecosystem-Report.md](docs/AstroBis-Ecosystem-Report.md)
+
+Research methods: [docs/NEO_ENCOUNTER_SENSITIVITY.md](docs/NEO_ENCOUNTER_SENSITIVITY.md) · [reproducibility](docs/REPRODUCIBILITY.md) · [limitations](docs/LIMITATIONS.md)
 
 ## Overview
 
@@ -120,9 +122,26 @@ The Earth model includes cloud layers, night lighting, atmosphere effects, and o
 
 Small-Body Watch uses NASA/JPL close-approach records and orbital databases to visualise Earth encounters and known interstellar visitors.
 
-Current features include Earth close approaches through 2050, miss-distance visualisation, relative velocity estimates, diameter and brightness information, risk-style filtering, timeline analytics, and interstellar visitor records.
+Current features include a row-limited, coverage-explicit JPL close-approach
+snapshot, miss-distance visualisation, relative velocity estimates, measured or
+H–albedo-derived diameter information, encounter-screen filtering, timeline
+analytics, and interstellar visitor records. The query requests dates through
+2050, but the committed date-sorted 7,500-row response ends in July 2030; the
+interface and research audit expose that truncation rather than implying full
+2050 coverage.
 
 Risk indicators are visual prioritisation tools and should not be interpreted as official hazard assessments.
+
+### Reproducible encounter-sensitivity result
+
+The committed JPL CAD response contains 7,500 of 39,471 matching, date-sorted
+rows (19.0%) and ends on 10 July 2030. Only 233 rows (3.1%) contain a measured
+diameter. Of 590 nominal encounters at or within 0.05 AU, 397 remain inside the
+boundary at the reported 3σ maximum distance and 193 cross the boundary within
+the interval. Among those 590 nominal-close rows, 60 are robustly at least 140 m,
+64 change size class over the declared albedo interval 0.05–0.25, and 466 are
+robustly smaller. These are encounter-screen results, not PHA classifications or
+impact probabilities. See the [method and claim boundary](docs/NEO_ENCOUNTER_SENSITIVITY.md).
 
 ## 3D Stellar Atlas
 
@@ -167,13 +186,13 @@ The application now follows a snapshot-first data policy:
 
 Frontend:
 
-* Astro 4
+* Astro 7
 * React 18
 * Three.js
 * @react-three/fiber
 * @react-three/drei
 * lucide-react
-* Tailwind CSS
+* Tailwind CSS 4
 
 Data and astronomy:
 
@@ -198,10 +217,27 @@ npm install
 npm run dev
 ```
 
+Node.js 22.12 or newer is required. For a locked, CI-equivalent installation use
+`npm ci`.
+
 Create a production build:
 
 ```bash
 npm run build
+```
+
+Run the complete release validation without refreshing remote snapshots:
+
+```bash
+npm run validate
+npm audit --audit-level=moderate
+```
+
+Regenerate or freshness-check the committed NEO sensitivity evidence:
+
+```bash
+npm run research:neo
+npm run check:research
 ```
 
 Preview production output:

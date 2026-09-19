@@ -1,0 +1,121 @@
+{
+  "schemaVersion": "1.0",
+  "label": "SENSITIVITY / ENCOUNTER SCREEN — NOT IMPACT PROBABILITY",
+  "source": "NASA/JPL SBDB Close Approach Data API",
+  "generatedAt": "2026-08-13T09:03:34.721Z",
+  "apiSignature": {
+    "source": "NASA/JPL SBDB Close Approach Data API",
+    "version": "1.5"
+  },
+  "query": {
+    "date-min": "2026-08-13",
+    "date-max": "2050-12-31",
+    "dist-max": "0.3",
+    "body": "Earth",
+    "sort": "date",
+    "limit": "7500",
+    "fullname": "true",
+    "diameter": "true"
+  },
+  "coverage": {
+    "returnedRows": 7500,
+    "matchingRows": 39471,
+    "returnedFraction": 0.19001292087861973,
+    "truncated": true,
+    "firstReturnedApproach": "2026-Aug-13 01:34",
+    "lastReturnedApproach": "2030-Jul-10 03:18",
+    "sort": "date"
+  },
+  "measurementCoverage": {
+    "measuredDiameters": 233,
+    "inferredFromH": 7265,
+    "unknownSize": 2,
+    "measuredDiameterFraction": 0.031066666666666666
+  },
+  "thresholds": {
+    "encounterDistanceAu": 0.05,
+    "diameterKm": 0.14,
+    "absoluteMagnitude": 22,
+    "referenceAlbedo": 0.14,
+    "albedoSensitivity": {
+      "low": 0.05,
+      "high": 0.25
+    }
+  },
+  "distanceSensitivity": {
+    "nominalClose": 590,
+    "robustClose": 397,
+    "nominalBoundarySensitive": 193,
+    "outsideButCouldCross": 327,
+    "boundarySensitiveAll": 520,
+    "classes": {
+      "robust-close": 397,
+      "robust-outside": 6583,
+      "boundary-sensitive": 520
+    }
+  },
+  "sizeSensitivity": {
+    "allRows": {
+      "albedo-sensitive": 1054,
+      "inferred-robust-small": 5207,
+      "inferred-robust-large": 1004,
+      "measured-large": 203,
+      "measured-small": 30,
+      "unknown": 2
+    },
+    "nominalClose": {
+      "albedo-sensitive": 64,
+      "inferred-robust-small": 461,
+      "inferred-robust-large": 49,
+      "measured-small": 5,
+      "measured-large": 11
+    },
+    "robustClose": {
+      "albedo-sensitive": 53,
+      "inferred-robust-small": 281,
+      "inferred-robust-large": 47,
+      "measured-small": 5,
+      "measured-large": 11
+    },
+    "h22DiameterKm": {
+      "albedo005": 0.23661375011379646,
+      "albedo014": 0.1414037617489543,
+      "albedo025": 0.10581688593311948
+    },
+    "albedoGrid": [
+      {
+        "albedo": 0.05,
+        "nominalCloseAtOrAbove140m": 124,
+        "robustCloseAtOrAbove140m": 111
+      },
+      {
+        "albedo": 0.1,
+        "nominalCloseAtOrAbove140m": 92,
+        "robustCloseAtOrAbove140m": 86
+      },
+      {
+        "albedo": 0.14,
+        "nominalCloseAtOrAbove140m": 75,
+        "robustCloseAtOrAbove140m": 72
+      },
+      {
+        "albedo": 0.2,
+        "nominalCloseAtOrAbove140m": 65,
+        "robustCloseAtOrAbove140m": 63
+      },
+      {
+        "albedo": 0.25,
+        "nominalCloseAtOrAbove140m": 60,
+        "robustCloseAtOrAbove140m": 58
+      }
+    ]
+  },
+  "legacyEncounterScreenCount": 74,
+  "claimBoundary": [
+    "CAD dist is a time-specific close-approach distance, not Earth MOID.",
+    "The screen is not a PHA designation, impact probability, Torino score, or hazard assessment.",
+    "The 0.05–0.25 albedo interval is a declared sensitivity bracket, not an object-level posterior.",
+    "A row-limited, date-sorted response describes only the returned chronological prefix."
+  ],
+  "inputSha256": "0a9deda5fe250c6335992578bb02a55781a5464925caf5120e268cc2afe6e1b3"
+}

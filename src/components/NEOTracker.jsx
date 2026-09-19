@@ -1,8 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
+import {
+  AU_KM,
+  LD_KM,
+  finiteNumber,
+  normalizeCloseApproach,
+  parseCadPayload,
+} from '../lib/neo-science.js';
+
 const CAD_ENDPOINT = 'https://ssd-api.jpl.nasa.gov/cad.api';
-const AU_KM = 149597870.7;
-const LD_KM = 384400;
 const BASE_PATH = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
 const LOCAL_NEO_URL = `${BASE_PATH}data/neo-approaches.json`;
 const LOCAL_VISITORS_URL = `${BASE_PATH}data/small-body-visitors.json`;
@@ -33,15 +39,7 @@ function todayISO() {
 }
 
 function toNumber(value) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
-}
-
-function dateValue(value) {
-  const raw = String(value || '');
-  const direct = Date.parse(raw);
-  if (Number.isFinite(direct)) return direct;
-  return Date.parse(raw.replace(/-/g, ' '));
+  return finiteNumber(value);
 }
 
 function formatKm(km) {
@@ -50,12 +48,6 @@ function formatKm(km) {
   if (value >= 1e6) return `${(value / 1e6).toFixed(2)}M km`;
   if (value >= 1000) return `${Math.round(value / 1000)}K km`;
   return `${Math.round(value)} km`;
-}
-
-function estimateDiameterKm(h) {
-  const magnitude = toNumber(h);
-  if (magnitude === null) return null;
-  return (1329 / Math.sqrt(0.14)) * (10 ** (-magnitude / 5));
 }
 
 function daysUntil(dateMs) {
@@ -111,45 +103,6 @@ function formatYears(value) {
   if (value < 1) return `${Math.round(value * 365)} days`;
   if (value < 1000) return `${Math.round(value)} years`;
   return `${Math.round(value / 1000)}K years`;
-}
-
-function normalizeObject(row) {
-  const distAu = toNumber(row.dist) ?? 0;
-  const h = toNumber(row.h);
-  const listedDiameter = toNumber(row.diameter);
-  const diameterKm = listedDiameter ?? estimateDiameterKm(h);
-  const distanceKm = distAu * AU_KM;
-  const velocity = toNumber(row.v_rel);
-  const riskProxy = distAu <= 0.05 && (h === null || h <= 22);
-  const largeProxy = (diameterKm ?? 0) >= 0.14 || (h !== null && h <= 22);
-
-  return {
-    id: row.des || row.fullname || row.cd,
-    name: row.fullname || row.des || 'Unnamed object',
-    designation: row.des || 'n/a',
-    date: row.cd || 'n/a',
-    dateMs: dateValue(row.cd),
-    distAu,
-    distanceKm,
-    lunarDistance: distanceKm / LD_KM,
-    velocity,
-    h,
-    diameterKm,
-    measuredDiameter: listedDiameter !== null,
-    riskProxy,
-    largeProxy,
-  };
-}
-
-function parseCadPayload(payload) {
-  const fields = payload.fields || [];
-  return (payload.data || []).map((row) => {
-    const mapped = {};
-    fields.forEach((field, index) => {
-      mapped[field] = row[index];
-    });
-    return normalizeObject(mapped);
-  });
 }
 
 function seededAngle(seed) {
@@ -289,7 +242,7 @@ function ObjectCard({ object }) {
           fontSize: 10,
           fontWeight: 950,
           whiteSpace: 'nowrap',
-        }}>{object.riskProxy ? 'Risk proxy' : object.largeProxy ? 'Large' : objectClass(object)}</span>
+        }}>{object.riskProxy ? 'Encounter screen' : object.largeProxy ? 'Large' : objectClass(object)}</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px 14px', fontSize: 12 }}>
         <Metric label="Closest approach" value={object.date} color="#fde68a" />
@@ -394,6 +347,7 @@ export default function NEOTracker() {
   const [loading, setLoading] = useState(true);
   const [source, setSource] = useState('snapshot');
   const [generatedAt, setGeneratedAt] = useState(null);
+  const [coverage, setCoverage] = useState(null);
   const [visitors, setVisitors] = useState([]);
   const [visitorsGeneratedAt, setVisitorsGeneratedAt] = useState(null);
   const [refreshIndex, setRefreshIndex] = useState(0);
@@ -418,6 +372,11 @@ export default function NEOTracker() {
           setObjects(parsed.filter((object) => object.distAu <= distMaxAu && new Date(object.dateMs).getFullYear() <= endYear));
           setSource('snapshot');
           setGeneratedAt(snapshot.generatedAt || null);
+          setCoverage({
+            returned: Number(snapshot.count || parsed.length),
+            total: Number(snapshot.total || parsed.length),
+            lastDate: parsed.at(-1)?.date || null,
+          });
         }
       } catch {
         try {
@@ -440,12 +399,18 @@ export default function NEOTracker() {
           setObjects(parsed);
           setSource('live');
           setGeneratedAt(null);
+          setCoverage({
+            returned: Number(data.count || parsed.length),
+            total: Number(data.total || parsed.length),
+            lastDate: parsed.at(-1)?.date || null,
+          });
         }
         } catch {
         if (active) {
-          setObjects(FALLBACK_APPROACHES.map(normalizeObject));
+          setObjects(FALLBACK_APPROACHES.map(normalizeCloseApproach));
           setSource('demo');
           setGeneratedAt(null);
+          setCoverage(null);
         }
         }
       } finally {
@@ -518,8 +483,8 @@ export default function NEOTracker() {
         border: '1px solid rgba(255,255,255,0.09)',
         background: 'rgba(255,255,255,0.035)',
       }}>
-        <Stat label={`Close approaches through ${endYear}`} value={loading ? '...' : objects.length} color="#a78bfa" />
-        <Stat label="Risk proxy objects" value={loading ? '...' : riskCount} color="#fb7185" />
+        <Stat label={`Returned approaches ≤${endYear}`} value={loading ? '...' : objects.length} color="#a78bfa" />
+        <Stat label="H≤22 encounter screen" value={loading ? '...' : riskCount} color="#fb7185" />
         <Stat label="Large object proxy" value={loading ? '...' : largeCount} color="#fbbf24" />
         <Stat label="Closest listed pass" value={closest ? `${closest.lunarDistance.toFixed(1)} LD` : 'n/a'} color="#67e8f9" />
         <Stat label="Largest listed diameter" value={largest?.diameterKm ? `${largest.diameterKm.toFixed(2)} km` : 'n/a'} color="#86efac" />
@@ -559,9 +524,9 @@ export default function NEOTracker() {
           <option value="distance">Sort: nearest</option>
           <option value="speed">Sort: fastest</option>
           <option value="size">Sort: largest</option>
-          <option value="risk">Sort: risk proxy</option>
+          <option value="risk">Sort: encounter screen</option>
         </select>
-        <button type="button" onClick={() => setRiskOnly((value) => !value)} style={toggleStyle(riskOnly, '#fb7185')}>Risk only</button>
+        <button type="button" onClick={() => setRiskOnly((value) => !value)} style={toggleStyle(riskOnly, '#fb7185')}>Screen only</button>
         <button type="button" onClick={() => setLargeOnly((value) => !value)} style={toggleStyle(largeOnly, '#fbbf24')}>Large only</button>
         <button type="button" onClick={() => setRefreshIndex((value) => value + 1)} style={toggleStyle(false, '#67e8f9')}>Reload data</button>
       </div>
@@ -573,7 +538,8 @@ export default function NEOTracker() {
       )}
       {source === 'snapshot' && generatedAt && !loading && (
         <div style={{ marginBottom: 18, borderRadius: 14, border: '1px solid rgba(34,197,94,0.22)', background: 'rgba(34,197,94,0.07)', color: '#a7f3d0', padding: '0.75rem 1rem', fontSize: 13 }}>
-          Using a same-origin JPL close-approach snapshot generated during the site build on {new Date(generatedAt).toLocaleDateString()}.
+          Using a same-origin JPL close-approach snapshot generated on {new Date(generatedAt).toLocaleDateString()}.
+          {coverage?.total > coverage?.returned && ` The date-sorted API response is truncated: ${coverage.returned.toLocaleString()} of ${coverage.total.toLocaleString()} matching rows are present, ending ${coverage.lastDate}; controls cannot reveal later rows until the snapshot is paginated.`}
         </div>
       )}
 
@@ -595,7 +561,7 @@ export default function NEOTracker() {
             <ApproachMap objects={filtered} maxAu={distMaxAu} />
           )}
           <div style={{ color: 'rgba(255,255,255,0.42)', fontSize: 11, lineHeight: 1.6, marginTop: 10 }}>
-            Ring labels use lunar distances. Dot size follows diameter estimate. Risk proxy is not an impact probability; it flags close passes within 0.05 AU and H less than or equal to 22 when available.
+            Ring labels use lunar distances. Dot size uses a listed diameter when available and otherwise the H–albedo estimate at pV=0.14. “Encounter screen” means nominal pass distance ≤0.05 AU and H≤22; it is not Earth MOID, a PHA designation, or an impact probability.
           </div>
         </aside>
 

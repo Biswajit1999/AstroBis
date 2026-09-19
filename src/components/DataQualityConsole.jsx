@@ -1,5 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
+function finiteNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 const DATASETS = [
   {
     key: 'home',
@@ -22,13 +28,13 @@ const DATASETS = [
     source: 'NASA Exoplanet Archive PSCompPars snapshot',
     extract(payload) {
       const rows = Array.isArray(payload?.data) ? payload.data : [];
-      const withRadius = rows.filter((row) => Number.isFinite(Number(row.pl_rade))).length;
-      const withMass = rows.filter((row) => Number.isFinite(Number(row.pl_bmasse))).length;
-      const withDistance = rows.filter((row) => Number.isFinite(Number(row.sy_dist))).length;
+      const withRadius = rows.filter((row) => finiteNumber(row.pl_rade) !== null).length;
+      const withMass = rows.filter((row) => finiteNumber(row.pl_bmasse) !== null).length;
+      const withDistance = rows.filter((row) => finiteNumber(row.sy_dist) !== null).length;
       const nearest = rows
-        .filter((row) => Number.isFinite(Number(row.sy_dist)))
+        .filter((row) => finiteNumber(row.sy_dist) !== null)
         .slice()
-        .sort((a, b) => Number(a.sy_dist) - Number(b.sy_dist))[0];
+        .sort((a, b) => finiteNumber(a.sy_dist) - finiteNumber(b.sy_dist))[0];
       return {
         count: payload?.count || rows.length,
         generatedAt: payload?.generatedAt,
@@ -38,7 +44,7 @@ const DATASETS = [
           mass: ratio(withMass, rows.length),
           distance: ratio(withDistance, rows.length),
         },
-        headline: nearest ? `${nearest.pl_name} at ${Number(nearest.sy_dist).toFixed(2)} pc` : 'No finite distances',
+        headline: nearest ? `${nearest.pl_name} at ${finiteNumber(nearest.sy_dist).toFixed(2)} pc` : 'No finite distances',
       };
     },
   },
@@ -107,7 +113,7 @@ const DATASETS = [
     source: 'Bundled bright-star coordinate and spectral reference set',
     extract(payload) {
       const rows = Array.isArray(payload?.data) ? payload.data : [];
-      const withDistance = rows.filter((row) => Number.isFinite(Number(row.distPc ?? row.distanceLy ?? row.distance))).length;
+      const withDistance = rows.filter((row) => finiteNumber(row.distPc ?? row.distanceLy ?? row.distance) !== null).length;
       const withSpectralType = rows.filter((row) => row.spectral || row.spectralType || row.spect || row.spType).length;
       return {
         count: payload?.count || rows.length,
