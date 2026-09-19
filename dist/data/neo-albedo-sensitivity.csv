@@ -1,0 +1,6 @@
+albedo,nominal_close_at_or_above_140m,robust_close_at_or_above_140m
+0.05,124,111
+0.1,92,86
+0.14,75,72
+0.2,65,63
+0.25,60,58
