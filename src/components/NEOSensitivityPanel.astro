@@ -8,6 +8,10 @@ const measuredPct = (audit.measurementCoverage.measuredDiameterFraction * 100).t
 const boundaryPct = ((distance.nominalBoundarySensitive / distance.nominalClose) * 100).toFixed(1);
 const returnedPct = (audit.coverage.returnedFraction * 100).toFixed(1);
 const h22 = audit.sizeSensitivity.h22DiameterKm;
+const nominalSize = audit.sizeSensitivity.nominalClose;
+const robustLarge = nominalSize['measured-large'] + nominalSize['inferred-robust-large'];
+const albedoSensitive = nominalSize['albedo-sensitive'];
+const robustSmall = nominalSize['measured-small'] + nominalSize['inferred-robust-small'];
 ---
 
 <section class="neo-audit" aria-labelledby="neo-audit-title">
@@ -39,7 +43,7 @@ const h22 = audit.sizeSensitivity.h22DiameterKm;
         width="1200"
         height="650"
         loading="lazy"
-        alt={`Horizontal bar comparison: ${distance.nominalClose} nominal close approaches, ${distance.robustClose} robust close approaches, and ${distance.nominalBoundarySensitive} nominal-close rows whose three-sigma interval crosses 0.05 AU. The size screen contains 60 robust-large, 64 albedo-sensitive, and 466 robust-small rows.`}
+        alt={`Horizontal bar comparison: ${distance.nominalClose} nominal close approaches, ${distance.robustClose} robust close approaches, and ${distance.nominalBoundarySensitive} nominal-close rows whose three-sigma interval crosses 0.05 AU. The size screen contains ${robustLarge} robust-large, ${albedoSensitive} albedo-sensitive, and ${robustSmall} robust-small rows.`}
       />
       <figcaption>
         Direct value labels and the table provide the same evidence without

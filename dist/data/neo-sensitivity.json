@@ -2,13 +2,13 @@
   "schemaVersion": "1.0",
   "label": "SENSITIVITY / ENCOUNTER SCREEN — NOT IMPACT PROBABILITY",
   "source": "NASA/JPL SBDB Close Approach Data API",
-  "generatedAt": "2026-08-13T09:03:34.721Z",
+  "generatedAt": "2026-08-21T00:14:30.068Z",
   "apiSignature": {
     "source": "NASA/JPL SBDB Close Approach Data API",
     "version": "1.5"
   },
   "query": {
-    "date-min": "2026-08-13",
+    "date-min": "2026-08-21",
     "date-max": "2050-12-31",
     "dist-max": "0.3",
     "body": "Earth",
@@ -19,18 +19,18 @@
   },
   "coverage": {
     "returnedRows": 7500,
-    "matchingRows": 39471,
-    "returnedFraction": 0.19001292087861973,
+    "matchingRows": 39427,
+    "returnedFraction": 0.19022497273442057,
     "truncated": true,
-    "firstReturnedApproach": "2026-Aug-13 01:34",
-    "lastReturnedApproach": "2030-Jul-10 03:18",
+    "firstReturnedApproach": "2026-Aug-21 03:16",
+    "lastReturnedApproach": "2030-Jul-15 16:10",
     "sort": "date"
   },
   "measurementCoverage": {
-    "measuredDiameters": 233,
-    "inferredFromH": 7265,
+    "measuredDiameters": 235,
+    "inferredFromH": 7263,
     "unknownSize": 2,
-    "measuredDiameterFraction": 0.031066666666666666
+    "measuredDiameterFraction": 0.03133333333333333
   },
   "thresholds": {
     "encounterDistanceAu": 0.05,
@@ -43,38 +43,38 @@
     }
   },
   "distanceSensitivity": {
-    "nominalClose": 590,
-    "robustClose": 397,
-    "nominalBoundarySensitive": 193,
+    "nominalClose": 586,
+    "robustClose": 396,
+    "nominalBoundarySensitive": 190,
     "outsideButCouldCross": 327,
-    "boundarySensitiveAll": 520,
+    "boundarySensitiveAll": 517,
     "classes": {
-      "robust-close": 397,
-      "robust-outside": 6583,
-      "boundary-sensitive": 520
+      "robust-outside": 6587,
+      "boundary-sensitive": 517,
+      "robust-close": 396
     }
   },
   "sizeSensitivity": {
     "allRows": {
-      "albedo-sensitive": 1054,
-      "inferred-robust-small": 5207,
-      "inferred-robust-large": 1004,
-      "measured-large": 203,
+      "inferred-robust-large": 1001,
+      "albedo-sensitive": 1063,
+      "inferred-robust-small": 5199,
+      "measured-large": 205,
       "measured-small": 30,
       "unknown": 2
     },
     "nominalClose": {
-      "albedo-sensitive": 64,
-      "inferred-robust-small": 461,
-      "inferred-robust-large": 49,
+      "inferred-robust-small": 459,
+      "inferred-robust-large": 50,
       "measured-small": 5,
+      "albedo-sensitive": 61,
       "measured-large": 11
     },
     "robustClose": {
-      "albedo-sensitive": 53,
-      "inferred-robust-small": 281,
-      "inferred-robust-large": 47,
+      "inferred-robust-small": 282,
+      "inferred-robust-large": 48,
       "measured-small": 5,
+      "albedo-sensitive": 50,
       "measured-large": 11
     },
     "h22DiameterKm": {
@@ -85,8 +85,8 @@
     "albedoGrid": [
       {
         "albedo": 0.05,
-        "nominalCloseAtOrAbove140m": 124,
-        "robustCloseAtOrAbove140m": 111
+        "nominalCloseAtOrAbove140m": 122,
+        "robustCloseAtOrAbove140m": 109
       },
       {
         "albedo": 0.1,
@@ -105,8 +105,8 @@
       },
       {
         "albedo": 0.25,
-        "nominalCloseAtOrAbove140m": 60,
-        "robustCloseAtOrAbove140m": 58
+        "nominalCloseAtOrAbove140m": 61,
+        "robustCloseAtOrAbove140m": 59
       }
     ]
   },
@@ -117,5 +117,5 @@
     "The 0.05–0.25 albedo interval is a declared sensitivity bracket, not an object-level posterior.",
     "A row-limited, date-sorted response describes only the returned chronological prefix."
   ],
-  "inputSha256": "0a9deda5fe250c6335992578bb02a55781a5464925caf5120e268cc2afe6e1b3"
+  "inputSha256": "e591c822fb70d17b7e5224484c280e2724a59fc3177c0918adce5566d7c182a3"
 }

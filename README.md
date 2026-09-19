@@ -126,7 +126,7 @@ Current features include a row-limited, coverage-explicit JPL close-approach
 snapshot, miss-distance visualisation, relative velocity estimates, measured or
 H–albedo-derived diameter information, encounter-screen filtering, timeline
 analytics, and interstellar visitor records. The query requests dates through
-2050, but the committed date-sorted 7,500-row response ends in July 2030; the
+2050, but the committed date-sorted 7,500-row response ends on 15 July 2030; the
 interface and research audit expose that truncation rather than implying full
 2050 coverage.
 
@@ -134,12 +134,12 @@ Risk indicators are visual prioritisation tools and should not be interpreted as
 
 ### Reproducible encounter-sensitivity result
 
-The committed JPL CAD response contains 7,500 of 39,471 matching, date-sorted
-rows (19.0%) and ends on 10 July 2030. Only 233 rows (3.1%) contain a measured
-diameter. Of 590 nominal encounters at or within 0.05 AU, 397 remain inside the
-boundary at the reported 3σ maximum distance and 193 cross the boundary within
-the interval. Among those 590 nominal-close rows, 60 are robustly at least 140 m,
-64 change size class over the declared albedo interval 0.05–0.25, and 466 are
+The committed JPL CAD response contains 7,500 of 39,427 matching, date-sorted
+rows (19.0%) and ends on 15 July 2030. Only 235 rows (3.1%) contain a measured
+diameter. Of 586 nominal encounters at or within 0.05 AU, 396 remain inside the
+boundary at the reported 3σ maximum distance and 190 cross the boundary within
+the interval. Among those 586 nominal-close rows, 61 are robustly at least 140 m,
+61 change size class over the declared albedo interval 0.05–0.25, and 464 are
 robustly smaller. These are encounter-screen results, not PHA classifications or
 impact probabilities. See the [method and claim boundary](docs/NEO_ENCOUNTER_SENSITIVITY.md).
 

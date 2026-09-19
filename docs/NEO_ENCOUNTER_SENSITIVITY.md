@@ -19,9 +19,9 @@ object's Earth minimum orbit intersection distance (MOID).
 - Source: NASA/JPL SBDB Close Approach Data API, signature version 1.5
 - Query: Earth encounters from 2026-08-13 through 2050-12-31, `dist-max=0.3`,
   date sorted, `limit=7500`, full names and diameters requested
-- Input SHA-256: `0a9deda5fe250c6335992578bb02a55781a5464925caf5120e268cc2afe6e1b3`
-- Returned: 7,500 of 39,471 matching rows (19.0%)
-- Returned chronological coverage: 2026-Aug-13 through 2030-Jul-10
+- Input SHA-256: `e591c822fb70d17b7e5224484c280e2724a59fc3177c0918adce5566d7c182a3`
+- Returned: 7,500 of 39,427 matching rows (19.0%)
+- Returned chronological coverage: 2026-Aug-21 through 2030-Jul-15
 
 The parser requires the fields used by the calculation and checks the API
 signature. A schema change fails closed. Missing and blank numeric values remain
@@ -51,23 +51,23 @@ inferred-robust-large, inferred-robust-small, albedo-sensitive, or unknown.
 
 | Quantity | Result |
 | --- | ---: |
-| Measured diameters | 233 / 7,500 (3.1%) |
-| H-derived diameter intervals | 7,265 |
+| Measured diameters | 235 / 7,500 (3.1%) |
+| H-derived diameter intervals | 7,263 |
 | Unknown size | 2 |
-| Nominal distance ≤0.05 AU | 590 |
-| Robust close at reported 3σ maximum | 397 |
-| Nominal-close but boundary-sensitive | 193 |
+| Nominal distance ≤0.05 AU | 586 |
+| Robust close at reported 3σ maximum | 396 |
+| Nominal-close but boundary-sensitive | 190 |
 | Nominal-outside but could cross boundary | 327 |
-| All distance-boundary-sensitive rows | 520 |
+| All distance-boundary-sensitive rows | 517 |
 
-Among the 590 nominal-close rows, 60 are robustly at least 140 m, 64 change
-class across the declared albedo bracket, and 466 are robustly smaller. For
+Among the 586 nominal-close rows, 61 are robustly at least 140 m, 61 change
+class across the declared albedo bracket, and 464 are robustly smaller. For
 `H=22`, inferred diameter ranges from 105.8 m at `pV=0.25` to 236.6 m at
 `pV=0.05`; the reference `pV=0.14` result is 141.4 m.
 
-The nominal-close count at or above 140 m changes from 124 to 60 across the
+The nominal-close count at or above 140 m changes from 122 to 61 across the
 albedo grid. Requiring the reported 3σ maximum distance to remain within
-0.05 AU changes that range to 111–58.
+0.05 AU changes that range to 109–59.
 
 ## Outputs
 

@@ -1,7 +1,7 @@
 # Limitations and responsible interpretation
 
-- The committed JPL CAD query is capped at 7,500 of 39,471 matching rows. Because
-  it is date sorted, it covers a chronological prefix ending in July 2030, not
+- The committed JPL CAD query is capped at 7,500 of 39,427 matching rows. Because
+  it is date sorted, it covers a chronological prefix ending on 15 July 2030, not
   every requested encounter through 2050.
 - JPL CAD distance limits are reported three-sigma close-approach bounds. This
   audit classifies interval overlap; it does not perform orbital covariance

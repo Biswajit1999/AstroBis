@@ -10,7 +10,7 @@ performance measurements.
 | --- | ---: | ---: | --- |
 | Numerical validity | 55 | 96 | Missing JPL diameters no longer become zero; parser fails closed |
 | Uncertainty treatment | 20 | 96 | 3σ distance and albedo sensitivity classes |
-| Coverage transparency | 28 | 98 | 7,500/39,471 and July 2030 endpoint exposed |
+| Coverage transparency | 28 | 98 | 7,500/39,427 and 15 July 2030 endpoint exposed |
 | Claim discipline | 50 | 98 | Encounter screen separated from MOID, PHA, and impact risk |
 | Reproducibility | 38 | 96 | Input hash plus deterministic JSON/CSV/SVG freshness check |
 | Automated verification | 10 | 94 | Six scientific tests, Astro check, full static build in CI |
