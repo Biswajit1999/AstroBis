@@ -18,6 +18,24 @@ const reportUrl = `${repoUrl}/blob/main/docs/AstroBis-Ecosystem-Report.md`;
 const currentPath = basePath && Astro.url.pathname.startsWith(basePath)
   ? Astro.url.pathname.slice(basePath.length) || '/'
   : Astro.url.pathname;
+const canonicalUrl = new URL(Astro.url.pathname, siteUrl).toString();
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  '@id': `${canonicalUrl}#application`,
+  name: `${title} | AstroBis`,
+  description,
+  url: canonicalUrl,
+  applicationCategory: 'EducationalApplication',
+  operatingSystem: 'Web browser',
+  codeRepository: repoUrl,
+  author: {
+    '@type': 'Person',
+    name: 'Biswajit Jana',
+    url: authorUrl,
+  },
+  keywords: ['astronomy', 'astrophysics', 'solar system', 'exoplanets', 'space data', 'scientific visualization'],
+};
 
 const navLinks = [
   { path: '/', label: 'Home' },
@@ -47,13 +65,14 @@ const externalLinks = [
   <meta name="description" content={description} />
   <meta name="author" content="Biswajit Jana" />
   <meta name="theme-color" content="#050816" />
-  <link rel="canonical" href={new URL(Astro.url.pathname, siteUrl).toString()} />
+  <link rel="canonical" href={canonicalUrl} />
   <meta property="og:title" content={`${title} | AstroBis`} />
   <meta property="og:description" content={description} />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content={new URL(Astro.url.pathname, siteUrl).toString()} />
+  <meta property="og:url" content={canonicalUrl} />
   <meta property="og:image" content={new URL(withBase('/assets/astrobis-banner.png'), siteUrl).toString()} />
   <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
   <title>{title} | AstroBis</title>
   <!-- Preload a nice font -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
